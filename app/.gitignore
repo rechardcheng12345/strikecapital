@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environment files
+# .env
+# .env.local
+# .env.production
+# .env.development.local
+# .env.test.local
+# .env.production.local
+# *.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+*.local
+.cache/
+tmp/
+temp/
+
+# TypeScript
+*.tsbuildinfo
+
+# Knex compiled migrations/seeds
+apps/api/migrations/*.js
+apps/api/migrations/*.d.ts
+apps/api/migrations/*.js.map
+apps/api/migrations/*.d.ts.map
+apps/api/seeds/*.js
+apps/api/seeds/*.d.ts
+apps/api/seeds/*.js.map
+apps/api/seeds/*.d.ts.map
+apps/api/uploads/*
+
+# Docker
+.docker/
+.claude/
+.claude-logs/

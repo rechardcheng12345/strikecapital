@@ -1,0 +1,36 @@
+{
+  "name": "strikecapital",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:api": "npm run dev -w @strikecapital/api",
+    "dev:frontend": "npm run dev -w @strikecapital/frontend",
+    "build": "npm run build --workspaces --if-present",
+    "build:api": "npm run build -w @strikecapital/api",
+    "build:frontend": "npm run build -w @strikecapital/frontend",
+    "build:staging": "npm run build:staging -w @strikecapital/frontend",
+    "build:staging:frontend": "npm run build:staging -w @strikecapital/frontend",
+    "build:production": "npm run build:api && npm run build:frontend",
+    "build:production:api": "npm run build -w @strikecapital/api",
+    "build:production:frontend": "npm run build -w @strikecapital/frontend",
+    "db:migrate": "npm run db:migrate -w @strikecapital/api",
+    "db:seed": "npm run db:seed -w @strikecapital/api",
+    "db:rollback": "npm run db:rollback -w @strikecapital/api",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.57.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

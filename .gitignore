@@ -1,0 +1,25 @@
+# Claude Code
+.claude/
+claude-logs/
+logs/
+CLAUDE.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment files
+.env
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.local
+.cache/
+tmp/
+temp/
