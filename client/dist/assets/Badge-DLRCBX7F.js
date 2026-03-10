@@ -1,0 +1,2 @@
+import{j as n}from"./index-C0N7LXgd.js";function a({children:e,variant:t="gray",className:r=""}){const l={gray:"bg-gray-100 text-gray-800",green:"bg-green-100 text-green-800",yellow:"bg-yellow-100 text-yellow-800",red:"bg-red-100 text-red-800",blue:"bg-blue-100 text-blue-800"};return n.jsx("span",{className:`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${l[t]} ${r}`,children:e})}export{a as B};
+//# sourceMappingURL=Badge-DLRCBX7F.js.map

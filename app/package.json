@@ -27,9 +27,6 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "dependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.57.1"
-  },
   "devDependencies": {
     "@playwright/test": "^1.58.2"
   }

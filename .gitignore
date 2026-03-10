@@ -23,3 +23,7 @@ Thumbs.db
 .cache/
 tmp/
 temp/
+
+
+server/node_modules
+client/node_modules
