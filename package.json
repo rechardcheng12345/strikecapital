@@ -5,17 +5,21 @@
   "type": "module",
   "main": "server/src/index.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "node --watch server/src/index.js",
-    "dev:client": "npm --prefix client run dev",
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "NODE_ENV=development nodemon server/src/index.js",
+    "server:prod": "NODE_ENV=production node server/src/index.js",
     "client": "cd client && npm start",
     "client:dev": "cd client && npm run dev",
     "client:build": "cd client && npm install && npm run build",
     "client:build:dev": "cd client && npm install && npm run build:dev",
     "client:build:prod": "cd client && npm install && npm run build:prod",
+    "build": "npm install && npm run build:prod",
+    "build:dev": "npm run client:build:dev",
+    "build:prod": "npm run client:build:prod",
+    "build-and-serve": "npm run build:prod && npm run server:prod",
     "start": "node server/src/index.js",
-    "build": "cd client && npm install && npm run build",
-    "preview": "cd client && npm run preview",
+    "start:prod": "NODE_ENV=production node server/src/index.js",
+    "install-all": "npm install && cd client && npm install",
     "db:migrate": "knex migrate:latest --knexfile server/knexfile.js",
     "db:migrate:make": "knex migrate:make --knexfile server/knexfile.js",
     "db:rollback": "knex migrate:rollback --knexfile server/knexfile.js",
@@ -46,7 +50,8 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "eslint": "^8.56.0"
+    "eslint": "^8.56.0",
+    "nodemon": "^3.0.1"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -13,8 +13,8 @@ const config = {
             host: process.env.DB_HOST || 'localhost',
             port: parseInt(process.env.DB_PORT || '3306'),
             database: process.env.DB_NAME || 'strikecapital',
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || 'root',
+            user: process.env.DB_USER || 'root123',
+            password: process.env.DB_PASSWORD || 'root321',
         },
         pool: {
             min: 2,
