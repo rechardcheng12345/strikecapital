@@ -26,12 +26,26 @@ if (!fs.existsSync(uploadsDir))
 const logsDir = path.join(process.cwd(), 'logs');
 if (!fs.existsSync(logsDir))
     fs.mkdirSync(logsDir, { recursive: true });
+// CORS
+const corsOrigins = env.corsOrigins.split(',').map(o => o.trim());
+console.log(`CORS Origins: ${corsOrigins.join(', ')}`);
+const corsOptions = {
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        if (corsOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.log(`CORS blocked origin: ${origin}`);
+            callback(new Error(`Not allowed by CORS: ${origin}`));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+};
 // Middleware
 app.use(helmet());
-app.use(cors({
-    origin: env.frontendUrl,
-    credentials: true,
-}));
+app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
