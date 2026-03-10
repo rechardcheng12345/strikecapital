@@ -2,10 +2,12 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const NODE_ENV = process.env.NODE_ENV || 'development';
-const envFile = NODE_ENV === 'production' ? '.env.production' : '.env';
-dotenv.config({ path: path.resolve(__dirname, '../../../..', envFile) });
+// const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const NODE_ENV = process.env.NODE_ENV || "development";
+const envFile = NODE_ENV === 'production' ? '.env.production' : `.env.${NODE_ENV}`;
+require('dotenv').config({ path: envFile });
+
+// dotenv.config({ path: path.resolve(__dirname, '../../../..', envFile) });
 export const env = {
     nodeEnv: NODE_ENV,
     port: parseInt(process.env.PORT || '3000', 10),

@@ -8,6 +8,12 @@ export default defineConfig({
             '/api': {
                 target: 'http://localhost:3000',
                 changeOrigin: true,
+                secure: false,
+                configure: (proxy) => {
+                    proxy.on('error', (err) => {
+                        console.log('Proxy error:', err);
+                    });
+                },
             },
         },
     },
