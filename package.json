@@ -2,15 +2,46 @@
   "name": "strikecapital",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "main": "server/src/index.js",
   "scripts": {
-    "dev": "sh ./start-dev.sh",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "node --watch server/src/index.js",
     "dev:client": "npm --prefix client run dev",
-    "dev:server": "npm --prefix server run dev",
+    "start": "node server/src/index.js",
     "build": "npm --prefix client run build",
     "preview": "npm --prefix client run preview",
-    "db:migrate": "npm --prefix server run db:migrate",
-    "db:seed": "npm --prefix server run db:seed",
-    "db:rollback": "npm --prefix server run db:rollback"
+    "db:migrate": "knex migrate:latest --knexfile server/knexfile.js",
+    "db:migrate:make": "knex migrate:make --knexfile server/knexfile.js",
+    "db:rollback": "knex migrate:rollback --knexfile server/knexfile.js",
+    "db:seed": "knex seed:run --knexfile server/knexfile.js",
+    "db:seed:make": "knex seed:make --knexfile server/knexfile.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "knex": "^3.1.0",
+    "mime-types": "^2.1.35",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.12.0",
+    "nodemailer": "^6.9.8",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pdfkit": "^0.17.2",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.0",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "eslint": "^8.56.0"
   },
   "engines": {
     "node": ">=18.0.0"
