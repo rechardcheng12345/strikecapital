@@ -5,6 +5,9 @@ import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { env } from './config/env.js';
 import { swaggerSpec } from './config/swagger.js';
 import passport from './config/passport.js';
@@ -64,6 +67,15 @@ app.use('/api/investor', investorRoutes);
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+// Serve client build in production
+if (env.nodeEnv === 'production') {
+    const clientBuildPath = path.join(__dirname, '../../../client/dist');
+    app.use(express.static(clientBuildPath));
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(clientBuildPath, 'index.html'));
+    });
+    console.log(`Serving frontend from: ${clientBuildPath}`);
+}
 // Error handling
 app.use(notFoundHandler);
 app.use(errorHandler);
