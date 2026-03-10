@@ -1,5 +1,11 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const envFile = NODE_ENV === 'production' ? '.env.production' : '.env';
+dotenv.config({ path: path.resolve(__dirname, '..', envFile) });
 const config = {
     development: {
         client: 'mysql2',
@@ -24,7 +30,13 @@ const config = {
     },
     production: {
         client: 'mysql2',
-        connection: process.env.DATABASE_URL,
+        connection: {
+            host: process.env.DB_HOST,
+            port: parseInt(process.env.DB_PORT || '3306'),
+            database: process.env.DB_NAME,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+        },
         pool: {
             min: 2,
             max: 10,
