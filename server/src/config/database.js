@@ -2,12 +2,12 @@ import knex from 'knex';
 import { env } from './env.js';
 const knexConfig = {
     client: 'mysql2',
-    connection: env.databaseUrl || {
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '3306'),
-        database: process.env.DB_NAME || 'strikecapital',
-        user: process.env.DB_USER || 'root',
-        password: process.env.DB_PASSWORD || 'root',
+    connection: {
+        host:     env.dbHost,
+        port:     env.dbPort,
+        database: env.dbName,
+        user:     env.dbUser,
+        password: env.dbPassword,
     },
     pool: {
         min: 2,
