@@ -15,6 +15,7 @@ const RiskDashboardPage = lazy(() => import('./pages/admin/RiskDashboardPage').t
 const AuditTrailPage = lazy(() => import('./pages/admin/AuditTrailPage').then(m => ({ default: m.AuditTrailPage })));
 const AnnouncementsPage = lazy(() => import('./pages/admin/AnnouncementsPage').then(m => ({ default: m.AnnouncementsPage })));
 const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage').then(m => ({ default: m.AdminSettingsPage })));
+const AccountFundsPage = lazy(() => import('./pages/admin/AccountFundsPage').then(m => ({ default: m.AccountFundsPage })));
 // Lazy load investor pages
 const InvestorDashboardPage = lazy(() => import('./pages/investor/InvestorDashboardPage').then(m => ({ default: m.InvestorDashboardPage })));
 const InvestorPositionsPage = lazy(() => import('./pages/investor/InvestorPositionsPage').then(m => ({ default: m.InvestorPositionsPage })));
@@ -54,6 +55,7 @@ function App() {
           <Route path="/admin/risk" element={<Suspense fallback={<PageLoader />}><RiskDashboardPage /></Suspense>}/>
           <Route path="/admin/audit" element={<Suspense fallback={<PageLoader />}><AuditTrailPage /></Suspense>}/>
           <Route path="/admin/announcements" element={<Suspense fallback={<PageLoader />}><AnnouncementsPage /></Suspense>}/>
+          <Route path="/admin/funds" element={<Suspense fallback={<PageLoader />}><AccountFundsPage /></Suspense>}/>
           <Route path="/admin/settings" element={<Suspense fallback={<PageLoader />}><AdminSettingsPage /></Suspense>}/>
         </Route>
 

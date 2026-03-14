@@ -39,6 +39,10 @@ async function build() {
         path.join(protoDir, 'Qot_GetOptionChain.proto'),
         path.join(protoDir, 'Qot_GetSecuritySnapshot.proto'),
         path.join(protoDir, 'Qot_GetOptionExpirationDate.proto'),
+        path.join(protoDir, 'Trd_Common.proto'),
+        path.join(protoDir, 'Trd_GetAccList.proto'),
+        path.join(protoDir, 'Trd_GetFunds.proto'),
+        path.join(protoDir, 'Trd_UnlockTrade.proto'),
     ]);
 
     const protoJson = JSON.stringify(root.toJSON());

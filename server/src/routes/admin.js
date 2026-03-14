@@ -10,6 +10,7 @@ import { logAudit } from '../services/auditLogger.js';
 import { getCapitalUtilization, getTickerConcentration, getDistanceToStrikeDistribution } from '../services/riskMetrics.js';
 import { notifyAllInvestors } from '../services/notificationEngine.js';
 import { insertAndFetch, updateAndFetch } from '../utils/dbHelpers.js';
+import { getAccountFunds, getAccList } from '../services/moomooService.js';
 const router = Router();
 // All admin routes require authentication + admin role
 router.use(authenticate, requireAdmin);
@@ -676,4 +677,125 @@ router.get('/export/positions', async (req, res, next) => {
         next(error);
     }
 });
+
+// ─── Moomoo Account Funds ────────────────────────────────────
+function fundsToDbRow(funds) {
+    return {
+        acc_id: funds.accID || '',
+        trd_market: funds.trdMarket ?? null,
+        power: funds.power ?? 0,
+        total_assets: funds.totalAssets ?? 0,
+        cash: funds.cash ?? 0,
+        market_val: funds.marketVal ?? 0,
+        frozen_cash: funds.frozenCash ?? 0,
+        debt_cash: funds.debtCash ?? 0,
+        avl_withdrawal_cash: funds.avlWithdrawalCash ?? 0,
+        max_power_short: funds.maxPowerShort ?? null,
+        net_cash_power: funds.netCashPower ?? null,
+        long_mv: funds.longMv ?? null,
+        short_mv: funds.shortMv ?? null,
+        pending_asset: funds.pendingAsset ?? null,
+        max_withdrawal: funds.maxWithdrawal ?? null,
+        risk_level: funds.riskLevel ?? null,
+        risk_status: funds.riskStatus ?? null,
+        margin_call_margin: funds.marginCallMargin ?? null,
+        unrealized_pl: funds.unrealizedPL ?? null,
+        realized_pl: funds.realizedPL ?? null,
+        initial_margin: funds.initialMargin ?? null,
+        maintenance_margin: funds.maintenanceMargin ?? null,
+        is_pdt: funds.isPdt ?? false,
+        pdt_seq: funds.pdtSeq ?? null,
+        beginning_dtbp: funds.beginningDTBP ?? null,
+        remaining_dtbp: funds.remainingDTBP ?? null,
+        dt_call_amount: funds.dtCallAmount ?? null,
+        dt_status: funds.dtStatus ?? null,
+        securities_assets: funds.securitiesAssets ?? null,
+        fund_assets: funds.fundAssets ?? null,
+        bond_assets: funds.bondAssets ?? null,
+        currency: funds.currency ?? null,
+        fetched_at: new Date(funds.fetchedAt || Date.now()),
+    };
+}
+
+function dbRowToFunds(row) {
+    return {
+        accID: row.acc_id,
+        trdMarket: row.trd_market,
+        power: parseFloat(row.power) || 0,
+        totalAssets: parseFloat(row.total_assets) || 0,
+        cash: parseFloat(row.cash) || 0,
+        marketVal: parseFloat(row.market_val) || 0,
+        frozenCash: parseFloat(row.frozen_cash) || 0,
+        debtCash: parseFloat(row.debt_cash) || 0,
+        avlWithdrawalCash: parseFloat(row.avl_withdrawal_cash) || 0,
+        maxPowerShort: row.max_power_short != null ? parseFloat(row.max_power_short) : null,
+        netCashPower: row.net_cash_power != null ? parseFloat(row.net_cash_power) : null,
+        longMv: row.long_mv != null ? parseFloat(row.long_mv) : null,
+        shortMv: row.short_mv != null ? parseFloat(row.short_mv) : null,
+        pendingAsset: row.pending_asset != null ? parseFloat(row.pending_asset) : null,
+        maxWithdrawal: row.max_withdrawal != null ? parseFloat(row.max_withdrawal) : null,
+        riskLevel: row.risk_level,
+        riskStatus: row.risk_status,
+        marginCallMargin: row.margin_call_margin != null ? parseFloat(row.margin_call_margin) : null,
+        unrealizedPL: row.unrealized_pl != null ? parseFloat(row.unrealized_pl) : null,
+        realizedPL: row.realized_pl != null ? parseFloat(row.realized_pl) : null,
+        initialMargin: row.initial_margin != null ? parseFloat(row.initial_margin) : null,
+        maintenanceMargin: row.maintenance_margin != null ? parseFloat(row.maintenance_margin) : null,
+        isPdt: !!row.is_pdt,
+        pdtSeq: row.pdt_seq,
+        beginningDTBP: row.beginning_dtbp != null ? parseFloat(row.beginning_dtbp) : null,
+        remainingDTBP: row.remaining_dtbp != null ? parseFloat(row.remaining_dtbp) : null,
+        dtCallAmount: row.dt_call_amount != null ? parseFloat(row.dt_call_amount) : null,
+        dtStatus: row.dt_status,
+        securitiesAssets: row.securities_assets != null ? parseFloat(row.securities_assets) : null,
+        fundAssets: row.fund_assets != null ? parseFloat(row.fund_assets) : null,
+        bondAssets: row.bond_assets != null ? parseFloat(row.bond_assets) : null,
+        currency: row.currency,
+        fetchedAt: row.fetched_at ? new Date(row.fetched_at).toISOString() : null,
+        source: 'cached',
+    };
+}
+
+router.get('/moomoo/funds', async (req, res, next) => {
+    try {
+        // Try live API first
+        const funds = await getAccountFunds();
+        if (funds) {
+            // Save to DB
+            const dbRow = fundsToDbRow(funds);
+            try {
+                const existing = await db('account_funds_cache').where('acc_id', funds.accID).first();
+                if (existing) {
+                    await db('account_funds_cache').where('acc_id', funds.accID).update(dbRow);
+                } else {
+                    await db('account_funds_cache').insert(dbRow);
+                }
+            } catch (err) {
+                console.warn('[Admin] Failed to cache account funds:', err.message);
+            }
+            return res.json({ ...funds, source: 'live' });
+        }
+
+        // Fallback: read from DB cache
+        const cached = await db('account_funds_cache').orderBy('fetched_at', 'desc').first();
+        if (cached) {
+            console.log('[Admin] Returning cached account funds');
+            return res.json(dbRowToFunds(cached));
+        }
+
+        throw new AppError('Could not fetch account funds. Moomoo OpenD unavailable and no cached data.', 503);
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.get('/moomoo/accounts', async (req, res, next) => {
+    try {
+        const accounts = await getAccList();
+        res.json({ accounts });
+    } catch (error) {
+        next(error);
+    }
+});
+
 export default router;

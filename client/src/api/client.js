@@ -136,6 +136,9 @@ export const fundApi = {
 export const adminApi = {
     getDashboardStats: () => api.get('/admin/dashboard/stats'),
     getInvestorView: () => api.get('/admin/dashboard/investor-view'),
+    // Moomoo
+    getMoomooFunds: () => api.get('/admin/moomoo/funds'),
+    getMoomooAccounts: () => api.get('/admin/moomoo/accounts'),
     // Investors
     getInvestors: (page = 1, limit = 20, search) => api.get(`/admin/investors?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
     getInvestor: (id) => api.get(`/admin/investors/${id}`),

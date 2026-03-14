@@ -15,6 +15,7 @@ import fs from 'fs';
 import net from 'net';
 import crypto from 'crypto';
 import protobuf from 'protobufjs';
+import Long from 'long';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import knex from 'knex';
@@ -41,6 +42,11 @@ const config = {
     moomoo: {
         host: process.env.MOOMOO_OPEND_HOST || '127.0.0.1',
         port: parseInt(process.env.MOOMOO_OPEND_PORT || '11111'),
+        accountId: process.env.MOOMOO_ACCOUNT_ID || '',
+        tradePwdMd5: process.env.MOOMOO_TRADE_PWD_MD5 || '',
+        securityFirm: parseInt(process.env.MOOMOO_SECURITY_FIRM || '3'),
+        trdMarket: parseInt(process.env.MOOMOO_TRD_MARKET || '2'),
+        currency: parseInt(process.env.MOOMOO_CURRENCY || '2'),
     },
     refreshIntervalMinutes: parseInt(process.env.REFRESH_INTERVAL_MINUTES || '5'),
 };
@@ -58,6 +64,8 @@ const PROTO_ID_INIT_CONNECT = 1001;
 const PROTO_ID_GET_OPTION_CHAIN = 3209;
 const PROTO_ID_GET_SECURITY_SNAPSHOT = 3203;
 const PROTO_ID_GET_OPTION_EXPIRY = 3224;
+const PROTO_ID_UNLOCK_TRADE = 2005;
+const PROTO_ID_GET_FUNDS = 2101;
 
 let socket = null;
 let connected = false;
@@ -83,6 +91,10 @@ async function loadProtos() {
         path.join(PROTO_DIR, 'Qot_GetOptionChain.proto'),
         path.join(PROTO_DIR, 'Qot_GetSecuritySnapshot.proto'),
         path.join(PROTO_DIR, 'Qot_GetOptionExpirationDate.proto'),
+        path.join(PROTO_DIR, 'Trd_Common.proto'),
+        path.join(PROTO_DIR, 'Trd_GetAccList.proto'),
+        path.join(PROTO_DIR, 'Trd_GetFunds.proto'),
+        path.join(PROTO_DIR, 'Trd_UnlockTrade.proto'),
     ]);
     return protoRoot;
 }
@@ -382,6 +394,128 @@ async function refreshStockPrices() {
     }
 }
 
+// ─── Account Funds (Trade API) ──────────────────────────
+let tradeUnlockedFirms = new Set();
+
+async function unlockTrade(securityFirm) {
+    if (tradeUnlockedFirms.has(securityFirm)) return true;
+    if (!config.moomoo.tradePwdMd5) {
+        log('MOOMOO_TRADE_PWD_MD5 not configured, skipping unlock', 'WARN');
+        return false;
+    }
+    const c2s = { unlock: true, pwdMD5: config.moomoo.tradePwdMd5 };
+    if (securityFirm) c2s.securityFirm = securityFirm;
+
+    const Req = protoRoot.lookupType('Trd_UnlockTrade.Request');
+    const body = Req.encode(Req.create({ c2s })).finish();
+    const resp = await sendRequest(PROTO_ID_UNLOCK_TRADE, body);
+    const Resp = protoRoot.lookupType('Trd_UnlockTrade.Response');
+    const result = Resp.decode(resp);
+
+    if (result.retType !== 0) {
+        log(`UnlockTrade(firm=${securityFirm}) failed: ${result.retMsg}`, 'WARN');
+        return false;
+    }
+    tradeUnlockedFirms.add(securityFirm);
+    log(`Trade unlocked for securityFirm=${securityFirm}`);
+    return true;
+}
+
+async function tryGetFunds(accID, trdMarket, currency) {
+    const accIDLong = typeof accID === 'string' ? Long.fromString(accID, true) : Long.fromNumber(accID, true);
+    const c2s = {
+        header: { trdEnv: 1, accID: accIDLong, trdMarket },
+        refreshCache: true,
+    };
+    if (currency) c2s.currency = currency;
+
+    const Req = protoRoot.lookupType('Trd_GetFunds.Request');
+    const body = Req.encode(Req.create({ c2s })).finish();
+    const resp = await sendRequest(PROTO_ID_GET_FUNDS, body);
+    const Resp = protoRoot.lookupType('Trd_GetFunds.Response');
+    const result = Resp.decode(resp);
+
+    if (result.retType !== 0) {
+        log(`GetFunds(accID=${accID}, market=${trdMarket}) failed: ${result.retMsg}`, 'WARN');
+        return null;
+    }
+    return result.s2c?.funds || null;
+}
+
+function fundsToDbRow(funds, accID) {
+    return {
+        acc_id: accID,
+        trd_market: config.moomoo.trdMarket,
+        power: funds.power ?? 0,
+        total_assets: funds.totalAssets ?? 0,
+        cash: funds.cash ?? 0,
+        market_val: funds.marketVal ?? 0,
+        frozen_cash: funds.frozenCash ?? 0,
+        debt_cash: funds.debtCash ?? 0,
+        avl_withdrawal_cash: funds.avlWithdrawalCash ?? 0,
+        max_power_short: funds.maxPowerShort ?? null,
+        net_cash_power: funds.netCashPower ?? null,
+        long_mv: funds.longMv ?? null,
+        short_mv: funds.shortMv ?? null,
+        pending_asset: funds.pendingAsset ?? null,
+        max_withdrawal: funds.maxWithdrawal ?? null,
+        risk_level: funds.riskLevel ?? null,
+        risk_status: funds.riskStatus ?? null,
+        margin_call_margin: funds.marginCallMargin ?? null,
+        unrealized_pl: funds.unrealizedPL ?? null,
+        realized_pl: funds.realizedPL ?? null,
+        initial_margin: funds.initialMargin ?? null,
+        maintenance_margin: funds.maintenanceMargin ?? null,
+        is_pdt: funds.isPdt ?? false,
+        pdt_seq: funds.pdtSeq ?? null,
+        beginning_dtbp: funds.beginningDTBP ?? null,
+        remaining_dtbp: funds.remainingDTBP ?? null,
+        dt_call_amount: funds.dtCallAmount ?? null,
+        dt_status: funds.dtStatus ?? null,
+        securities_assets: funds.securitiesAssets ?? null,
+        fund_assets: funds.fundAssets ?? null,
+        bond_assets: funds.bondAssets ?? null,
+        currency: funds.currency ?? null,
+        fetched_at: new Date(),
+    };
+}
+
+async function refreshAccountFunds() {
+    if (!config.moomoo.accountId) {
+        log('MOOMOO_ACCOUNT_ID not configured, skipping funds refresh', 'WARN');
+        return;
+    }
+
+    log('Fetching account funds...');
+    const isConnected = await connectToOpenD();
+    if (!isConnected) {
+        log('Cannot fetch funds: OpenD not available', 'WARN');
+        return;
+    }
+
+    await unlockTrade(config.moomoo.securityFirm);
+
+    const funds = await tryGetFunds(config.moomoo.accountId, config.moomoo.trdMarket, config.moomoo.currency);
+    if (!funds) {
+        log('GetFunds returned no data', 'WARN');
+        return;
+    }
+
+    const dbRow = fundsToDbRow(funds, config.moomoo.accountId);
+    try {
+        const existing = await db('account_funds_cache').where('acc_id', config.moomoo.accountId).first();
+        if (existing) {
+            await db('account_funds_cache').where('acc_id', config.moomoo.accountId).update(dbRow);
+        } else {
+            await db('account_funds_cache').insert(dbRow);
+        }
+    } catch (err) {
+        log(`Failed to save account funds to DB: ${err.message}`, 'WARN');
+    }
+
+    log(`  Account funds: totalAssets=$${(funds.totalAssets ?? 0).toFixed(2)}, cash=$${(funds.cash ?? 0).toFixed(2)}, power=$${(funds.power ?? 0).toFixed(2)}`);
+}
+
 // ─── Main Refresh Logic ────────────────────────────────
 async function refreshPrices() {
     log('Starting price refresh...');
@@ -584,6 +718,13 @@ async function runOnce() {
     } catch (err) {
         log(`Option price refresh failed: ${err.message}`, 'ERROR');
     }
+    // 3. Fetch account funds from Moomoo OpenD (Trade API)
+    try {
+        await refreshAccountFunds();
+    } catch (err) {
+        log(`Account funds refresh failed: ${err.message}`, 'ERROR');
+    }
+
     // Clear expiry cache between runs so it stays fresh
     expiryCache.clear();
 }

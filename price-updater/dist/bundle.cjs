@@ -1,5 +1,5 @@
 // StrikeCapital Price Updater - Built 2026-03-14
-globalThis.__PROTO_BUNDLE__ = {"nested":{"Common":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/common"},"nested":{"RetType":{"edition":"proto2","values":{"RetType_Succeed":0,"RetType_Failed":-1,"RetType_TimeOut":-100,"RetType_DisConnect":-200,"RetType_Unknown":-400,"RetType_Invalid":-500}},"PacketEncAlgo":{"edition":"proto2","values":{"PacketEncAlgo_FTAES_ECB":0,"PacketEncAlgo_None":-1,"PacketEncAlgo_AES_ECB":1,"PacketEncAlgo_AES_CBC":2}},"PacketID":{"edition":"proto2","fields":{"connID":{"rule":"required","type":"uint64","id":1},"serialNo":{"rule":"required","type":"uint32","id":2}}},"ProtoFmt":{"edition":"proto2","values":{"ProtoFmt_Protobuf":0,"ProtoFmt_Json":1}},"UserAttribution":{"edition":"proto2","values":{"UserAttribution_Unknown":0,"UserAttribution_NN":1,"UserAttribution_MM":2,"UserAttribution_SG":3,"UserAttribution_AU":4,"UserAttribution_JP":5,"UserAttribution_HK":6}},"ProgramStatusType":{"edition":"proto2","values":{"ProgramStatusType_None":0,"ProgramStatusType_Loaded":1,"ProgramStatusType_Loging":2,"ProgramStatusType_NeedPicVerifyCode":3,"ProgramStatusType_NeedPhoneVerifyCode":4,"ProgramStatusType_LoginFailed":5,"ProgramStatusType_ForceUpdate":6,"ProgramStatusType_NessaryDataPreparing":7,"ProgramStatusType_NessaryDataMissing":8,"ProgramStatusType_UnAgreeDisclaimer":9,"ProgramStatusType_Ready":10,"ProgramStatusType_ForceLogout":11,"ProgramStatusType_DisclaimerPullFailed":12}},"ProgramStatus":{"edition":"proto2","fields":{"type":{"rule":"required","type":"ProgramStatusType","id":1},"strExtDesc":{"type":"string","id":2}}},"Session":{"edition":"proto2","values":{"Session_NONE":0,"Session_RTH":1,"Session_ETH":2,"Session_ALL":3,"Session_OVERNIGHT":4}}}},"Qot_GetOptionChain":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/qotgetoptionchain"},"nested":{"OptionCondType":{"edition":"proto2","values":{"OptionCondType_Unknow":0,"OptionCondType_WithIn":1,"OptionCondType_Outside":2}},"DataFilter":{"edition":"proto2","fields":{"impliedVolatilityMin":{"type":"double","id":1},"impliedVolatilityMax":{"type":"double","id":2},"deltaMin":{"type":"double","id":3},"deltaMax":{"type":"double","id":4},"gammaMin":{"type":"double","id":5},"gammaMax":{"type":"double","id":6},"vegaMin":{"type":"double","id":7},"vegaMax":{"type":"double","id":8},"thetaMin":{"type":"double","id":9},"thetaMax":{"type":"double","id":10},"rhoMin":{"type":"double","id":11},"rhoMax":{"type":"double","id":12},"netOpenInterestMin":{"type":"double","id":13},"netOpenInterestMax":{"type":"double","id":14},"openInterestMin":{"type":"double","id":15},"openInterestMax":{"type":"double","id":16},"volMin":{"type":"double","id":17},"volMax":{"type":"double","id":18}}},"C2S":{"edition":"proto2","fields":{"owner":{"rule":"required","type":"Qot_Common.Security","id":1},"indexOptionType":{"type":"int32","id":6},"type":{"type":"int32","id":2},"condition":{"type":"int32","id":3},"beginTime":{"rule":"required","type":"string","id":4},"endTime":{"rule":"required","type":"string","id":5},"dataFilter":{"type":"DataFilter","id":7}}},"OptionItem":{"edition":"proto2","fields":{"call":{"type":"Qot_Common.SecurityStaticInfo","id":1},"put":{"type":"Qot_Common.SecurityStaticInfo","id":2}}},"OptionChain":{"edition":"proto2","fields":{"strikeTime":{"rule":"required","type":"string","id":1},"option":{"rule":"repeated","type":"OptionItem","id":2},"strikeTimestamp":{"type":"double","id":3}}},"S2C":{"edition":"proto2","fields":{"optionChain":{"rule":"repeated","type":"OptionChain","id":1}}},"Request":{"edition":"proto2","fields":{"c2s":{"rule":"required","type":"C2S","id":1}}},"Response":{"edition":"proto2","fields":{"retType":{"rule":"required","type":"int32","id":1,"options":{"default":-400}},"retMsg":{"type":"string","id":2},"errCode":{"type":"int32","id":3},"s2c":{"type":"S2C","id":4}}}}},"Qot_Common":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/qotcommon"},"nested":{"QotMarket":{"edition":"proto2","values":{"QotMarket_Unknown":0,"QotMarket_HK_Security":1,"QotMarket_HK_Future":2,"QotMarket_US_Security":11,"QotMarket_CNSH_Security":21,"QotMarket_CNSZ_Security":22,"QotMarket_SG_Security":31,"QotMarket_JP_Security":41,"QotMarket_AU_Security":51,"QotMarket_MY_Security":61,"QotMarket_CA_Security":71,"QotMarket_FX_Security":81}},"SecurityType":{"edition":"proto2","values":{"SecurityType_Unknown":0,"SecurityType_Bond":1,"SecurityType_Bwrt":2,"SecurityType_Eqty":3,"SecurityType_Trust":4,"SecurityType_Warrant":5,"SecurityType_Index":6,"SecurityType_Plate":7,"SecurityType_Drvt":8,"SecurityType_PlateSet":9,"SecurityType_Future":10,"SecurityType_Forex":11,"SecurityType_WealthManageFund":12,"SecurityType_ExchangeFund":13,"SecurityType_Crypto":14,"SecurityType_OTCBond":15,"SecurityType_OTCStructNotes":16}},"PlateSetType":{"edition":"proto2","values":{"PlateSetType_All":0,"PlateSetType_Industry":1,"PlateSetType_Region":2,"PlateSetType_Concept":3,"PlateSetType_Other":4}},"WarrantType":{"edition":"proto2","values":{"WarrantType_Unknown":0,"WarrantType_Buy":1,"WarrantType_Sell":2,"WarrantType_Bull":3,"WarrantType_Bear":4,"WarrantType_InLine":5}},"OptionType":{"edition":"proto2","values":{"OptionType_Unknown":0,"OptionType_Call":1,"OptionType_Put":2}},"IndexOptionType":{"edition":"proto2","values":{"IndexOptionType_Unknown":0,"IndexOptionType_Normal":1,"IndexOptionType_Small":2}},"OptionAreaType":{"edition":"proto2","values":{"OptionAreaType_Unknown":0,"OptionAreaType_American":1,"OptionAreaType_European":2,"OptionAreaType_Bermuda":3}},"QotMarketState":{"edition":"proto2","values":{"QotMarketState_None":0,"QotMarketState_Auction":1,"QotMarketState_WaitingOpen":2,"QotMarketState_Morning":3,"QotMarketState_Rest":4,"QotMarketState_Afternoon":5,"QotMarketState_Closed":6,"QotMarketState_PreMarketBegin":8,"QotMarketState_PreMarketEnd":9,"QotMarketState_AfterHoursBegin":10,"QotMarketState_AfterHoursEnd":11,"QotMarketState_FUTU_SWITCH_DATE":12,"QotMarketState_NightOpen":13,"QotMarketState_NightEnd":14,"QotMarketState_FutureDayOpen":15,"QotMarketState_FutureDayBreak":16,"QotMarketState_FutureDayClose":17,"QotMarketState_FutureDayWaitForOpen":18,"QotMarketState_HkCas":19,"QotMarketState_FutureNightWait":20,"QotMarketState_FutureAfternoon":21,"QotMarketState_FutureSwitchDate":22,"QotMarketState_FutureOpen":23,"QotMarketState_FutureBreak":24,"QotMarketState_FutureBreakOver":25,"QotMarketState_FutureClose":26,"QotMarketState_StibAfterHoursWait":27,"QotMarketState_StibAfterHoursBegin":28,"QotMarketState_StibAfterHoursEnd":29,"QotMarketState_CLOSE_AUCTION":30,"QotMarketState_AFTERNOON_END":31,"QotMarketState_NIGHT":32,"QotMarketState_OVERNIGHT_BEGIN":33,"QotMarketState_OVERNIGHT_END":34,"QotMarketState_TRADE_AT_LAST":35,"QotMarketState_TRADE_AUCTION":36,"QotMarketState_OVERNIGHT":37}},"TradeDateMarket":{"edition":"proto2","values":{"TradeDateMarket_Unknown":0,"TradeDateMarket_HK":1,"TradeDateMarket_US":2,"TradeDateMarket_CN":3,"TradeDateMarket_NT":4,"TradeDateMarket_ST":5,"TradeDateMarket_JP_Future":6,"TradeDateMarket_SG_Future":7}},"TradeDateType":{"edition":"proto2","values":{"TradeDateType_Whole":0,"TradeDateType_Morning":1,"TradeDateType_Afternoon":2}},"RehabType":{"edition":"proto2","values":{"RehabType_None":0,"RehabType_Forward":1,"RehabType_Backward":2}},"KLType":{"edition":"proto2","values":{"KLType_Unknown":0,"KLType_1Min":1,"KLType_Day":2,"KLType_Week":3,"KLType_Month":4,"KLType_Year":5,"KLType_5Min":6,"KLType_15Min":7,"KLType_30Min":8,"KLType_60Min":9,"KLType_3Min":10,"KLType_Quarter":11}},"KLFields":{"edition":"proto2","values":{"KLFields_None":0,"KLFields_High":1,"KLFields_Open":2,"KLFields_Low":4,"KLFields_Close":8,"KLFields_LastClose":16,"KLFields_Volume":32,"KLFields_Turnover":64,"KLFields_TurnoverRate":128,"KLFields_PE":256,"KLFields_ChangeRate":512}},"SubType":{"edition":"proto2","values":{"SubType_None":0,"SubType_Basic":1,"SubType_OrderBook":2,"SubType_Ticker":4,"SubType_RT":5,"SubType_KL_Day":6,"SubType_KL_5Min":7,"SubType_KL_15Min":8,"SubType_KL_30Min":9,"SubType_KL_60Min":10,"SubType_KL_1Min":11,"SubType_KL_Week":12,"SubType_KL_Month":13,"SubType_Broker":14,"SubType_KL_Qurater":15,"SubType_KL_Year":16,"SubType_KL_3Min":17}},"TickerDirection":{"edition":"proto2","values":{"TickerDirection_Unknown":0,"TickerDirection_Bid":1,"TickerDirection_Ask":2,"TickerDirection_Neutral":3}},"TickerType":{"edition":"proto2","values":{"TickerType_Unknown":0,"TickerType_Automatch":1,"TickerType_Late":2,"TickerType_NoneAutomatch":3,"TickerType_InterAutomatch":4,"TickerType_InterNoneAutomatch":5,"TickerType_OddLot":6,"TickerType_Auction":7,"TickerType_Bulk":8,"TickerType_Crash":9,"TickerType_CrossMarket":10,"TickerType_BulkSold":11,"TickerType_FreeOnBoard":12,"TickerType_Rule127Or155":13,"TickerType_Delay":14,"TickerType_MarketCenterClosePrice":15,"TickerType_NextDay":16,"TickerType_MarketCenterOpening":17,"TickerType_PriorReferencePrice":18,"TickerType_MarketCenterOpenPrice":19,"TickerType_Seller":20,"TickerType_T":21,"TickerType_ExtendedTradingHours":22,"TickerType_Contingent":23,"TickerType_AvgPrice":24,"TickerType_OTCSold":25,"TickerType_OddLotCrossMarket":26,"TickerType_DerivativelyPriced":27,"TickerType_ReOpeningPriced":28,"TickerType_ClosingPriced":29,"TickerType_ComprehensiveDelayPrice":30,"TickerType_Overseas":31}},"DarkStatus":{"edition":"proto2","values":{"DarkStatus_None":0,"DarkStatus_Trading":1,"DarkStatus_End":2}},"SecurityStatus":{"edition":"proto2","values":{"SecurityStatus_Unknown":0,"SecurityStatus_Normal":1,"SecurityStatus_Listing":2,"SecurityStatus_Purchasing":3,"SecurityStatus_Subscribing":4,"SecurityStatus_BeforeDrakTradeOpening":5,"SecurityStatus_DrakTrading":6,"SecurityStatus_DrakTradeEnd":7,"SecurityStatus_ToBeOpen":8,"SecurityStatus_Suspended":9,"SecurityStatus_Called":10,"SecurityStatus_ExpiredLastTradingDate":11,"SecurityStatus_Expired":12,"SecurityStatus_Delisted":13,"SecurityStatus_ChangeToTemporaryCode":14,"SecurityStatus_TemporaryCodeTradeEnd":15,"SecurityStatus_ChangedPlateTradeEnd":16,"SecurityStatus_ChangedCodeTradeEnd":17,"SecurityStatus_RecoverableCircuitBreaker":18,"SecurityStatus_UnRecoverableCircuitBreaker":19,"SecurityStatus_AfterCombination":20,"SecurityStatus_AfterTransation":21}},"HolderCategory":{"edition":"proto2","values":{"HolderCategory_Unknow":0,"HolderCategory_Agency":1,"HolderCategory_Fund":2,"HolderCategory_SeniorManager":3}},"PushDataType":{"edition":"proto2","values":{"PushDataType_Unknow":0,"PushDataType_Realtime":1,"PushDataType_ByDisConn":2,"PushDataType_Cache":3}},"SortField":{"edition":"proto2","values":{"SortField_Unknow":0,"SortField_Code":1,"SortField_CurPrice":2,"SortField_PriceChangeVal":3,"SortField_ChangeRate":4,"SortField_Status":5,"SortField_BidPrice":6,"SortField_AskPrice":7,"SortField_BidVol":8,"SortField_AskVol":9,"SortField_Volume":10,"SortField_Turnover":11,"SortField_Amplitude":30,"SortField_Score":12,"SortField_Premium":13,"SortField_EffectiveLeverage":14,"SortField_Delta":15,"SortField_ImpliedVolatility":16,"SortField_Type":17,"SortField_StrikePrice":18,"SortField_BreakEvenPoint":19,"SortField_MaturityTime":20,"SortField_ListTime":21,"SortField_LastTradeTime":22,"SortField_Leverage":23,"SortField_InOutMoney":24,"SortField_RecoveryPrice":25,"SortField_ChangePrice":26,"SortField_Change":27,"SortField_StreetRate":28,"SortField_StreetVol":29,"SortField_WarrantName":31,"SortField_Issuer":32,"SortField_LotSize":33,"SortField_IssueSize":34,"SortField_UpperStrikePrice":45,"SortField_LowerStrikePrice":46,"SortField_InLinePriceStatus":47,"SortField_PreCurPrice":35,"SortField_AfterCurPrice":36,"SortField_PrePriceChangeVal":37,"SortField_AfterPriceChangeVal":38,"SortField_PreChangeRate":39,"SortField_AfterChangeRate":40,"SortField_PreAmplitude":41,"SortField_AfterAmplitude":42,"SortField_PreTurnover":43,"SortField_AfterTurnover":44,"SortField_LastSettlePrice":48,"SortField_Position":49,"SortField_PositionChange":50}},"Issuer":{"edition":"proto2","values":{"Issuer_Unknow":0,"Issuer_SG":1,"Issuer_BP":2,"Issuer_CS":3,"Issuer_CT":4,"Issuer_EA":5,"Issuer_GS":6,"Issuer_HS":7,"Issuer_JP":8,"Issuer_MB":9,"Issuer_SC":10,"Issuer_UB":11,"Issuer_BI":12,"Issuer_DB":13,"Issuer_DC":14,"Issuer_ML":15,"Issuer_NM":16,"Issuer_RB":17,"Issuer_RS":18,"Issuer_BC":19,"Issuer_HT":20,"Issuer_VT":21,"Issuer_KC":22,"Issuer_MS":23,"Issuer_GJ":24,"Issuer_XZ":25,"Issuer_HU":26,"Issuer_KS":27,"Issuer_CI":28}},"IpoPeriod":{"edition":"proto2","values":{"IpoPeriod_Unknow":0,"IpoPeriod_Today":1,"IpoPeriod_Tomorrow":2,"IpoPeriod_Nextweek":3,"IpoPeriod_Lastweek":4,"IpoPeriod_Lastmonth":5}},"PriceType":{"edition":"proto2","values":{"PriceType_Unknow":0,"PriceType_Outside":1,"PriceType_WithIn":2}},"WarrantStatus":{"edition":"proto2","values":{"WarrantStatus_Unknow":0,"WarrantStatus_Normal":1,"WarrantStatus_Suspend":2,"WarrantStatus_StopTrade":3,"WarrantStatus_PendingListing":4}},"CompanyAct":{"edition":"proto2","values":{"CompanyAct_None":0,"CompanyAct_Split":1,"CompanyAct_Join":2,"CompanyAct_Bonus":4,"CompanyAct_Transfer":8,"CompanyAct_Allot":16,"CompanyAct_Add":32,"CompanyAct_Dividend":64,"CompanyAct_SPDividend":128,"CompanyAct_SpinOff":256}},"QotRight":{"edition":"proto2","values":{"QotRight_Unknow":0,"QotRight_Bmp":1,"QotRight_Level1":2,"QotRight_Level2":3,"QotRight_SF":4,"QotRight_No":5}},"PriceReminderType":{"edition":"proto2","values":{"PriceReminderType_Unknown":0,"PriceReminderType_PriceUp":1,"PriceReminderType_PriceDown":2,"PriceReminderType_ChangeRateUp":3,"PriceReminderType_ChangeRateDown":4,"PriceReminderType_5MinChangeRateUp":5,"PriceReminderType_5MinChangeRateDown":6,"PriceReminderType_VolumeUp":7,"PriceReminderType_TurnoverUp":8,"PriceReminderType_TurnoverRateUp":9,"PriceReminderType_BidPriceUp":10,"PriceReminderType_AskPriceDown":11,"PriceReminderType_BidVolUp":12,"PriceReminderType_AskVolUp":13,"PriceReminderType_3MinChangeRateUp":14,"PriceReminderType_3MinChangeRateDown":15}},"PriceReminderFreq":{"edition":"proto2","values":{"PriceReminderFreq_Unknown":0,"PriceReminderFreq_Always":1,"PriceReminderFreq_OnceADay":2,"PriceReminderFreq_OnlyOnce":3}},"AssetClass":{"edition":"proto2","values":{"AssetClass_Unknow":0,"AssetClass_Stock":1,"AssetClass_Bond":2,"AssetClass_Commodity":3,"AssetClass_CurrencyMarket":4,"AssetClass_Future":5,"AssetClass_Swap":6}},"ExpirationCycle":{"edition":"proto2","values":{"ExpirationCycle_Unknown":0,"ExpirationCycle_Week":1,"ExpirationCycle_Month":2,"ExpirationCycle_MonthEnd":3,"ExpirationCycle_Quarter":4,"ExpirationCycle_WeekMon":11,"ExpirationCycle_WeekTue":12,"ExpirationCycle_WeekWed":13,"ExpirationCycle_WeekThu":14,"ExpirationCycle_WeekFri":15}},"OptionStandardType":{"edition":"proto2","values":{"OptionStandardType_Unknown":0,"OptionStandardType_Standard":1,"OptionStandardType_NonStandard":2}},"OptionSettlementMode":{"edition":"proto2","values":{"OptionSettlementMode_Unknown":0,"OptionSettlementMode_AM":1,"OptionSettlementMode_PM":2}},"ExchType":{"edition":"proto2","values":{"ExchType_Unknown":0,"ExchType_HK_MainBoard":1,"ExchType_HK_GEMBoard":2,"ExchType_HK_HKEX":3,"ExchType_US_NYSE":4,"ExchType_US_Nasdaq":5,"ExchType_US_Pink":6,"ExchType_US_AMEX":7,"ExchType_US_Option":8,"ExchType_US_NYMEX":9,"ExchType_US_COMEX":10,"ExchType_US_CBOT":11,"ExchType_US_CME":12,"ExchType_US_CBOE":13,"ExchType_CN_SH":14,"ExchType_CN_SZ":15,"ExchType_CN_STIB":16,"ExchType_SG_SGX":17,"ExchType_JP_OSE":18}},"PeriodType":{"edition":"proto2","values":{"PeriodType_Unknown":0,"PeriodType_INTRADAY":1,"PeriodType_DAY":2,"PeriodType_WEEK":3,"PeriodType_MONTH":4}},"PriceReminderMarketStatus":{"edition":"proto2","values":{"PriceReminderMarketStatus_Unknow":0,"PriceReminderMarketStatus_Open":1,"PriceReminderMarketStatus_USPre":2,"PriceReminderMarketStatus_USAfter":3,"PriceReminderMarketStatus_USOverNight":4}},"Security":{"edition":"proto2","fields":{"market":{"rule":"required","type":"int32","id":1},"code":{"rule":"required","type":"string","id":2}}},"KLine":{"edition":"proto2","fields":{"time":{"rule":"required","type":"string","id":1},"isBlank":{"rule":"required","type":"bool","id":2},"highPrice":{"type":"double","id":3},"openPrice":{"type":"double","id":4},"lowPrice":{"type":"double","id":5},"closePrice":{"type":"double","id":6},"lastClosePrice":{"type":"double","id":7},"volume":{"type":"int64","id":8},"turnover":{"type":"double","id":9},"turnoverRate":{"type":"double","id":10},"pe":{"type":"double","id":11},"changeRate":{"type":"double","id":12},"timestamp":{"type":"double","id":13}}},"OptionBasicQotExData":{"edition":"proto2","fields":{"strikePrice":{"rule":"required","type":"double","id":1},"contractSize":{"rule":"required","type":"int32","id":2},"contractSizeFloat":{"type":"double","id":17},"openInterest":{"rule":"required","type":"int32","id":3},"impliedVolatility":{"rule":"required","type":"double","id":4},"premium":{"rule":"required","type":"double","id":5},"delta":{"rule":"required","type":"double","id":6},"gamma":{"rule":"required","type":"double","id":7},"vega":{"rule":"required","type":"double","id":8},"theta":{"rule":"required","type":"double","id":9},"rho":{"rule":"required","type":"double","id":10},"netOpenInterest":{"type":"int32","id":11},"expiryDateDistance":{"type":"int32","id":12},"contractNominalValue":{"type":"double","id":13},"ownerLotMultiplier":{"type":"double","id":14},"optionAreaType":{"type":"int32","id":15},"contractMultiplier":{"type":"double","id":16},"indexOptionType":{"type":"int32","id":18}}},"PreAfterMarketData":{"edition":"proto2","fields":{"price":{"type":"double","id":1},"highPrice":{"type":"double","id":2},"lowPrice":{"type":"double","id":3},"volume":{"type":"int64","id":4},"turnover":{"type":"double","id":5},"changeVal":{"type":"double","id":6},"changeRate":{"type":"double","id":7},"amplitude":{"type":"double","id":8}}},"FutureBasicQotExData":{"edition":"proto2","fields":{"lastSettlePrice":{"rule":"required","type":"double","id":1},"position":{"rule":"required","type":"int32","id":2},"positionChange":{"rule":"required","type":"int32","id":3},"expiryDateDistance":{"type":"int32","id":4}}},"WarrantBasicQotExData":{"edition":"proto2","fields":{"delta":{"type":"double","id":1},"impliedVolatility":{"type":"double","id":2},"premium":{"rule":"required","type":"double","id":3}}},"BasicQot":{"edition":"proto2","fields":{"security":{"rule":"required","type":"Security","id":1},"name":{"type":"string","id":24},"isSuspended":{"rule":"required","type":"bool","id":2},"listTime":{"rule":"required","type":"string","id":3},"priceSpread":{"rule":"required","type":"double","id":4},"updateTime":{"rule":"required","type":"string","id":5},"highPrice":{"rule":"required","type":"double","id":6},"openPrice":{"rule":"required","type":"double","id":7},"lowPrice":{"rule":"required","type":"double","id":8},"curPrice":{"rule":"required","type":"double","id":9},"lastClosePrice":{"rule":"required","type":"double","id":10},"volume":{"rule":"required","type":"int64","id":11},"turnover":{"rule":"required","type":"double","id":12},"turnoverRate":{"rule":"required","type":"double","id":13},"amplitude":{"rule":"required","type":"double","id":14},"darkStatus":{"type":"int32","id":15},"optionExData":{"type":"OptionBasicQotExData","id":16},"listTimestamp":{"type":"double","id":17},"updateTimestamp":{"type":"double","id":18},"preMarket":{"type":"PreAfterMarketData","id":19},"afterMarket":{"type":"PreAfterMarketData","id":20},"secStatus":{"type":"int32","id":21},"futureExData":{"type":"FutureBasicQotExData","id":22},"warrantExData":{"type":"WarrantBasicQotExData","id":23},"overnight":{"type":"PreAfterMarketData","id":25}}},"TimeShare":{"edition":"proto2","fields":{"time":{"rule":"required","type":"string","id":1},"minute":{"rule":"required","type":"int32","id":2},"isBlank":{"rule":"required","type":"bool","id":3},"price":{"type":"double","id":4},"lastClosePrice":{"type":"double","id":5},"avgPrice":{"type":"double","id":6},"volume":{"type":"int64","id":7},"turnover":{"type":"double","id":8},"timestamp":{"type":"double","id":9}}},"SecurityStaticBasic":{"edition":"proto2","fields":{"security":{"rule":"required","type":"Qot_Common.Security","id":1},"id":{"rule":"required","type":"int64","id":2},"lotSize":{"rule":"required","type":"int32","id":3},"secType":{"rule":"required","type":"int32","id":4},"name":{"rule":"required","type":"string","id":5},"listTime":{"rule":"required","type":"string","id":6},"delisting":{"type":"bool","id":7},"listTimestamp":{"type":"double","id":8},"exchType":{"type":"int32","id":9}}},"WarrantStaticExData":{"edition":"proto2","fields":{"type":{"rule":"required","type":"int32","id":1},"owner":{"rule":"required","type":"Qot_Common.Security","id":2}}},"OptionStaticExData":{"edition":"proto2","fields":{"type":{"rule":"required","type":"int32","id":1},"owner":{"rule":"required","type":"Qot_Common.Security","id":2},"strikeTime":{"rule":"required","type":"string","id":3},"strikePrice":{"rule":"required","type":"double","id":4},"suspend":{"rule":"required","type":"bool","id":5},"market":{"rule":"required","type":"string","id":6},"strikeTimestamp":{"type":"double","id":7},"indexOptionType":{"type":"int32","id":8},"expirationCycle":{"type":"int32","id":9},"optionStandardType":{"type":"int32","id":10},"optionSettlementMode":{"type":"int32","id":11}}},"FutureStaticExData":{"edition":"proto2","fields":{"lastTradeTime":{"rule":"required","type":"string","id":1},"lastTradeTimestamp":{"type":"double","id":2},"isMainContract":{"rule":"required","type":"bool","id":3}}},"SecurityStaticInfo":{"edition":"proto2","fields":{"basic":{"rule":"required","type":"SecurityStaticBasic","id":1},"warrantExData":{"type":"WarrantStaticExData","id":2},"optionExData":{"type":"OptionStaticExData","id":3},"futureExData":{"type":"FutureStaticExData","id":4}}},"Broker":{"edition":"proto2","fields":{"id":{"rule":"required","type":"int64","id":1},"name":{"rule":"required","type":"string","id":2},"pos":{"rule":"required","type":"int32","id":3},"orderID":{"type":"int64","id":4},"volume":{"type":"int64","id":5}}},"Ticker":{"edition":"proto2","fields":{"time":{"rule":"required","type":"string","id":1},"sequence":{"rule":"required","type":"int64","id":2},"dir":{"rule":"required","type":"int32","id":3},"price":{"rule":"required","type":"double","id":4},"volume":{"rule":"required","type":"int64","id":5},"turnover":{"rule":"required","type":"double","id":6},"recvTime":{"type":"double","id":7},"type":{"type":"int32","id":8},"typeSign":{"type":"int32","id":9},"pushDataType":{"type":"int32","id":10},"timestamp":{"type":"double","id":11}}},"OrderBookDetail":{"edition":"proto2","fields":{"orderID":{"rule":"required","type":"int64","id":1},"volume":{"rule":"required","type":"int64","id":2}}},"OrderBook":{"edition":"proto2","fields":{"price":{"rule":"required","type":"double","id":1},"volume":{"rule":"required","type":"int64","id":2},"orederCount":{"rule":"required","type":"int32","id":3},"detailList":{"rule":"repeated","type":"OrderBookDetail","id":4}}},"ShareHoldingChange":{"edition":"proto2","fields":{"holderName":{"rule":"required","type":"string","id":1},"holdingQty":{"rule":"required","type":"double","id":2},"holdingRatio":{"rule":"required","type":"double","id":3},"changeQty":{"rule":"required","type":"double","id":4},"changeRatio":{"rule":"required","type":"double","id":5},"time":{"rule":"required","type":"string","id":6},"timestamp":{"type":"double","id":7}}},"SubInfo":{"edition":"proto2","fields":{"subType":{"rule":"required","type":"int32","id":1},"securityList":{"rule":"repeated","type":"Qot_Common.Security","id":2}}},"ConnSubInfo":{"edition":"proto2","fields":{"subInfoList":{"rule":"repeated","type":"SubInfo","id":1},"usedQuota":{"rule":"required","type":"int32","id":2},"isOwnConnData":{"rule":"required","type":"bool","id":3}}},"PlateInfo":{"edition":"proto2","fields":{"plate":{"rule":"required","type":"Qot_Common.Security","id":1},"name":{"rule":"required","type":"string","id":2},"plateType":{"type":"int32","id":3}}},"Rehab":{"edition":"proto2","fields":{"time":{"rule":"required","type":"string","id":1},"companyActFlag":{"rule":"required","type":"int64","id":2},"fwdFactorA":{"rule":"required","type":"double","id":3},"fwdFactorB":{"rule":"required","type":"double","id":4},"bwdFactorA":{"rule":"required","type":"double","id":5},"bwdFactorB":{"rule":"required","type":"double","id":6},"splitBase":{"type":"int32","id":7},"splitErt":{"type":"int32","id":8},"joinBase":{"type":"int32","id":9},"joinErt":{"type":"int32","id":10},"bonusBase":{"type":"int32","id":11},"bonusErt":{"type":"int32","id":12},"transferBase":{"type":"int32","id":13},"transferErt":{"type":"int32","id":14},"allotBase":{"type":"int32","id":15},"allotErt":{"type":"int32","id":16},"allotPrice":{"type":"double","id":17},"addBase":{"type":"int32","id":18},"addErt":{"type":"int32","id":19},"addPrice":{"type":"double","id":20},"dividend":{"type":"double","id":21},"spDividend":{"type":"double","id":22},"spinOffBase":{"type":"double","id":24},"spinOffErt":{"type":"double","id":25},"timestamp":{"type":"double","id":23}}}}},"InitConnect":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/initconnect"},"nested":{"C2S":{"edition":"proto2","fields":{"clientVer":{"rule":"required","type":"int32","id":1},"clientID":{"rule":"required","type":"string","id":2},"recvNotify":{"type":"bool","id":3},"packetEncAlgo":{"type":"int32","id":4},"pushProtoFmt":{"type":"int32","id":5},"programmingLanguage":{"type":"string","id":6}}},"S2C":{"edition":"proto2","fields":{"serverVer":{"rule":"required","type":"int32","id":1},"loginUserID":{"rule":"required","type":"uint64","id":2},"connID":{"rule":"required","type":"uint64","id":3},"connAESKey":{"rule":"required","type":"string","id":4},"keepAliveInterval":{"rule":"required","type":"int32","id":5},"aesCBCiv":{"type":"string","id":6},"userAttribution":{"type":"int32","id":7}}},"Request":{"edition":"proto2","fields":{"c2s":{"rule":"required","type":"C2S","id":1}}},"Response":{"edition":"proto2","fields":{"retType":{"rule":"required","type":"int32","id":1,"options":{"default":-400}},"retMsg":{"type":"string","id":2},"errCode":{"type":"int32","id":3},"s2c":{"type":"S2C","id":4}}}}},"Qot_GetOptionExpirationDate":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/getoptionexpirationdate"},"nested":{"C2S":{"edition":"proto2","fields":{"owner":{"rule":"required","type":"Qot_Common.Security","id":1},"indexOptionType":{"type":"int32","id":2}}},"OptionExpirationDate":{"edition":"proto2","fields":{"strikeTime":{"type":"string","id":1},"strikeTimestamp":{"type":"double","id":2},"optionExpiryDateDistance":{"rule":"required","type":"int32","id":3},"cycle":{"type":"int32","id":4}}},"S2C":{"edition":"proto2","fields":{"dateList":{"rule":"repeated","type":"OptionExpirationDate","id":1}}},"Request":{"edition":"proto2","fields":{"c2s":{"rule":"required","type":"C2S","id":1}}},"Response":{"edition":"proto2","fields":{"retType":{"rule":"required","type":"int32","id":1,"options":{"default":-400}},"retMsg":{"type":"string","id":2},"errCode":{"type":"int32","id":3},"s2c":{"type":"S2C","id":4}}}}},"Qot_GetSecuritySnapshot":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/qotgetsecuritysnapshot"},"nested":{"C2S":{"edition":"proto2","fields":{"securityList":{"rule":"repeated","type":"Qot_Common.Security","id":1}}},"EquitySnapshotExData":{"edition":"proto2","fields":{"issuedShares":{"rule":"required","type":"int64","id":1},"issuedMarketVal":{"rule":"required","type":"double","id":2},"netAsset":{"rule":"required","type":"double","id":3},"netProfit":{"rule":"required","type":"double","id":4},"earningsPershare":{"rule":"required","type":"double","id":5},"outstandingShares":{"rule":"required","type":"int64","id":6},"outstandingMarketVal":{"rule":"required","type":"double","id":7},"netAssetPershare":{"rule":"required","type":"double","id":8},"eyRate":{"rule":"required","type":"double","id":9},"peRate":{"rule":"required","type":"double","id":10},"pbRate":{"rule":"required","type":"double","id":11},"peTTMRate":{"rule":"required","type":"double","id":12},"dividendTTM":{"type":"double","id":13},"dividendRatioTTM":{"type":"double","id":14},"dividendLFY":{"type":"double","id":15},"dividendLFYRatio":{"type":"double","id":16}}},"WarrantSnapshotExData":{"edition":"proto2","fields":{"conversionRate":{"rule":"required","type":"double","id":1},"warrantType":{"rule":"required","type":"int32","id":2},"strikePrice":{"rule":"required","type":"double","id":3},"maturityTime":{"rule":"required","type":"string","id":4},"endTradeTime":{"rule":"required","type":"string","id":5},"owner":{"rule":"required","type":"Qot_Common.Security","id":6},"recoveryPrice":{"rule":"required","type":"double","id":7},"streetVolumn":{"rule":"required","type":"int64","id":8},"issueVolumn":{"rule":"required","type":"int64","id":9},"streetRate":{"rule":"required","type":"double","id":10},"delta":{"rule":"required","type":"double","id":11},"impliedVolatility":{"rule":"required","type":"double","id":12},"premium":{"rule":"required","type":"double","id":13},"maturityTimestamp":{"type":"double","id":14},"endTradeTimestamp":{"type":"double","id":15},"leverage":{"type":"double","id":16},"ipop":{"type":"double","id":17},"breakEvenPoint":{"type":"double","id":18},"conversionPrice":{"type":"double","id":19},"priceRecoveryRatio":{"type":"double","id":20},"score":{"type":"double","id":21},"upperStrikePrice":{"type":"double","id":22},"lowerStrikePrice":{"type":"double","id":23},"inLinePriceStatus":{"type":"int32","id":24},"issuerCode":{"type":"string","id":25}}},"OptionSnapshotExData":{"edition":"proto2","fields":{"type":{"rule":"required","type":"int32","id":1},"owner":{"rule":"required","type":"Qot_Common.Security","id":2},"strikeTime":{"rule":"required","type":"string","id":3},"strikePrice":{"rule":"required","type":"double","id":4},"contractSize":{"rule":"required","type":"int32","id":5},"contractSizeFloat":{"type":"double","id":22},"openInterest":{"rule":"required","type":"int32","id":6},"impliedVolatility":{"rule":"required","type":"double","id":7},"premium":{"rule":"required","type":"double","id":8},"delta":{"rule":"required","type":"double","id":9},"gamma":{"rule":"required","type":"double","id":10},"vega":{"rule":"required","type":"double","id":11},"theta":{"rule":"required","type":"double","id":12},"rho":{"rule":"required","type":"double","id":13},"strikeTimestamp":{"type":"double","id":14},"indexOptionType":{"type":"int32","id":15},"netOpenInterest":{"type":"int32","id":16},"expiryDateDistance":{"type":"int32","id":17},"contractNominalValue":{"type":"double","id":18},"ownerLotMultiplier":{"type":"double","id":19},"optionAreaType":{"type":"int32","id":20},"contractMultiplier":{"type":"double","id":21}}},"IndexSnapshotExData":{"edition":"proto2","fields":{"raiseCount":{"rule":"required","type":"int32","id":1},"fallCount":{"rule":"required","type":"int32","id":2},"equalCount":{"rule":"required","type":"int32","id":3}}},"PlateSnapshotExData":{"edition":"proto2","fields":{"raiseCount":{"rule":"required","type":"int32","id":1},"fallCount":{"rule":"required","type":"int32","id":2},"equalCount":{"rule":"required","type":"int32","id":3}}},"FutureSnapshotExData":{"edition":"proto2","fields":{"lastSettlePrice":{"rule":"required","type":"double","id":1},"position":{"rule":"required","type":"int32","id":2},"positionChange":{"rule":"required","type":"int32","id":3},"lastTradeTime":{"rule":"required","type":"string","id":4},"lastTradeTimestamp":{"type":"double","id":5},"isMainContract":{"rule":"required","type":"bool","id":6}}},"TrustSnapshotExData":{"edition":"proto2","fields":{"dividendYield":{"rule":"required","type":"double","id":1},"aum":{"rule":"required","type":"double","id":2},"outstandingUnits":{"rule":"required","type":"int64","id":3},"netAssetValue":{"rule":"required","type":"double","id":4},"premium":{"rule":"required","type":"double","id":5},"assetClass":{"rule":"required","type":"int32","id":6}}},"SnapshotBasicData":{"edition":"proto2","fields":{"security":{"rule":"required","type":"Qot_Common.Security","id":1},"name":{"type":"string","id":41},"type":{"rule":"required","type":"int32","id":2},"isSuspend":{"rule":"required","type":"bool","id":3},"listTime":{"rule":"required","type":"string","id":4},"lotSize":{"rule":"required","type":"int32","id":5},"priceSpread":{"rule":"required","type":"double","id":6},"updateTime":{"rule":"required","type":"string","id":7},"highPrice":{"rule":"required","type":"double","id":8},"openPrice":{"rule":"required","type":"double","id":9},"lowPrice":{"rule":"required","type":"double","id":10},"lastClosePrice":{"rule":"required","type":"double","id":11},"curPrice":{"rule":"required","type":"double","id":12},"volume":{"rule":"required","type":"int64","id":13},"turnover":{"rule":"required","type":"double","id":14},"turnoverRate":{"rule":"required","type":"double","id":15},"listTimestamp":{"type":"double","id":16},"updateTimestamp":{"type":"double","id":17},"askPrice":{"type":"double","id":18},"bidPrice":{"type":"double","id":19},"askVol":{"type":"int64","id":20},"bidVol":{"type":"int64","id":21},"enableMargin":{"type":"bool","id":22},"mortgageRatio":{"type":"double","id":23},"longMarginInitialRatio":{"type":"double","id":24},"enableShortSell":{"type":"bool","id":25},"shortSellRate":{"type":"double","id":26},"shortAvailableVolume":{"type":"int64","id":27},"shortMarginInitialRatio":{"type":"double","id":28},"amplitude":{"type":"double","id":29},"avgPrice":{"type":"double","id":30},"bidAskRatio":{"type":"double","id":31},"volumeRatio":{"type":"double","id":32},"highest52WeeksPrice":{"type":"double","id":33},"lowest52WeeksPrice":{"type":"double","id":34},"highestHistoryPrice":{"type":"double","id":35},"lowestHistoryPrice":{"type":"double","id":36},"preMarket":{"type":"Qot_Common.PreAfterMarketData","id":37},"afterMarket":{"type":"Qot_Common.PreAfterMarketData","id":38},"secStatus":{"type":"int32","id":39},"closePrice5Minute":{"type":"double","id":40},"overnight":{"type":"Qot_Common.PreAfterMarketData","id":42}}},"Snapshot":{"edition":"proto2","fields":{"basic":{"rule":"required","type":"SnapshotBasicData","id":1},"equityExData":{"type":"EquitySnapshotExData","id":2},"warrantExData":{"type":"WarrantSnapshotExData","id":3},"optionExData":{"type":"OptionSnapshotExData","id":4},"indexExData":{"type":"IndexSnapshotExData","id":5},"plateExData":{"type":"PlateSnapshotExData","id":6},"futureExData":{"type":"FutureSnapshotExData","id":7},"trustExData":{"type":"TrustSnapshotExData","id":8}}},"S2C":{"edition":"proto2","fields":{"snapshotList":{"rule":"repeated","type":"Snapshot","id":1}}},"Request":{"edition":"proto2","fields":{"c2s":{"rule":"required","type":"C2S","id":1}}},"Response":{"edition":"proto2","fields":{"retType":{"rule":"required","type":"int32","id":1,"options":{"default":-400}},"retMsg":{"type":"string","id":2},"errCode":{"type":"int32","id":3},"s2c":{"type":"S2C","id":4}}}}}}};
+globalThis.__PROTO_BUNDLE__ = {"nested":{"Common":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/common"},"nested":{"RetType":{"edition":"proto2","values":{"RetType_Succeed":0,"RetType_Failed":-1,"RetType_TimeOut":-100,"RetType_DisConnect":-200,"RetType_Unknown":-400,"RetType_Invalid":-500}},"PacketEncAlgo":{"edition":"proto2","values":{"PacketEncAlgo_FTAES_ECB":0,"PacketEncAlgo_None":-1,"PacketEncAlgo_AES_ECB":1,"PacketEncAlgo_AES_CBC":2}},"PacketID":{"edition":"proto2","fields":{"connID":{"rule":"required","type":"uint64","id":1},"serialNo":{"rule":"required","type":"uint32","id":2}}},"ProtoFmt":{"edition":"proto2","values":{"ProtoFmt_Protobuf":0,"ProtoFmt_Json":1}},"UserAttribution":{"edition":"proto2","values":{"UserAttribution_Unknown":0,"UserAttribution_NN":1,"UserAttribution_MM":2,"UserAttribution_SG":3,"UserAttribution_AU":4,"UserAttribution_JP":5,"UserAttribution_HK":6}},"ProgramStatusType":{"edition":"proto2","values":{"ProgramStatusType_None":0,"ProgramStatusType_Loaded":1,"ProgramStatusType_Loging":2,"ProgramStatusType_NeedPicVerifyCode":3,"ProgramStatusType_NeedPhoneVerifyCode":4,"ProgramStatusType_LoginFailed":5,"ProgramStatusType_ForceUpdate":6,"ProgramStatusType_NessaryDataPreparing":7,"ProgramStatusType_NessaryDataMissing":8,"ProgramStatusType_UnAgreeDisclaimer":9,"ProgramStatusType_Ready":10,"ProgramStatusType_ForceLogout":11,"ProgramStatusType_DisclaimerPullFailed":12}},"ProgramStatus":{"edition":"proto2","fields":{"type":{"rule":"required","type":"ProgramStatusType","id":1},"strExtDesc":{"type":"string","id":2}}},"Session":{"edition":"proto2","values":{"Session_NONE":0,"Session_RTH":1,"Session_ETH":2,"Session_ALL":3,"Session_OVERNIGHT":4}}}},"Trd_Common":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/trdcommon"},"nested":{"TrdEnv":{"edition":"proto2","values":{"TrdEnv_Simulate":0,"TrdEnv_Real":1}},"TrdCategory":{"edition":"proto2","values":{"TrdCategory_Unknown":0,"TrdCategory_Security":1,"TrdCategory_Future":2}},"TrdMarket":{"edition":"proto2","values":{"TrdMarket_Unknown":0,"TrdMarket_HK":1,"TrdMarket_US":2,"TrdMarket_CN":3,"TrdMarket_HKCC":4,"TrdMarket_Futures":5,"TrdMarket_SG":6,"TrdMarket_AU":8,"TrdMarket_Futures_Simulate_HK":10,"TrdMarket_Futures_Simulate_US":11,"TrdMarket_Futures_Simulate_SG":12,"TrdMarket_Futures_Simulate_JP":13,"TrdMarket_JP":15,"TrdMarket_MY":111,"TrdMarket_CA":112,"TrdMarket_HK_Fund":113,"TrdMarket_US_Fund":123,"TrdMarket_SG_Fund":124,"TrdMarket_MY_Fund":125,"TrdMarket_JP_Fund":126}},"TrdSecMarket":{"edition":"proto2","values":{"TrdSecMarket_Unknown":0,"TrdSecMarket_HK":1,"TrdSecMarket_US":2,"TrdSecMarket_CN_SH":31,"TrdSecMarket_CN_SZ":32,"TrdSecMarket_SG":41,"TrdSecMarket_JP":51,"TrdSecMarket_AU":61,"TrdSecMarket_MY":71,"TrdSecMarket_CA":81,"TrdSecMarket_FX":91}},"TrdSide":{"edition":"proto2","values":{"TrdSide_Unknown":0,"TrdSide_Buy":1,"TrdSide_Sell":2,"TrdSide_SellShort":3,"TrdSide_BuyBack":4}},"OrderType":{"edition":"proto2","values":{"OrderType_Unknown":0,"OrderType_Normal":1,"OrderType_Market":2,"OrderType_AbsoluteLimit":5,"OrderType_Auction":6,"OrderType_AuctionLimit":7,"OrderType_SpecialLimit":8,"OrderType_SpecialLimit_All":9,"OrderType_Stop":10,"OrderType_StopLimit":11,"OrderType_MarketifTouched":12,"OrderType_LimitifTouched":13,"OrderType_TrailingStop":14,"OrderType_TrailingStopLimit":15,"OrderType_TWAP_MARKET":16,"OrderType_TWAP_LIMIT":17,"OrderType_VWAP_MARKET":18,"OrderType_VWAP_LIMIT":19}},"TrailType":{"edition":"proto2","values":{"TrailType_Unknown":0,"TrailType_Ratio":1,"TrailType_Amount":2}},"OrderStatus":{"edition":"proto2","values":{"OrderStatus_Unsubmitted":0,"OrderStatus_Unknown":-1,"OrderStatus_WaitingSubmit":1,"OrderStatus_Submitting":2,"OrderStatus_SubmitFailed":3,"OrderStatus_TimeOut":4,"OrderStatus_Submitted":5,"OrderStatus_Filled_Part":10,"OrderStatus_Filled_All":11,"OrderStatus_Cancelling_Part":12,"OrderStatus_Cancelling_All":13,"OrderStatus_Cancelled_Part":14,"OrderStatus_Cancelled_All":15,"OrderStatus_Failed":21,"OrderStatus_Disabled":22,"OrderStatus_Deleted":23,"OrderStatus_FillCancelled":24}},"OrderFillStatus":{"edition":"proto2","values":{"OrderFillStatus_OK":0,"OrderFillStatus_Cancelled":1,"OrderFillStatus_Changed":2}},"PositionSide":{"edition":"proto2","values":{"PositionSide_Long":0,"PositionSide_Unknown":-1,"PositionSide_Short":1}},"ModifyOrderOp":{"edition":"proto2","values":{"ModifyOrderOp_Unknown":0,"ModifyOrderOp_Normal":1,"ModifyOrderOp_Cancel":2,"ModifyOrderOp_Disable":3,"ModifyOrderOp_Enable":4,"ModifyOrderOp_Delete":5}},"TrdAccType":{"edition":"proto2","values":{"TrdAccType_Unknown":0,"TrdAccType_Cash":1,"TrdAccType_Margin":2,"TrdAccType_TFSA":3,"TrdAccType_RRSP":4,"TrdAccType_SRRSP":5,"TrdAccType_Derivatives":6}},"TrdAccStatus":{"edition":"proto2","values":{"TrdAccStatus_Active":0,"TrdAccStatus_Disabled":1}},"TrdAccRole":{"edition":"proto2","values":{"TrdAccRole_Unknown":0,"TrdAccRole_Normal":1,"TrdAccRole_Master":2,"TrdAccRole_IPO":3}},"Currency":{"edition":"proto2","values":{"Currency_Unknown":0,"Currency_HKD":1,"Currency_USD":2,"Currency_CNH":3,"Currency_JPY":4,"Currency_SGD":5,"Currency_AUD":6,"Currency_CAD":7,"Currency_MYR":8}},"CltRiskLevel":{"edition":"proto2","values":{"CltRiskLevel_Unknown":-1,"CltRiskLevel_Safe":0,"CltRiskLevel_Warning":1,"CltRiskLevel_Danger":2,"CltRiskLevel_AbsoluteSafe":3,"CltRiskLevel_OptDanger":4}},"TimeInForce":{"edition":"proto2","values":{"TimeInForce_DAY":0,"TimeInForce_GTC":1}},"SecurityFirm":{"edition":"proto2","values":{"SecurityFirm_Unknown":0,"SecurityFirm_FutuSecurities":1,"SecurityFirm_FutuInc":2,"SecurityFirm_FutuSG":3,"SecurityFirm_FutuAU":4,"SecurityFirm_FutuCA":5,"SecurityFirm_FutuMY":6,"SecurityFirm_FutuJP":7}},"SimAccType":{"edition":"proto2","values":{"SimAccType_Unknown":0,"SimAccType_Stock":1,"SimAccType_Option":2,"SimAccType_Futures":3}},"CltRiskStatus":{"edition":"proto2","values":{"CltRiskStatus_Unknown":0,"CltRiskStatus_Level1":1,"CltRiskStatus_Level2":2,"CltRiskStatus_Level3":3,"CltRiskStatus_Level4":4,"CltRiskStatus_Level5":5,"CltRiskStatus_Level6":6,"CltRiskStatus_Level7":7,"CltRiskStatus_Level8":8,"CltRiskStatus_Level9":9}},"DTStatus":{"edition":"proto2","values":{"DTStatus_Unknown":0,"DTStatus_Unlimited":1,"DTStatus_EMCall":2,"DTStatus_DTCall":3}},"TrdSubAccType":{"edition":"proto2","values":{"TrdSubAccType_None":0,"TrdSubAccType_JP_GENERAL":1,"TrdSubAccType_JP_TOKUTEI":2,"TrdSubAccType_JP_NISA_GENERAL":3,"TrdSubAccType_JP_NISA_TSUMITATE":4,"TrdSubAccType_JP_GENERAL_SHORT":5,"TrdSubAccType_JP_TOKUTEI_SHORT":6,"TrdSubAccType_JP_HONPO_GENERAL":7,"TrdSubAccType_JP_GAIKOKU_GENERAL":8,"TrdSubAccType_JP_HONPO_TOKUTEI":9,"TrdSubAccType_JP_GAIKOKU_TOKUTEI":10,"TrdSubAccType_JP_DERIVATIVE_LONG":11,"TrdSubAccType_JP_DERIVATIVE_SHORT":12,"TrdSubAccType_JP_HONPO_DERIVATIVE_GENERAL":13,"TrdSubAccType_JP_GAIKOKU_DERIVATIVE_GENERAL":14,"TrdSubAccType_JP_HONPO_DERIVATIVE_TOKUTEI":15,"TrdSubAccType_JP_GAIKOKU_DERIVATIVE_TOKUTEI":16}},"TrdAssetCategory":{"edition":"proto2","values":{"TrdAssetCategory_Unknown":0,"TrdAssetCategory_JP":1,"TrdAssetCategory_US":2}},"AccCashInfo":{"edition":"proto2","fields":{"currency":{"type":"int32","id":1},"cash":{"type":"double","id":2},"availableBalance":{"type":"double","id":3},"netCashPower":{"type":"double","id":4}}},"AccMarketInfo":{"edition":"proto2","fields":{"trdMarket":{"type":"int32","id":1},"assets":{"type":"double","id":2}}},"TrdHeader":{"edition":"proto2","fields":{"trdEnv":{"rule":"required","type":"int32","id":1},"accID":{"rule":"required","type":"uint64","id":2},"trdMarket":{"rule":"required","type":"int32","id":3},"jpAccType":{"type":"int32","id":4}}},"TrdAcc":{"edition":"proto2","fields":{"trdEnv":{"rule":"required","type":"int32","id":1},"accID":{"rule":"required","type":"uint64","id":2},"trdMarketAuthList":{"rule":"repeated","type":"int32","id":3},"accType":{"type":"int32","id":4},"cardNum":{"type":"string","id":5},"securityFirm":{"type":"int32","id":6},"simAccType":{"type":"int32","id":7},"uniCardNum":{"type":"string","id":8},"accStatus":{"type":"int32","id":9},"accRole":{"type":"int32","id":10},"jpAccType":{"rule":"repeated","type":"int32","id":11}}},"Funds":{"edition":"proto2","fields":{"power":{"rule":"required","type":"double","id":1},"totalAssets":{"rule":"required","type":"double","id":2},"cash":{"rule":"required","type":"double","id":3},"marketVal":{"rule":"required","type":"double","id":4},"frozenCash":{"rule":"required","type":"double","id":5},"debtCash":{"rule":"required","type":"double","id":6},"avlWithdrawalCash":{"rule":"required","type":"double","id":7},"currency":{"type":"int32","id":8},"availableFunds":{"type":"double","id":9},"unrealizedPL":{"type":"double","id":10},"realizedPL":{"type":"double","id":11},"riskLevel":{"type":"int32","id":12},"initialMargin":{"type":"double","id":13},"maintenanceMargin":{"type":"double","id":14},"cashInfoList":{"rule":"repeated","type":"AccCashInfo","id":15},"maxPowerShort":{"type":"double","id":16},"netCashPower":{"type":"double","id":17},"longMv":{"type":"double","id":18},"shortMv":{"type":"double","id":19},"pendingAsset":{"type":"double","id":20},"maxWithdrawal":{"type":"double","id":21},"riskStatus":{"type":"int32","id":22},"marginCallMargin":{"type":"double","id":23},"isPdt":{"type":"bool","id":24},"pdtSeq":{"type":"string","id":25},"beginningDTBP":{"type":"double","id":26},"remainingDTBP":{"type":"double","id":27},"dtCallAmount":{"type":"double","id":28},"dtStatus":{"type":"int32","id":29},"securitiesAssets":{"type":"double","id":30},"fundAssets":{"type":"double","id":31},"bondAssets":{"type":"double","id":32},"marketInfoList":{"rule":"repeated","type":"AccMarketInfo","id":33}}},"Position":{"edition":"proto2","fields":{"positionID":{"rule":"required","type":"uint64","id":1},"positionSide":{"rule":"required","type":"int32","id":2},"code":{"rule":"required","type":"string","id":3},"name":{"rule":"required","type":"string","id":4},"qty":{"rule":"required","type":"double","id":5},"canSellQty":{"rule":"required","type":"double","id":6},"price":{"rule":"required","type":"double","id":7},"costPrice":{"type":"double","id":8},"val":{"rule":"required","type":"double","id":9},"plVal":{"rule":"required","type":"double","id":10},"plRatio":{"type":"double","id":11},"secMarket":{"type":"int32","id":12},"tdPlVal":{"type":"double","id":21},"tdTrdVal":{"type":"double","id":22},"tdBuyVal":{"type":"double","id":23},"tdBuyQty":{"type":"double","id":24},"tdSellVal":{"type":"double","id":25},"tdSellQty":{"type":"double","id":26},"unrealizedPL":{"type":"double","id":28},"realizedPL":{"type":"double","id":29},"currency":{"type":"int32","id":30},"trdMarket":{"type":"int32","id":31},"dilutedCostPrice":{"type":"double","id":32},"averageCostPrice":{"type":"double","id":33},"averagePlRatio":{"type":"double","id":34}}},"Order":{"edition":"proto2","fields":{"trdSide":{"rule":"required","type":"int32","id":1},"orderType":{"rule":"required","type":"int32","id":2},"orderStatus":{"rule":"required","type":"int32","id":3},"orderID":{"rule":"required","type":"uint64","id":4},"orderIDEx":{"rule":"required","type":"string","id":5},"code":{"rule":"required","type":"string","id":6},"name":{"rule":"required","type":"string","id":7},"qty":{"rule":"required","type":"double","id":8},"price":{"type":"double","id":9},"createTime":{"rule":"required","type":"string","id":10},"updateTime":{"rule":"required","type":"string","id":11},"fillQty":{"type":"double","id":12},"fillAvgPrice":{"type":"double","id":13},"lastErrMsg":{"type":"string","id":14},"secMarket":{"type":"int32","id":15},"createTimestamp":{"type":"double","id":16},"updateTimestamp":{"type":"double","id":17},"remark":{"type":"string","id":18},"timeInForce":{"type":"int32","id":19},"fillOutsideRTH":{"type":"bool","id":20},"auxPrice":{"type":"double","id":21},"trailType":{"type":"int32","id":22},"trailValue":{"type":"double","id":23},"trailSpread":{"type":"double","id":24},"currency":{"type":"int32","id":25},"trdMarket":{"type":"int32","id":26},"session":{"type":"int32","id":27},"jpAccType":{"type":"int32","id":28}}},"OrderFeeItem":{"edition":"proto2","fields":{"title":{"type":"string","id":1},"value":{"type":"double","id":2}}},"OrderFee":{"edition":"proto2","fields":{"orderIDEx":{"rule":"required","type":"string","id":1},"feeAmount":{"type":"double","id":2},"feeList":{"rule":"repeated","type":"OrderFeeItem","id":3}}},"OrderFill":{"edition":"proto2","fields":{"trdSide":{"rule":"required","type":"int32","id":1},"fillID":{"rule":"required","type":"uint64","id":2},"fillIDEx":{"rule":"required","type":"string","id":3},"orderID":{"type":"uint64","id":4},"orderIDEx":{"type":"string","id":5},"code":{"rule":"required","type":"string","id":6},"name":{"rule":"required","type":"string","id":7},"qty":{"rule":"required","type":"double","id":8},"price":{"rule":"required","type":"double","id":9},"createTime":{"rule":"required","type":"string","id":10},"counterBrokerID":{"type":"int32","id":11},"counterBrokerName":{"type":"string","id":12},"secMarket":{"type":"int32","id":13},"createTimestamp":{"type":"double","id":14},"updateTimestamp":{"type":"double","id":15},"status":{"type":"int32","id":16},"trdMarket":{"type":"int32","id":17},"jpAccType":{"type":"int32","id":18}}},"MaxTrdQtys":{"edition":"proto2","fields":{"maxCashBuy":{"rule":"required","type":"double","id":1},"maxCashAndMarginBuy":{"type":"double","id":2},"maxPositionSell":{"rule":"required","type":"double","id":3},"maxSellShort":{"type":"double","id":4},"maxBuyBack":{"type":"double","id":5},"longRequiredIM":{"type":"double","id":6},"shortRequiredIM":{"type":"double","id":7},"session":{"type":"int32","id":8}}},"TrdFilterConditions":{"edition":"proto2","fields":{"codeList":{"rule":"repeated","type":"string","id":1},"idList":{"rule":"repeated","type":"uint64","id":2},"beginTime":{"type":"string","id":3},"endTime":{"type":"string","id":4},"orderIDExList":{"rule":"repeated","type":"string","id":5},"filterMarket":{"type":"int32","id":6}}}}},"Trd_GetAccList":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/trdgetacclist"},"nested":{"C2S":{"edition":"proto2","fields":{"userID":{"rule":"required","type":"uint64","id":1},"trdCategory":{"type":"int32","id":2},"needGeneralSecAccount":{"type":"bool","id":3}}},"S2C":{"edition":"proto2","fields":{"accList":{"rule":"repeated","type":"Trd_Common.TrdAcc","id":1}}},"Request":{"edition":"proto2","fields":{"c2s":{"rule":"required","type":"C2S","id":1}}},"Response":{"edition":"proto2","fields":{"retType":{"rule":"required","type":"int32","id":1,"options":{"default":-400}},"retMsg":{"type":"string","id":2},"errCode":{"type":"int32","id":3},"s2c":{"type":"S2C","id":4}}}}},"InitConnect":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/initconnect"},"nested":{"C2S":{"edition":"proto2","fields":{"clientVer":{"rule":"required","type":"int32","id":1},"clientID":{"rule":"required","type":"string","id":2},"recvNotify":{"type":"bool","id":3},"packetEncAlgo":{"type":"int32","id":4},"pushProtoFmt":{"type":"int32","id":5},"programmingLanguage":{"type":"string","id":6}}},"S2C":{"edition":"proto2","fields":{"serverVer":{"rule":"required","type":"int32","id":1},"loginUserID":{"rule":"required","type":"uint64","id":2},"connID":{"rule":"required","type":"uint64","id":3},"connAESKey":{"rule":"required","type":"string","id":4},"keepAliveInterval":{"rule":"required","type":"int32","id":5},"aesCBCiv":{"type":"string","id":6},"userAttribution":{"type":"int32","id":7}}},"Request":{"edition":"proto2","fields":{"c2s":{"rule":"required","type":"C2S","id":1}}},"Response":{"edition":"proto2","fields":{"retType":{"rule":"required","type":"int32","id":1,"options":{"default":-400}},"retMsg":{"type":"string","id":2},"errCode":{"type":"int32","id":3},"s2c":{"type":"S2C","id":4}}}}},"Qot_GetOptionExpirationDate":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/getoptionexpirationdate"},"nested":{"C2S":{"edition":"proto2","fields":{"owner":{"rule":"required","type":"Qot_Common.Security","id":1},"indexOptionType":{"type":"int32","id":2}}},"OptionExpirationDate":{"edition":"proto2","fields":{"strikeTime":{"type":"string","id":1},"strikeTimestamp":{"type":"double","id":2},"optionExpiryDateDistance":{"rule":"required","type":"int32","id":3},"cycle":{"type":"int32","id":4}}},"S2C":{"edition":"proto2","fields":{"dateList":{"rule":"repeated","type":"OptionExpirationDate","id":1}}},"Request":{"edition":"proto2","fields":{"c2s":{"rule":"required","type":"C2S","id":1}}},"Response":{"edition":"proto2","fields":{"retType":{"rule":"required","type":"int32","id":1,"options":{"default":-400}},"retMsg":{"type":"string","id":2},"errCode":{"type":"int32","id":3},"s2c":{"type":"S2C","id":4}}}}},"Trd_GetFunds":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/trdgetfunds"},"nested":{"C2S":{"edition":"proto2","fields":{"header":{"rule":"required","type":"Trd_Common.TrdHeader","id":1},"refreshCache":{"type":"bool","id":2},"currency":{"type":"int32","id":3},"assetCategory":{"type":"int32","id":4}}},"S2C":{"edition":"proto2","fields":{"header":{"rule":"required","type":"Trd_Common.TrdHeader","id":1},"funds":{"type":"Trd_Common.Funds","id":2}}},"Request":{"edition":"proto2","fields":{"c2s":{"rule":"required","type":"C2S","id":1}}},"Response":{"edition":"proto2","fields":{"retType":{"rule":"required","type":"int32","id":1,"options":{"default":-400}},"retMsg":{"type":"string","id":2},"errCode":{"type":"int32","id":3},"s2c":{"type":"S2C","id":4}}}}},"Trd_UnlockTrade":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/trdunlocktrade"},"nested":{"C2S":{"edition":"proto2","fields":{"unlock":{"rule":"required","type":"bool","id":1},"pwdMD5":{"type":"string","id":2},"securityFirm":{"type":"int32","id":3}}},"S2C":{"edition":"proto2","fields":{}},"Request":{"edition":"proto2","fields":{"c2s":{"rule":"required","type":"C2S","id":1}}},"Response":{"edition":"proto2","fields":{"retType":{"rule":"required","type":"int32","id":1,"options":{"default":-400}},"retMsg":{"type":"string","id":2},"errCode":{"type":"int32","id":3},"s2c":{"type":"S2C","id":4}}}}},"Qot_GetSecuritySnapshot":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/qotgetsecuritysnapshot"},"nested":{"C2S":{"edition":"proto2","fields":{"securityList":{"rule":"repeated","type":"Qot_Common.Security","id":1}}},"EquitySnapshotExData":{"edition":"proto2","fields":{"issuedShares":{"rule":"required","type":"int64","id":1},"issuedMarketVal":{"rule":"required","type":"double","id":2},"netAsset":{"rule":"required","type":"double","id":3},"netProfit":{"rule":"required","type":"double","id":4},"earningsPershare":{"rule":"required","type":"double","id":5},"outstandingShares":{"rule":"required","type":"int64","id":6},"outstandingMarketVal":{"rule":"required","type":"double","id":7},"netAssetPershare":{"rule":"required","type":"double","id":8},"eyRate":{"rule":"required","type":"double","id":9},"peRate":{"rule":"required","type":"double","id":10},"pbRate":{"rule":"required","type":"double","id":11},"peTTMRate":{"rule":"required","type":"double","id":12},"dividendTTM":{"type":"double","id":13},"dividendRatioTTM":{"type":"double","id":14},"dividendLFY":{"type":"double","id":15},"dividendLFYRatio":{"type":"double","id":16}}},"WarrantSnapshotExData":{"edition":"proto2","fields":{"conversionRate":{"rule":"required","type":"double","id":1},"warrantType":{"rule":"required","type":"int32","id":2},"strikePrice":{"rule":"required","type":"double","id":3},"maturityTime":{"rule":"required","type":"string","id":4},"endTradeTime":{"rule":"required","type":"string","id":5},"owner":{"rule":"required","type":"Qot_Common.Security","id":6},"recoveryPrice":{"rule":"required","type":"double","id":7},"streetVolumn":{"rule":"required","type":"int64","id":8},"issueVolumn":{"rule":"required","type":"int64","id":9},"streetRate":{"rule":"required","type":"double","id":10},"delta":{"rule":"required","type":"double","id":11},"impliedVolatility":{"rule":"required","type":"double","id":12},"premium":{"rule":"required","type":"double","id":13},"maturityTimestamp":{"type":"double","id":14},"endTradeTimestamp":{"type":"double","id":15},"leverage":{"type":"double","id":16},"ipop":{"type":"double","id":17},"breakEvenPoint":{"type":"double","id":18},"conversionPrice":{"type":"double","id":19},"priceRecoveryRatio":{"type":"double","id":20},"score":{"type":"double","id":21},"upperStrikePrice":{"type":"double","id":22},"lowerStrikePrice":{"type":"double","id":23},"inLinePriceStatus":{"type":"int32","id":24},"issuerCode":{"type":"string","id":25}}},"OptionSnapshotExData":{"edition":"proto2","fields":{"type":{"rule":"required","type":"int32","id":1},"owner":{"rule":"required","type":"Qot_Common.Security","id":2},"strikeTime":{"rule":"required","type":"string","id":3},"strikePrice":{"rule":"required","type":"double","id":4},"contractSize":{"rule":"required","type":"int32","id":5},"contractSizeFloat":{"type":"double","id":22},"openInterest":{"rule":"required","type":"int32","id":6},"impliedVolatility":{"rule":"required","type":"double","id":7},"premium":{"rule":"required","type":"double","id":8},"delta":{"rule":"required","type":"double","id":9},"gamma":{"rule":"required","type":"double","id":10},"vega":{"rule":"required","type":"double","id":11},"theta":{"rule":"required","type":"double","id":12},"rho":{"rule":"required","type":"double","id":13},"strikeTimestamp":{"type":"double","id":14},"indexOptionType":{"type":"int32","id":15},"netOpenInterest":{"type":"int32","id":16},"expiryDateDistance":{"type":"int32","id":17},"contractNominalValue":{"type":"double","id":18},"ownerLotMultiplier":{"type":"double","id":19},"optionAreaType":{"type":"int32","id":20},"contractMultiplier":{"type":"double","id":21}}},"IndexSnapshotExData":{"edition":"proto2","fields":{"raiseCount":{"rule":"required","type":"int32","id":1},"fallCount":{"rule":"required","type":"int32","id":2},"equalCount":{"rule":"required","type":"int32","id":3}}},"PlateSnapshotExData":{"edition":"proto2","fields":{"raiseCount":{"rule":"required","type":"int32","id":1},"fallCount":{"rule":"required","type":"int32","id":2},"equalCount":{"rule":"required","type":"int32","id":3}}},"FutureSnapshotExData":{"edition":"proto2","fields":{"lastSettlePrice":{"rule":"required","type":"double","id":1},"position":{"rule":"required","type":"int32","id":2},"positionChange":{"rule":"required","type":"int32","id":3},"lastTradeTime":{"rule":"required","type":"string","id":4},"lastTradeTimestamp":{"type":"double","id":5},"isMainContract":{"rule":"required","type":"bool","id":6}}},"TrustSnapshotExData":{"edition":"proto2","fields":{"dividendYield":{"rule":"required","type":"double","id":1},"aum":{"rule":"required","type":"double","id":2},"outstandingUnits":{"rule":"required","type":"int64","id":3},"netAssetValue":{"rule":"required","type":"double","id":4},"premium":{"rule":"required","type":"double","id":5},"assetClass":{"rule":"required","type":"int32","id":6}}},"SnapshotBasicData":{"edition":"proto2","fields":{"security":{"rule":"required","type":"Qot_Common.Security","id":1},"name":{"type":"string","id":41},"type":{"rule":"required","type":"int32","id":2},"isSuspend":{"rule":"required","type":"bool","id":3},"listTime":{"rule":"required","type":"string","id":4},"lotSize":{"rule":"required","type":"int32","id":5},"priceSpread":{"rule":"required","type":"double","id":6},"updateTime":{"rule":"required","type":"string","id":7},"highPrice":{"rule":"required","type":"double","id":8},"openPrice":{"rule":"required","type":"double","id":9},"lowPrice":{"rule":"required","type":"double","id":10},"lastClosePrice":{"rule":"required","type":"double","id":11},"curPrice":{"rule":"required","type":"double","id":12},"volume":{"rule":"required","type":"int64","id":13},"turnover":{"rule":"required","type":"double","id":14},"turnoverRate":{"rule":"required","type":"double","id":15},"listTimestamp":{"type":"double","id":16},"updateTimestamp":{"type":"double","id":17},"askPrice":{"type":"double","id":18},"bidPrice":{"type":"double","id":19},"askVol":{"type":"int64","id":20},"bidVol":{"type":"int64","id":21},"enableMargin":{"type":"bool","id":22},"mortgageRatio":{"type":"double","id":23},"longMarginInitialRatio":{"type":"double","id":24},"enableShortSell":{"type":"bool","id":25},"shortSellRate":{"type":"double","id":26},"shortAvailableVolume":{"type":"int64","id":27},"shortMarginInitialRatio":{"type":"double","id":28},"amplitude":{"type":"double","id":29},"avgPrice":{"type":"double","id":30},"bidAskRatio":{"type":"double","id":31},"volumeRatio":{"type":"double","id":32},"highest52WeeksPrice":{"type":"double","id":33},"lowest52WeeksPrice":{"type":"double","id":34},"highestHistoryPrice":{"type":"double","id":35},"lowestHistoryPrice":{"type":"double","id":36},"preMarket":{"type":"Qot_Common.PreAfterMarketData","id":37},"afterMarket":{"type":"Qot_Common.PreAfterMarketData","id":38},"secStatus":{"type":"int32","id":39},"closePrice5Minute":{"type":"double","id":40},"overnight":{"type":"Qot_Common.PreAfterMarketData","id":42}}},"Snapshot":{"edition":"proto2","fields":{"basic":{"rule":"required","type":"SnapshotBasicData","id":1},"equityExData":{"type":"EquitySnapshotExData","id":2},"warrantExData":{"type":"WarrantSnapshotExData","id":3},"optionExData":{"type":"OptionSnapshotExData","id":4},"indexExData":{"type":"IndexSnapshotExData","id":5},"plateExData":{"type":"PlateSnapshotExData","id":6},"futureExData":{"type":"FutureSnapshotExData","id":7},"trustExData":{"type":"TrustSnapshotExData","id":8}}},"S2C":{"edition":"proto2","fields":{"snapshotList":{"rule":"repeated","type":"Snapshot","id":1}}},"Request":{"edition":"proto2","fields":{"c2s":{"rule":"required","type":"C2S","id":1}}},"Response":{"edition":"proto2","fields":{"retType":{"rule":"required","type":"int32","id":1,"options":{"default":-400}},"retMsg":{"type":"string","id":2},"errCode":{"type":"int32","id":3},"s2c":{"type":"S2C","id":4}}}}},"Qot_Common":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/qotcommon"},"nested":{"QotMarket":{"edition":"proto2","values":{"QotMarket_Unknown":0,"QotMarket_HK_Security":1,"QotMarket_HK_Future":2,"QotMarket_US_Security":11,"QotMarket_CNSH_Security":21,"QotMarket_CNSZ_Security":22,"QotMarket_SG_Security":31,"QotMarket_JP_Security":41,"QotMarket_AU_Security":51,"QotMarket_MY_Security":61,"QotMarket_CA_Security":71,"QotMarket_FX_Security":81}},"SecurityType":{"edition":"proto2","values":{"SecurityType_Unknown":0,"SecurityType_Bond":1,"SecurityType_Bwrt":2,"SecurityType_Eqty":3,"SecurityType_Trust":4,"SecurityType_Warrant":5,"SecurityType_Index":6,"SecurityType_Plate":7,"SecurityType_Drvt":8,"SecurityType_PlateSet":9,"SecurityType_Future":10,"SecurityType_Forex":11,"SecurityType_WealthManageFund":12,"SecurityType_ExchangeFund":13,"SecurityType_Crypto":14,"SecurityType_OTCBond":15,"SecurityType_OTCStructNotes":16}},"PlateSetType":{"edition":"proto2","values":{"PlateSetType_All":0,"PlateSetType_Industry":1,"PlateSetType_Region":2,"PlateSetType_Concept":3,"PlateSetType_Other":4}},"WarrantType":{"edition":"proto2","values":{"WarrantType_Unknown":0,"WarrantType_Buy":1,"WarrantType_Sell":2,"WarrantType_Bull":3,"WarrantType_Bear":4,"WarrantType_InLine":5}},"OptionType":{"edition":"proto2","values":{"OptionType_Unknown":0,"OptionType_Call":1,"OptionType_Put":2}},"IndexOptionType":{"edition":"proto2","values":{"IndexOptionType_Unknown":0,"IndexOptionType_Normal":1,"IndexOptionType_Small":2}},"OptionAreaType":{"edition":"proto2","values":{"OptionAreaType_Unknown":0,"OptionAreaType_American":1,"OptionAreaType_European":2,"OptionAreaType_Bermuda":3}},"QotMarketState":{"edition":"proto2","values":{"QotMarketState_None":0,"QotMarketState_Auction":1,"QotMarketState_WaitingOpen":2,"QotMarketState_Morning":3,"QotMarketState_Rest":4,"QotMarketState_Afternoon":5,"QotMarketState_Closed":6,"QotMarketState_PreMarketBegin":8,"QotMarketState_PreMarketEnd":9,"QotMarketState_AfterHoursBegin":10,"QotMarketState_AfterHoursEnd":11,"QotMarketState_FUTU_SWITCH_DATE":12,"QotMarketState_NightOpen":13,"QotMarketState_NightEnd":14,"QotMarketState_FutureDayOpen":15,"QotMarketState_FutureDayBreak":16,"QotMarketState_FutureDayClose":17,"QotMarketState_FutureDayWaitForOpen":18,"QotMarketState_HkCas":19,"QotMarketState_FutureNightWait":20,"QotMarketState_FutureAfternoon":21,"QotMarketState_FutureSwitchDate":22,"QotMarketState_FutureOpen":23,"QotMarketState_FutureBreak":24,"QotMarketState_FutureBreakOver":25,"QotMarketState_FutureClose":26,"QotMarketState_StibAfterHoursWait":27,"QotMarketState_StibAfterHoursBegin":28,"QotMarketState_StibAfterHoursEnd":29,"QotMarketState_CLOSE_AUCTION":30,"QotMarketState_AFTERNOON_END":31,"QotMarketState_NIGHT":32,"QotMarketState_OVERNIGHT_BEGIN":33,"QotMarketState_OVERNIGHT_END":34,"QotMarketState_TRADE_AT_LAST":35,"QotMarketState_TRADE_AUCTION":36,"QotMarketState_OVERNIGHT":37}},"TradeDateMarket":{"edition":"proto2","values":{"TradeDateMarket_Unknown":0,"TradeDateMarket_HK":1,"TradeDateMarket_US":2,"TradeDateMarket_CN":3,"TradeDateMarket_NT":4,"TradeDateMarket_ST":5,"TradeDateMarket_JP_Future":6,"TradeDateMarket_SG_Future":7}},"TradeDateType":{"edition":"proto2","values":{"TradeDateType_Whole":0,"TradeDateType_Morning":1,"TradeDateType_Afternoon":2}},"RehabType":{"edition":"proto2","values":{"RehabType_None":0,"RehabType_Forward":1,"RehabType_Backward":2}},"KLType":{"edition":"proto2","values":{"KLType_Unknown":0,"KLType_1Min":1,"KLType_Day":2,"KLType_Week":3,"KLType_Month":4,"KLType_Year":5,"KLType_5Min":6,"KLType_15Min":7,"KLType_30Min":8,"KLType_60Min":9,"KLType_3Min":10,"KLType_Quarter":11}},"KLFields":{"edition":"proto2","values":{"KLFields_None":0,"KLFields_High":1,"KLFields_Open":2,"KLFields_Low":4,"KLFields_Close":8,"KLFields_LastClose":16,"KLFields_Volume":32,"KLFields_Turnover":64,"KLFields_TurnoverRate":128,"KLFields_PE":256,"KLFields_ChangeRate":512}},"SubType":{"edition":"proto2","values":{"SubType_None":0,"SubType_Basic":1,"SubType_OrderBook":2,"SubType_Ticker":4,"SubType_RT":5,"SubType_KL_Day":6,"SubType_KL_5Min":7,"SubType_KL_15Min":8,"SubType_KL_30Min":9,"SubType_KL_60Min":10,"SubType_KL_1Min":11,"SubType_KL_Week":12,"SubType_KL_Month":13,"SubType_Broker":14,"SubType_KL_Qurater":15,"SubType_KL_Year":16,"SubType_KL_3Min":17}},"TickerDirection":{"edition":"proto2","values":{"TickerDirection_Unknown":0,"TickerDirection_Bid":1,"TickerDirection_Ask":2,"TickerDirection_Neutral":3}},"TickerType":{"edition":"proto2","values":{"TickerType_Unknown":0,"TickerType_Automatch":1,"TickerType_Late":2,"TickerType_NoneAutomatch":3,"TickerType_InterAutomatch":4,"TickerType_InterNoneAutomatch":5,"TickerType_OddLot":6,"TickerType_Auction":7,"TickerType_Bulk":8,"TickerType_Crash":9,"TickerType_CrossMarket":10,"TickerType_BulkSold":11,"TickerType_FreeOnBoard":12,"TickerType_Rule127Or155":13,"TickerType_Delay":14,"TickerType_MarketCenterClosePrice":15,"TickerType_NextDay":16,"TickerType_MarketCenterOpening":17,"TickerType_PriorReferencePrice":18,"TickerType_MarketCenterOpenPrice":19,"TickerType_Seller":20,"TickerType_T":21,"TickerType_ExtendedTradingHours":22,"TickerType_Contingent":23,"TickerType_AvgPrice":24,"TickerType_OTCSold":25,"TickerType_OddLotCrossMarket":26,"TickerType_DerivativelyPriced":27,"TickerType_ReOpeningPriced":28,"TickerType_ClosingPriced":29,"TickerType_ComprehensiveDelayPrice":30,"TickerType_Overseas":31}},"DarkStatus":{"edition":"proto2","values":{"DarkStatus_None":0,"DarkStatus_Trading":1,"DarkStatus_End":2}},"SecurityStatus":{"edition":"proto2","values":{"SecurityStatus_Unknown":0,"SecurityStatus_Normal":1,"SecurityStatus_Listing":2,"SecurityStatus_Purchasing":3,"SecurityStatus_Subscribing":4,"SecurityStatus_BeforeDrakTradeOpening":5,"SecurityStatus_DrakTrading":6,"SecurityStatus_DrakTradeEnd":7,"SecurityStatus_ToBeOpen":8,"SecurityStatus_Suspended":9,"SecurityStatus_Called":10,"SecurityStatus_ExpiredLastTradingDate":11,"SecurityStatus_Expired":12,"SecurityStatus_Delisted":13,"SecurityStatus_ChangeToTemporaryCode":14,"SecurityStatus_TemporaryCodeTradeEnd":15,"SecurityStatus_ChangedPlateTradeEnd":16,"SecurityStatus_ChangedCodeTradeEnd":17,"SecurityStatus_RecoverableCircuitBreaker":18,"SecurityStatus_UnRecoverableCircuitBreaker":19,"SecurityStatus_AfterCombination":20,"SecurityStatus_AfterTransation":21}},"HolderCategory":{"edition":"proto2","values":{"HolderCategory_Unknow":0,"HolderCategory_Agency":1,"HolderCategory_Fund":2,"HolderCategory_SeniorManager":3}},"PushDataType":{"edition":"proto2","values":{"PushDataType_Unknow":0,"PushDataType_Realtime":1,"PushDataType_ByDisConn":2,"PushDataType_Cache":3}},"SortField":{"edition":"proto2","values":{"SortField_Unknow":0,"SortField_Code":1,"SortField_CurPrice":2,"SortField_PriceChangeVal":3,"SortField_ChangeRate":4,"SortField_Status":5,"SortField_BidPrice":6,"SortField_AskPrice":7,"SortField_BidVol":8,"SortField_AskVol":9,"SortField_Volume":10,"SortField_Turnover":11,"SortField_Amplitude":30,"SortField_Score":12,"SortField_Premium":13,"SortField_EffectiveLeverage":14,"SortField_Delta":15,"SortField_ImpliedVolatility":16,"SortField_Type":17,"SortField_StrikePrice":18,"SortField_BreakEvenPoint":19,"SortField_MaturityTime":20,"SortField_ListTime":21,"SortField_LastTradeTime":22,"SortField_Leverage":23,"SortField_InOutMoney":24,"SortField_RecoveryPrice":25,"SortField_ChangePrice":26,"SortField_Change":27,"SortField_StreetRate":28,"SortField_StreetVol":29,"SortField_WarrantName":31,"SortField_Issuer":32,"SortField_LotSize":33,"SortField_IssueSize":34,"SortField_UpperStrikePrice":45,"SortField_LowerStrikePrice":46,"SortField_InLinePriceStatus":47,"SortField_PreCurPrice":35,"SortField_AfterCurPrice":36,"SortField_PrePriceChangeVal":37,"SortField_AfterPriceChangeVal":38,"SortField_PreChangeRate":39,"SortField_AfterChangeRate":40,"SortField_PreAmplitude":41,"SortField_AfterAmplitude":42,"SortField_PreTurnover":43,"SortField_AfterTurnover":44,"SortField_LastSettlePrice":48,"SortField_Position":49,"SortField_PositionChange":50}},"Issuer":{"edition":"proto2","values":{"Issuer_Unknow":0,"Issuer_SG":1,"Issuer_BP":2,"Issuer_CS":3,"Issuer_CT":4,"Issuer_EA":5,"Issuer_GS":6,"Issuer_HS":7,"Issuer_JP":8,"Issuer_MB":9,"Issuer_SC":10,"Issuer_UB":11,"Issuer_BI":12,"Issuer_DB":13,"Issuer_DC":14,"Issuer_ML":15,"Issuer_NM":16,"Issuer_RB":17,"Issuer_RS":18,"Issuer_BC":19,"Issuer_HT":20,"Issuer_VT":21,"Issuer_KC":22,"Issuer_MS":23,"Issuer_GJ":24,"Issuer_XZ":25,"Issuer_HU":26,"Issuer_KS":27,"Issuer_CI":28}},"IpoPeriod":{"edition":"proto2","values":{"IpoPeriod_Unknow":0,"IpoPeriod_Today":1,"IpoPeriod_Tomorrow":2,"IpoPeriod_Nextweek":3,"IpoPeriod_Lastweek":4,"IpoPeriod_Lastmonth":5}},"PriceType":{"edition":"proto2","values":{"PriceType_Unknow":0,"PriceType_Outside":1,"PriceType_WithIn":2}},"WarrantStatus":{"edition":"proto2","values":{"WarrantStatus_Unknow":0,"WarrantStatus_Normal":1,"WarrantStatus_Suspend":2,"WarrantStatus_StopTrade":3,"WarrantStatus_PendingListing":4}},"CompanyAct":{"edition":"proto2","values":{"CompanyAct_None":0,"CompanyAct_Split":1,"CompanyAct_Join":2,"CompanyAct_Bonus":4,"CompanyAct_Transfer":8,"CompanyAct_Allot":16,"CompanyAct_Add":32,"CompanyAct_Dividend":64,"CompanyAct_SPDividend":128,"CompanyAct_SpinOff":256}},"QotRight":{"edition":"proto2","values":{"QotRight_Unknow":0,"QotRight_Bmp":1,"QotRight_Level1":2,"QotRight_Level2":3,"QotRight_SF":4,"QotRight_No":5}},"PriceReminderType":{"edition":"proto2","values":{"PriceReminderType_Unknown":0,"PriceReminderType_PriceUp":1,"PriceReminderType_PriceDown":2,"PriceReminderType_ChangeRateUp":3,"PriceReminderType_ChangeRateDown":4,"PriceReminderType_5MinChangeRateUp":5,"PriceReminderType_5MinChangeRateDown":6,"PriceReminderType_VolumeUp":7,"PriceReminderType_TurnoverUp":8,"PriceReminderType_TurnoverRateUp":9,"PriceReminderType_BidPriceUp":10,"PriceReminderType_AskPriceDown":11,"PriceReminderType_BidVolUp":12,"PriceReminderType_AskVolUp":13,"PriceReminderType_3MinChangeRateUp":14,"PriceReminderType_3MinChangeRateDown":15}},"PriceReminderFreq":{"edition":"proto2","values":{"PriceReminderFreq_Unknown":0,"PriceReminderFreq_Always":1,"PriceReminderFreq_OnceADay":2,"PriceReminderFreq_OnlyOnce":3}},"AssetClass":{"edition":"proto2","values":{"AssetClass_Unknow":0,"AssetClass_Stock":1,"AssetClass_Bond":2,"AssetClass_Commodity":3,"AssetClass_CurrencyMarket":4,"AssetClass_Future":5,"AssetClass_Swap":6}},"ExpirationCycle":{"edition":"proto2","values":{"ExpirationCycle_Unknown":0,"ExpirationCycle_Week":1,"ExpirationCycle_Month":2,"ExpirationCycle_MonthEnd":3,"ExpirationCycle_Quarter":4,"ExpirationCycle_WeekMon":11,"ExpirationCycle_WeekTue":12,"ExpirationCycle_WeekWed":13,"ExpirationCycle_WeekThu":14,"ExpirationCycle_WeekFri":15}},"OptionStandardType":{"edition":"proto2","values":{"OptionStandardType_Unknown":0,"OptionStandardType_Standard":1,"OptionStandardType_NonStandard":2}},"OptionSettlementMode":{"edition":"proto2","values":{"OptionSettlementMode_Unknown":0,"OptionSettlementMode_AM":1,"OptionSettlementMode_PM":2}},"ExchType":{"edition":"proto2","values":{"ExchType_Unknown":0,"ExchType_HK_MainBoard":1,"ExchType_HK_GEMBoard":2,"ExchType_HK_HKEX":3,"ExchType_US_NYSE":4,"ExchType_US_Nasdaq":5,"ExchType_US_Pink":6,"ExchType_US_AMEX":7,"ExchType_US_Option":8,"ExchType_US_NYMEX":9,"ExchType_US_COMEX":10,"ExchType_US_CBOT":11,"ExchType_US_CME":12,"ExchType_US_CBOE":13,"ExchType_CN_SH":14,"ExchType_CN_SZ":15,"ExchType_CN_STIB":16,"ExchType_SG_SGX":17,"ExchType_JP_OSE":18}},"PeriodType":{"edition":"proto2","values":{"PeriodType_Unknown":0,"PeriodType_INTRADAY":1,"PeriodType_DAY":2,"PeriodType_WEEK":3,"PeriodType_MONTH":4}},"PriceReminderMarketStatus":{"edition":"proto2","values":{"PriceReminderMarketStatus_Unknow":0,"PriceReminderMarketStatus_Open":1,"PriceReminderMarketStatus_USPre":2,"PriceReminderMarketStatus_USAfter":3,"PriceReminderMarketStatus_USOverNight":4}},"Security":{"edition":"proto2","fields":{"market":{"rule":"required","type":"int32","id":1},"code":{"rule":"required","type":"string","id":2}}},"KLine":{"edition":"proto2","fields":{"time":{"rule":"required","type":"string","id":1},"isBlank":{"rule":"required","type":"bool","id":2},"highPrice":{"type":"double","id":3},"openPrice":{"type":"double","id":4},"lowPrice":{"type":"double","id":5},"closePrice":{"type":"double","id":6},"lastClosePrice":{"type":"double","id":7},"volume":{"type":"int64","id":8},"turnover":{"type":"double","id":9},"turnoverRate":{"type":"double","id":10},"pe":{"type":"double","id":11},"changeRate":{"type":"double","id":12},"timestamp":{"type":"double","id":13}}},"OptionBasicQotExData":{"edition":"proto2","fields":{"strikePrice":{"rule":"required","type":"double","id":1},"contractSize":{"rule":"required","type":"int32","id":2},"contractSizeFloat":{"type":"double","id":17},"openInterest":{"rule":"required","type":"int32","id":3},"impliedVolatility":{"rule":"required","type":"double","id":4},"premium":{"rule":"required","type":"double","id":5},"delta":{"rule":"required","type":"double","id":6},"gamma":{"rule":"required","type":"double","id":7},"vega":{"rule":"required","type":"double","id":8},"theta":{"rule":"required","type":"double","id":9},"rho":{"rule":"required","type":"double","id":10},"netOpenInterest":{"type":"int32","id":11},"expiryDateDistance":{"type":"int32","id":12},"contractNominalValue":{"type":"double","id":13},"ownerLotMultiplier":{"type":"double","id":14},"optionAreaType":{"type":"int32","id":15},"contractMultiplier":{"type":"double","id":16},"indexOptionType":{"type":"int32","id":18}}},"PreAfterMarketData":{"edition":"proto2","fields":{"price":{"type":"double","id":1},"highPrice":{"type":"double","id":2},"lowPrice":{"type":"double","id":3},"volume":{"type":"int64","id":4},"turnover":{"type":"double","id":5},"changeVal":{"type":"double","id":6},"changeRate":{"type":"double","id":7},"amplitude":{"type":"double","id":8}}},"FutureBasicQotExData":{"edition":"proto2","fields":{"lastSettlePrice":{"rule":"required","type":"double","id":1},"position":{"rule":"required","type":"int32","id":2},"positionChange":{"rule":"required","type":"int32","id":3},"expiryDateDistance":{"type":"int32","id":4}}},"WarrantBasicQotExData":{"edition":"proto2","fields":{"delta":{"type":"double","id":1},"impliedVolatility":{"type":"double","id":2},"premium":{"rule":"required","type":"double","id":3}}},"BasicQot":{"edition":"proto2","fields":{"security":{"rule":"required","type":"Security","id":1},"name":{"type":"string","id":24},"isSuspended":{"rule":"required","type":"bool","id":2},"listTime":{"rule":"required","type":"string","id":3},"priceSpread":{"rule":"required","type":"double","id":4},"updateTime":{"rule":"required","type":"string","id":5},"highPrice":{"rule":"required","type":"double","id":6},"openPrice":{"rule":"required","type":"double","id":7},"lowPrice":{"rule":"required","type":"double","id":8},"curPrice":{"rule":"required","type":"double","id":9},"lastClosePrice":{"rule":"required","type":"double","id":10},"volume":{"rule":"required","type":"int64","id":11},"turnover":{"rule":"required","type":"double","id":12},"turnoverRate":{"rule":"required","type":"double","id":13},"amplitude":{"rule":"required","type":"double","id":14},"darkStatus":{"type":"int32","id":15},"optionExData":{"type":"OptionBasicQotExData","id":16},"listTimestamp":{"type":"double","id":17},"updateTimestamp":{"type":"double","id":18},"preMarket":{"type":"PreAfterMarketData","id":19},"afterMarket":{"type":"PreAfterMarketData","id":20},"secStatus":{"type":"int32","id":21},"futureExData":{"type":"FutureBasicQotExData","id":22},"warrantExData":{"type":"WarrantBasicQotExData","id":23},"overnight":{"type":"PreAfterMarketData","id":25}}},"TimeShare":{"edition":"proto2","fields":{"time":{"rule":"required","type":"string","id":1},"minute":{"rule":"required","type":"int32","id":2},"isBlank":{"rule":"required","type":"bool","id":3},"price":{"type":"double","id":4},"lastClosePrice":{"type":"double","id":5},"avgPrice":{"type":"double","id":6},"volume":{"type":"int64","id":7},"turnover":{"type":"double","id":8},"timestamp":{"type":"double","id":9}}},"SecurityStaticBasic":{"edition":"proto2","fields":{"security":{"rule":"required","type":"Qot_Common.Security","id":1},"id":{"rule":"required","type":"int64","id":2},"lotSize":{"rule":"required","type":"int32","id":3},"secType":{"rule":"required","type":"int32","id":4},"name":{"rule":"required","type":"string","id":5},"listTime":{"rule":"required","type":"string","id":6},"delisting":{"type":"bool","id":7},"listTimestamp":{"type":"double","id":8},"exchType":{"type":"int32","id":9}}},"WarrantStaticExData":{"edition":"proto2","fields":{"type":{"rule":"required","type":"int32","id":1},"owner":{"rule":"required","type":"Qot_Common.Security","id":2}}},"OptionStaticExData":{"edition":"proto2","fields":{"type":{"rule":"required","type":"int32","id":1},"owner":{"rule":"required","type":"Qot_Common.Security","id":2},"strikeTime":{"rule":"required","type":"string","id":3},"strikePrice":{"rule":"required","type":"double","id":4},"suspend":{"rule":"required","type":"bool","id":5},"market":{"rule":"required","type":"string","id":6},"strikeTimestamp":{"type":"double","id":7},"indexOptionType":{"type":"int32","id":8},"expirationCycle":{"type":"int32","id":9},"optionStandardType":{"type":"int32","id":10},"optionSettlementMode":{"type":"int32","id":11}}},"FutureStaticExData":{"edition":"proto2","fields":{"lastTradeTime":{"rule":"required","type":"string","id":1},"lastTradeTimestamp":{"type":"double","id":2},"isMainContract":{"rule":"required","type":"bool","id":3}}},"SecurityStaticInfo":{"edition":"proto2","fields":{"basic":{"rule":"required","type":"SecurityStaticBasic","id":1},"warrantExData":{"type":"WarrantStaticExData","id":2},"optionExData":{"type":"OptionStaticExData","id":3},"futureExData":{"type":"FutureStaticExData","id":4}}},"Broker":{"edition":"proto2","fields":{"id":{"rule":"required","type":"int64","id":1},"name":{"rule":"required","type":"string","id":2},"pos":{"rule":"required","type":"int32","id":3},"orderID":{"type":"int64","id":4},"volume":{"type":"int64","id":5}}},"Ticker":{"edition":"proto2","fields":{"time":{"rule":"required","type":"string","id":1},"sequence":{"rule":"required","type":"int64","id":2},"dir":{"rule":"required","type":"int32","id":3},"price":{"rule":"required","type":"double","id":4},"volume":{"rule":"required","type":"int64","id":5},"turnover":{"rule":"required","type":"double","id":6},"recvTime":{"type":"double","id":7},"type":{"type":"int32","id":8},"typeSign":{"type":"int32","id":9},"pushDataType":{"type":"int32","id":10},"timestamp":{"type":"double","id":11}}},"OrderBookDetail":{"edition":"proto2","fields":{"orderID":{"rule":"required","type":"int64","id":1},"volume":{"rule":"required","type":"int64","id":2}}},"OrderBook":{"edition":"proto2","fields":{"price":{"rule":"required","type":"double","id":1},"volume":{"rule":"required","type":"int64","id":2},"orederCount":{"rule":"required","type":"int32","id":3},"detailList":{"rule":"repeated","type":"OrderBookDetail","id":4}}},"ShareHoldingChange":{"edition":"proto2","fields":{"holderName":{"rule":"required","type":"string","id":1},"holdingQty":{"rule":"required","type":"double","id":2},"holdingRatio":{"rule":"required","type":"double","id":3},"changeQty":{"rule":"required","type":"double","id":4},"changeRatio":{"rule":"required","type":"double","id":5},"time":{"rule":"required","type":"string","id":6},"timestamp":{"type":"double","id":7}}},"SubInfo":{"edition":"proto2","fields":{"subType":{"rule":"required","type":"int32","id":1},"securityList":{"rule":"repeated","type":"Qot_Common.Security","id":2}}},"ConnSubInfo":{"edition":"proto2","fields":{"subInfoList":{"rule":"repeated","type":"SubInfo","id":1},"usedQuota":{"rule":"required","type":"int32","id":2},"isOwnConnData":{"rule":"required","type":"bool","id":3}}},"PlateInfo":{"edition":"proto2","fields":{"plate":{"rule":"required","type":"Qot_Common.Security","id":1},"name":{"rule":"required","type":"string","id":2},"plateType":{"type":"int32","id":3}}},"Rehab":{"edition":"proto2","fields":{"time":{"rule":"required","type":"string","id":1},"companyActFlag":{"rule":"required","type":"int64","id":2},"fwdFactorA":{"rule":"required","type":"double","id":3},"fwdFactorB":{"rule":"required","type":"double","id":4},"bwdFactorA":{"rule":"required","type":"double","id":5},"bwdFactorB":{"rule":"required","type":"double","id":6},"splitBase":{"type":"int32","id":7},"splitErt":{"type":"int32","id":8},"joinBase":{"type":"int32","id":9},"joinErt":{"type":"int32","id":10},"bonusBase":{"type":"int32","id":11},"bonusErt":{"type":"int32","id":12},"transferBase":{"type":"int32","id":13},"transferErt":{"type":"int32","id":14},"allotBase":{"type":"int32","id":15},"allotErt":{"type":"int32","id":16},"allotPrice":{"type":"double","id":17},"addBase":{"type":"int32","id":18},"addErt":{"type":"int32","id":19},"addPrice":{"type":"double","id":20},"dividend":{"type":"double","id":21},"spDividend":{"type":"double","id":22},"spinOffBase":{"type":"double","id":24},"spinOffErt":{"type":"double","id":25},"timestamp":{"type":"double","id":23}}}}},"Qot_GetOptionChain":{"options":{"java_package":"com.futu.openapi.pb","go_package":"github.com/futuopen/ftapi4go/pb/qotgetoptionchain"},"nested":{"OptionCondType":{"edition":"proto2","values":{"OptionCondType_Unknow":0,"OptionCondType_WithIn":1,"OptionCondType_Outside":2}},"DataFilter":{"edition":"proto2","fields":{"impliedVolatilityMin":{"type":"double","id":1},"impliedVolatilityMax":{"type":"double","id":2},"deltaMin":{"type":"double","id":3},"deltaMax":{"type":"double","id":4},"gammaMin":{"type":"double","id":5},"gammaMax":{"type":"double","id":6},"vegaMin":{"type":"double","id":7},"vegaMax":{"type":"double","id":8},"thetaMin":{"type":"double","id":9},"thetaMax":{"type":"double","id":10},"rhoMin":{"type":"double","id":11},"rhoMax":{"type":"double","id":12},"netOpenInterestMin":{"type":"double","id":13},"netOpenInterestMax":{"type":"double","id":14},"openInterestMin":{"type":"double","id":15},"openInterestMax":{"type":"double","id":16},"volMin":{"type":"double","id":17},"volMax":{"type":"double","id":18}}},"C2S":{"edition":"proto2","fields":{"owner":{"rule":"required","type":"Qot_Common.Security","id":1},"indexOptionType":{"type":"int32","id":6},"type":{"type":"int32","id":2},"condition":{"type":"int32","id":3},"beginTime":{"rule":"required","type":"string","id":4},"endTime":{"rule":"required","type":"string","id":5},"dataFilter":{"type":"DataFilter","id":7}}},"OptionItem":{"edition":"proto2","fields":{"call":{"type":"Qot_Common.SecurityStaticInfo","id":1},"put":{"type":"Qot_Common.SecurityStaticInfo","id":2}}},"OptionChain":{"edition":"proto2","fields":{"strikeTime":{"rule":"required","type":"string","id":1},"option":{"rule":"repeated","type":"OptionItem","id":2},"strikeTimestamp":{"type":"double","id":3}}},"S2C":{"edition":"proto2","fields":{"optionChain":{"rule":"repeated","type":"OptionChain","id":1}}},"Request":{"edition":"proto2","fields":{"c2s":{"rule":"required","type":"C2S","id":1}}},"Response":{"edition":"proto2","fields":{"retType":{"rule":"required","type":"int32","id":1,"options":{"default":-400}},"retMsg":{"type":"string","id":2},"errCode":{"type":"int32","id":3},"s2c":{"type":"S2C","id":4}}}}}}};
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -922,7 +922,7 @@ var require_longbits = __commonJS({
       return 1;
     };
     var zeroHash = LongBits.zeroHash = "\0\0\0\0\0\0\0\0";
-    LongBits.fromNumber = function fromNumber(value) {
+    LongBits.fromNumber = function fromNumber2(value) {
       if (value === 0)
         return zero;
       var sign = value < 0;
@@ -951,7 +951,7 @@ var require_longbits = __commonJS({
       }
       return value.low || value.high ? new LongBits(value.low >>> 0, value.high >>> 0) : zero;
     };
-    LongBits.prototype.toNumber = function toNumber(unsigned) {
+    LongBits.prototype.toNumber = function toNumber2(unsigned) {
       if (!unsigned && this.hi >>> 31) {
         var lo = ~this.lo + 1 >>> 0, hi = ~this.hi >>> 0;
         if (!lo)
@@ -1804,7 +1804,7 @@ var require_codegen = __commonJS({
       var body = [];
       function Codegen(formatStringOrScope) {
         if (typeof formatStringOrScope !== "string") {
-          var source = toString();
+          var source = toString2();
           if (codegen.verbose)
             console.log("codegen: " + source);
           source = "return " + source;
@@ -1843,10 +1843,10 @@ var require_codegen = __commonJS({
         body.push(formatStringOrScope);
         return Codegen;
       }
-      function toString(functionNameOverride) {
+      function toString2(functionNameOverride) {
         return "function " + (functionNameOverride || functionName || "") + "(" + (functionParams && functionParams.join(",") || "") + "){\n  " + body.join("\n  ") + "\n}";
       }
-      Codegen.toString = toString;
+      Codegen.toString = toString2;
       return Codegen;
     }
     codegen.verbose = false;
@@ -2053,7 +2053,7 @@ var require_namespace = __commonJS({
         return this.nested[name].values;
       throw Error("no such enum: " + name);
     };
-    Namespace.prototype.add = function add(object) {
+    Namespace.prototype.add = function add2(object) {
       if (!(object instanceof Field && object.extend !== void 0 || object instanceof Type || object instanceof OneOf || object instanceof Enum || object instanceof Service || object instanceof Namespace))
         throw TypeError("object must be a valid nested object");
       if (!this.nested)
@@ -2433,7 +2433,7 @@ var require_service2 = __commonJS({
       });
       return this;
     };
-    Service.prototype.add = function add(object) {
+    Service.prototype.add = function add2(object) {
       if (this.get(object.name))
         throw Error("duplicate name '" + object.name + "' in " + this);
       if (object instanceof Method) {
@@ -3138,7 +3138,7 @@ var require_type = __commonJS({
     Type.prototype.get = function get(name) {
       return this.fields[name] || this.oneofs && this.oneofs[name] || this.nested && this.nested[name] || null;
     };
-    Type.prototype.add = function add(object) {
+    Type.prototype.add = function add2(object) {
       if (this.get(object.name))
         throw Error("duplicate name '" + object.name + "' in " + this);
       if (object instanceof Field && object.extend === void 0) {
@@ -4049,7 +4049,7 @@ var require_oneof = __commonJS({
             oneof.parent.add(oneof.fieldsArray[i]);
       }
     }
-    OneOf.prototype.add = function add(field) {
+    OneOf.prototype.add = function add2(field) {
       if (!(field instanceof Field))
         throw TypeError("field must be a Field");
       if (field.parent && field.parent !== this.parent)
@@ -4297,7 +4297,7 @@ var require_object = __commonJS({
           this.setOption(keys[i], options[keys[i]], ifNotSet);
       return this;
     };
-    ReflectionObject.prototype.toString = function toString() {
+    ReflectionObject.prototype.toString = function toString2() {
       var className = this.constructor.className, fullName = this.fullName;
       if (fullName.length)
         return className + " " + fullName;
@@ -4378,7 +4378,7 @@ var require_enum = __commonJS({
         keepComments ? this.comments : void 0
       ]);
     };
-    Enum.prototype.add = function add(name, id, comment, options) {
+    Enum.prototype.add = function add2(name, id, comment, options) {
       if (!util.isString(name))
         throw TypeError("name must be a string");
       if (!util.isInteger(id))
@@ -4725,8 +4725,8 @@ var require_tokenize = __commonJS({
         return stack[0];
       }
       function skip(expected, optional) {
-        var actual = peek(), equals = actual === expected;
-        if (equals) {
+        var actual = peek(), equals2 = actual === expected;
+        if (equals2) {
           next();
           return true;
         }
@@ -8790,10 +8790,10 @@ var require_toString = __commonJS({
   "node_modules/lodash/toString.js"(exports2, module2) {
     init_shim();
     var baseToString = require_baseToString();
-    function toString(value) {
+    function toString2(value) {
       return value == null ? "" : baseToString(value);
     }
-    module2.exports = toString;
+    module2.exports = toString2;
   }
 });
 
@@ -8801,11 +8801,11 @@ var require_toString = __commonJS({
 var require_uniqueId = __commonJS({
   "node_modules/lodash/uniqueId.js"(exports2, module2) {
     init_shim();
-    var toString = require_toString();
+    var toString2 = require_toString();
     var idCounter = 0;
     function uniqueId(prefix) {
       var id = ++idCounter;
-      return toString(prefix) + id;
+      return toString2(prefix) + id;
     }
     module2.exports = uniqueId;
   }
@@ -10270,12 +10270,12 @@ var require_castPath = __commonJS({
     var isArray = require_isArray();
     var isKey = require_isKey();
     var stringToPath = require_stringToPath();
-    var toString = require_toString();
+    var toString2 = require_toString();
     function castPath(value, object) {
       if (isArray(value)) {
         return value;
       }
-      return isKey(value, object) ? [value] : stringToPath(toString(value));
+      return isKey(value, object) ? [value] : stringToPath(toString2(value));
     }
     module2.exports = castPath;
   }
@@ -10728,11 +10728,11 @@ var require_escape = __commonJS({
   "node_modules/lodash/escape.js"(exports2, module2) {
     init_shim();
     var escapeHtmlChar = require_escapeHtmlChar();
-    var toString = require_toString();
+    var toString2 = require_toString();
     var reUnescapedHtml = /[&<>"']/g;
     var reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
     function escape(string) {
-      string = toString(string);
+      string = toString2(string);
       return string && reHasUnescapedHtml.test(string) ? string.replace(reUnescapedHtml, escapeHtmlChar) : string;
     }
     module2.exports = escape;
@@ -10828,7 +10828,7 @@ var require_template = __commonJS({
     var keys = require_keys();
     var reInterpolate = require_reInterpolate();
     var templateSettings = require_templateSettings();
-    var toString = require_toString();
+    var toString2 = require_toString();
     var INVALID_TEMPL_VAR_ERROR_TEXT = "Invalid `variable` option passed into `_.template`";
     var reEmptyStringLeading = /\b__p \+= '';/g;
     var reEmptyStringMiddle = /\b(__p \+=) '' \+/g;
@@ -10844,7 +10844,7 @@ var require_template = __commonJS({
       if (guard && isIterateeCall(string, options, guard)) {
         options = void 0;
       }
-      string = toString(string);
+      string = toString2(string);
       options = assignInWith({}, options, settings, customDefaultsAssignIn);
       var imports = assignInWith({}, options.imports, settings.imports, customDefaultsAssignIn), importsKeys = keys(imports), importsValues = baseValues(imports, importsKeys);
       var isEscaping, isEvaluating, index = 0, interpolate = options.interpolate || reNoMatch, source = "__p += '";
@@ -12969,7 +12969,7 @@ var require_toNumber = __commonJS({
     var reIsBinary = /^0b[01]+$/i;
     var reIsOctal = /^0o[0-7]+$/i;
     var freeParseInt = parseInt;
-    function toNumber(value) {
+    function toNumber2(value) {
       if (typeof value == "number") {
         return value;
       }
@@ -12987,7 +12987,7 @@ var require_toNumber = __commonJS({
       var isBinary = reIsBinary.test(value);
       return isBinary || reIsOctal.test(value) ? freeParseInt(value.slice(2), isBinary ? 2 : 8) : reIsBadHex.test(value) ? NAN : +value;
     }
-    module2.exports = toNumber;
+    module2.exports = toNumber2;
   }
 });
 
@@ -12995,14 +12995,14 @@ var require_toNumber = __commonJS({
 var require_toFinite = __commonJS({
   "node_modules/lodash/toFinite.js"(exports2, module2) {
     init_shim();
-    var toNumber = require_toNumber();
+    var toNumber2 = require_toNumber();
     var INFINITY = 1 / 0;
     var MAX_INTEGER = 17976931348623157e292;
     function toFinite(value) {
       if (!value) {
         return value === 0 ? value : 0;
       }
-      value = toNumber(value);
+      value = toNumber2(value);
       if (value === INFINITY || value === -INFINITY) {
         var sign = value < 0 ? -1 : 1;
         return sign * MAX_INTEGER;
@@ -14554,7 +14554,7 @@ var require_negate = __commonJS({
   "node_modules/lodash/negate.js"(exports2, module2) {
     init_shim();
     var FUNC_ERROR_TEXT = "Expected a function";
-    function negate(predicate) {
+    function negate2(predicate) {
       if (typeof predicate != "function") {
         throw new TypeError(FUNC_ERROR_TEXT);
       }
@@ -14573,7 +14573,7 @@ var require_negate = __commonJS({
         return !predicate.apply(this, args);
       };
     }
-    module2.exports = negate;
+    module2.exports = negate2;
   }
 });
 
@@ -14585,10 +14585,10 @@ var require_reject = __commonJS({
     var baseFilter = require_baseFilter();
     var baseIteratee = require_baseIteratee();
     var isArray = require_isArray();
-    var negate = require_negate();
+    var negate2 = require_negate();
     function reject(collection, predicate) {
       var func = isArray(collection) ? arrayFilter : baseFilter;
-      return func(collection, negate(baseIteratee(predicate, 3)));
+      return func(collection, negate2(baseIteratee(predicate, 3)));
     }
     module2.exports = reject;
   }
@@ -14855,7 +14855,7 @@ var require_helpers = __commonJS({
     function resolveClientNameWithAliases(clientName) {
       return CLIENT_ALIASES[clientName] || clientName;
     }
-    function toNumber(val, fallback) {
+    function toNumber2(val, fallback) {
       if (val === void 0 || val === null) return fallback;
       const number = parseInt(val, 10);
       return isNaN(number) ? fallback : number;
@@ -14866,7 +14866,7 @@ var require_helpers = __commonJS({
       getUndefinedIndices,
       normalizeArr,
       resolveClientNameWithAliases,
-      toNumber
+      toNumber: toNumber2
     };
   }
 });
@@ -17567,10 +17567,10 @@ var require_omitBy = __commonJS({
   "node_modules/lodash/omitBy.js"(exports2, module2) {
     init_shim();
     var baseIteratee = require_baseIteratee();
-    var negate = require_negate();
+    var negate2 = require_negate();
     var pickBy = require_pickBy();
     function omitBy(object, predicate) {
-      return pickBy(object, negate(baseIteratee(predicate)));
+      return pickBy(object, negate2(baseIteratee(predicate)));
     }
     module2.exports = omitBy;
   }
@@ -19941,7 +19941,7 @@ var require_columncompiler = __commonJS({
     var first = require_first();
     var has = require_has();
     var tail = require_tail();
-    var { toNumber } = require_helpers();
+    var { toNumber: toNumber2 } = require_helpers();
     var { formatDefault } = require_formatterUtils();
     var { operator: operator_ } = require_wrappingFormatter();
     var ColumnCompiler = class {
@@ -20025,10 +20025,10 @@ var require_columncompiler = __commonJS({
       // Types
       // ------
       varchar(length) {
-        return `varchar(${toNumber(length, 255)})`;
+        return `varchar(${toNumber2(length, 255)})`;
       }
       floating(precision, scale) {
-        return `float(${toNumber(precision, 8)}, ${toNumber(scale, 2)})`;
+        return `float(${toNumber2(precision, 8)}, ${toNumber2(scale, 2)})`;
       }
       decimal(precision, scale) {
         if (precision === null) {
@@ -20036,7 +20036,7 @@ var require_columncompiler = __commonJS({
             "Specifying no precision on decimal columns is not supported for that SQL dialect."
           );
         }
-        return `decimal(${toNumber(precision, 8)}, ${toNumber(scale, 2)})`;
+        return `decimal(${toNumber2(precision, 8)}, ${toNumber2(scale, 2)})`;
       }
       // Used to support custom types
       specifictype(type) {
@@ -20103,9 +20103,9 @@ var require_columncompiler = __commonJS({
           constraintName
         );
       }
-      _checkIn(values, constraintName, not) {
+      _checkIn(values, constraintName, not2) {
         return this._check(
-          `${this.formatter.wrap(this.getColumnName())} ${not ? "not " : ""}in (${values.map((v) => this.client._escapeBinding(v)).join(",")})`,
+          `${this.formatter.wrap(this.getColumnName())} ${not2 ? "not " : ""}in (${values.map((v) => this.client._escapeBinding(v)).join(",")})`,
           constraintName
         );
       }
@@ -20134,7 +20134,7 @@ var require_columncompiler = __commonJS({
             operator,
             this.columnBuilder,
             this.bindingsHolder
-          )} ${toNumber(length)}`,
+          )} ${toNumber2(length)}`,
           constraintName
         );
       }
@@ -23811,7 +23811,7 @@ var require_pg_columncompiler = __commonJS({
     init_shim();
     var ColumnCompiler = require_columncompiler();
     var { isObject } = require_is();
-    var { toNumber } = require_helpers();
+    var { toNumber: toNumber2 } = require_helpers();
     var commentEscapeRegex = /(?<!')'(?!')/g;
     var ColumnCompiler_PG = class extends ColumnCompiler {
       constructor(client, tableCompiler, columnBuilder) {
@@ -23847,7 +23847,7 @@ var require_pg_columncompiler = __commonJS({
       }
       decimal(precision, scale) {
         if (precision === null) return "decimal";
-        return `decimal(${toNumber(precision, 8)}, ${toNumber(scale, 2)})`;
+        return `decimal(${toNumber2(precision, 8)}, ${toNumber2(scale, 2)})`;
       }
       json(jsonb) {
         if (jsonb) this.client.logger.deprecate("json(true)", "jsonb()");
@@ -25903,7 +25903,7 @@ var require_mssql_columncompiler = __commonJS({
   "node_modules/knex/lib/dialects/mssql/schema/mssql-columncompiler.js"(exports2, module2) {
     init_shim();
     var ColumnCompiler = require_columncompiler();
-    var { toNumber } = require_helpers();
+    var { toNumber: toNumber2 } = require_helpers();
     var { formatDefault } = require_formatterUtils();
     var { operator: operator_ } = require_wrappingFormatter();
     var ColumnCompiler_MSSQL = class extends ColumnCompiler {
@@ -25927,7 +25927,7 @@ var require_mssql_columncompiler = __commonJS({
         return "tinyint";
       }
       varchar(length) {
-        return `nvarchar(${toNumber(length, 255)})`;
+        return `nvarchar(${toNumber2(length, 255)})`;
       }
       timestamp({ useTz = false } = {}) {
         return useTz ? "datetimeoffset" : "datetime2";
@@ -25939,7 +25939,7 @@ var require_mssql_columncompiler = __commonJS({
         return "bit";
       }
       binary(length) {
-        return length ? `varbinary(${toNumber(length)})` : "varbinary(max)";
+        return length ? `varbinary(${toNumber2(length)})` : "varbinary(max)";
       }
       // Modifiers
       // ------
@@ -26008,7 +26008,7 @@ ELSE
             operator,
             this.columnBuilder,
             this.bindingsHolder
-          )} ${toNumber(length)}`,
+          )} ${toNumber2(length)}`,
           constraintName
         );
       }
@@ -27138,7 +27138,7 @@ var require_mysql_columncompiler = __commonJS({
     init_shim();
     var ColumnCompiler = require_columncompiler();
     var { isObject } = require_is();
-    var { toNumber } = require_helpers();
+    var { toNumber: toNumber2 } = require_helpers();
     var commentEscapeRegex = /(?<!\\)'/g;
     var ColumnCompiler_MySQL = class extends ColumnCompiler {
       constructor(client, tableCompiler, columnBuilder) {
@@ -27158,14 +27158,14 @@ var require_mysql_columncompiler = __commonJS({
       // ------
       double(precision, scale) {
         if (!precision) return "double";
-        return `double(${toNumber(precision, 8)}, ${toNumber(scale, 2)})`;
+        return `double(${toNumber2(precision, 8)}, ${toNumber2(scale, 2)})`;
       }
       integer(length) {
-        length = length ? `(${toNumber(length, 11)})` : "";
+        length = length ? `(${toNumber2(length, 11)})` : "";
         return `int${length}`;
       }
       tinyint(length) {
-        length = length ? `(${toNumber(length, 1)})` : "";
+        length = length ? `(${toNumber2(length, 1)})` : "";
         return `tinyint${length}`;
       }
       text(column) {
@@ -27208,10 +27208,10 @@ var require_mysql_columncompiler = __commonJS({
         return typeof precision === "number" ? `time(${precision})` : "time";
       }
       bit(length) {
-        return length ? `bit(${toNumber(length)})` : "bit";
+        return length ? `bit(${toNumber2(length)})` : "bit";
       }
       binary(length) {
-        return length ? `varbinary(${toNumber(length)})` : "blob";
+        return length ? `varbinary(${toNumber2(length)})` : "blob";
       }
       json() {
         return "json";
@@ -33376,9 +33376,9 @@ var require_umd = __commonJS({
           value: true
         });
         _exports.default = void 0;
-        var wasm = null;
+        var wasm2 = null;
         try {
-          wasm = new WebAssembly.Instance(
+          wasm2 = new WebAssembly.Instance(
             new WebAssembly.Module(
               new Uint8Array([
                 // \0asm
@@ -33701,71 +33701,71 @@ var require_umd = __commonJS({
           ).exports;
         } catch {
         }
-        function Long(low, high, unsigned) {
+        function Long2(low, high, unsigned) {
           this.low = low | 0;
           this.high = high | 0;
           this.unsigned = !!unsigned;
         }
-        Long.prototype.__isLong__;
-        Object.defineProperty(Long.prototype, "__isLong__", {
+        Long2.prototype.__isLong__;
+        Object.defineProperty(Long2.prototype, "__isLong__", {
           value: true
         });
-        function isLong(obj) {
+        function isLong2(obj) {
           return (obj && obj["__isLong__"]) === true;
         }
-        function ctz32(value) {
+        function ctz322(value) {
           var c = Math.clz32(value & -value);
           return value ? 31 - c : c;
         }
-        Long.isLong = isLong;
-        var INT_CACHE = {};
-        var UINT_CACHE = {};
-        function fromInt(value, unsigned) {
+        Long2.isLong = isLong2;
+        var INT_CACHE2 = {};
+        var UINT_CACHE2 = {};
+        function fromInt2(value, unsigned) {
           var obj, cachedObj, cache;
           if (unsigned) {
             value >>>= 0;
             if (cache = 0 <= value && value < 256) {
-              cachedObj = UINT_CACHE[value];
+              cachedObj = UINT_CACHE2[value];
               if (cachedObj) return cachedObj;
             }
-            obj = fromBits(value, 0, true);
-            if (cache) UINT_CACHE[value] = obj;
+            obj = fromBits2(value, 0, true);
+            if (cache) UINT_CACHE2[value] = obj;
             return obj;
           } else {
             value |= 0;
             if (cache = -128 <= value && value < 128) {
-              cachedObj = INT_CACHE[value];
+              cachedObj = INT_CACHE2[value];
               if (cachedObj) return cachedObj;
             }
-            obj = fromBits(value, value < 0 ? -1 : 0, false);
-            if (cache) INT_CACHE[value] = obj;
+            obj = fromBits2(value, value < 0 ? -1 : 0, false);
+            if (cache) INT_CACHE2[value] = obj;
             return obj;
           }
         }
-        Long.fromInt = fromInt;
-        function fromNumber(value, unsigned) {
-          if (isNaN(value)) return unsigned ? UZERO : ZERO;
+        Long2.fromInt = fromInt2;
+        function fromNumber2(value, unsigned) {
+          if (isNaN(value)) return unsigned ? UZERO2 : ZERO2;
           if (unsigned) {
-            if (value < 0) return UZERO;
-            if (value >= TWO_PWR_64_DBL) return MAX_UNSIGNED_VALUE;
+            if (value < 0) return UZERO2;
+            if (value >= TWO_PWR_64_DBL2) return MAX_UNSIGNED_VALUE2;
           } else {
-            if (value <= -TWO_PWR_63_DBL) return MIN_VALUE;
-            if (value + 1 >= TWO_PWR_63_DBL) return MAX_VALUE;
+            if (value <= -TWO_PWR_63_DBL2) return MIN_VALUE2;
+            if (value + 1 >= TWO_PWR_63_DBL2) return MAX_VALUE2;
           }
-          if (value < 0) return fromNumber(-value, unsigned).neg();
-          return fromBits(
-            value % TWO_PWR_32_DBL | 0,
-            value / TWO_PWR_32_DBL | 0,
+          if (value < 0) return fromNumber2(-value, unsigned).neg();
+          return fromBits2(
+            value % TWO_PWR_32_DBL2 | 0,
+            value / TWO_PWR_32_DBL2 | 0,
             unsigned
           );
         }
-        Long.fromNumber = fromNumber;
-        function fromBits(lowBits, highBits, unsigned) {
-          return new Long(lowBits, highBits, unsigned);
+        Long2.fromNumber = fromNumber2;
+        function fromBits2(lowBits, highBits, unsigned) {
+          return new Long2(lowBits, highBits, unsigned);
         }
-        Long.fromBits = fromBits;
-        var pow_dbl = Math.pow;
-        function fromString(str, unsigned, radix) {
+        Long2.fromBits = fromBits2;
+        var pow_dbl2 = Math.pow;
+        function fromString2(str, unsigned, radix) {
           if (str.length === 0) throw Error("empty string");
           if (typeof unsigned === "number") {
             radix = unsigned;
@@ -33774,82 +33774,82 @@ var require_umd = __commonJS({
             unsigned = !!unsigned;
           }
           if (str === "NaN" || str === "Infinity" || str === "+Infinity" || str === "-Infinity")
-            return unsigned ? UZERO : ZERO;
+            return unsigned ? UZERO2 : ZERO2;
           radix = radix || 10;
           if (radix < 2 || 36 < radix) throw RangeError("radix");
           var p;
           if ((p = str.indexOf("-")) > 0) throw Error("interior hyphen");
           else if (p === 0) {
-            return fromString(str.substring(1), unsigned, radix).neg();
+            return fromString2(str.substring(1), unsigned, radix).neg();
           }
-          var radixToPower = fromNumber(pow_dbl(radix, 8));
-          var result = ZERO;
+          var radixToPower = fromNumber2(pow_dbl2(radix, 8));
+          var result = ZERO2;
           for (var i = 0; i < str.length; i += 8) {
             var size = Math.min(8, str.length - i), value = parseInt(str.substring(i, i + size), radix);
             if (size < 8) {
-              var power = fromNumber(pow_dbl(radix, size));
-              result = result.mul(power).add(fromNumber(value));
+              var power = fromNumber2(pow_dbl2(radix, size));
+              result = result.mul(power).add(fromNumber2(value));
             } else {
               result = result.mul(radixToPower);
-              result = result.add(fromNumber(value));
+              result = result.add(fromNumber2(value));
             }
           }
           result.unsigned = unsigned;
           return result;
         }
-        Long.fromString = fromString;
-        function fromValue(val, unsigned) {
-          if (typeof val === "number") return fromNumber(val, unsigned);
-          if (typeof val === "string") return fromString(val, unsigned);
-          return fromBits(
+        Long2.fromString = fromString2;
+        function fromValue2(val, unsigned) {
+          if (typeof val === "number") return fromNumber2(val, unsigned);
+          if (typeof val === "string") return fromString2(val, unsigned);
+          return fromBits2(
             val.low,
             val.high,
             typeof unsigned === "boolean" ? unsigned : val.unsigned
           );
         }
-        Long.fromValue = fromValue;
-        var TWO_PWR_16_DBL = 1 << 16;
-        var TWO_PWR_24_DBL = 1 << 24;
-        var TWO_PWR_32_DBL = TWO_PWR_16_DBL * TWO_PWR_16_DBL;
-        var TWO_PWR_64_DBL = TWO_PWR_32_DBL * TWO_PWR_32_DBL;
-        var TWO_PWR_63_DBL = TWO_PWR_64_DBL / 2;
-        var TWO_PWR_24 = fromInt(TWO_PWR_24_DBL);
-        var ZERO = fromInt(0);
-        Long.ZERO = ZERO;
-        var UZERO = fromInt(0, true);
-        Long.UZERO = UZERO;
-        var ONE = fromInt(1);
-        Long.ONE = ONE;
-        var UONE = fromInt(1, true);
-        Long.UONE = UONE;
-        var NEG_ONE = fromInt(-1);
-        Long.NEG_ONE = NEG_ONE;
-        var MAX_VALUE = fromBits(4294967295 | 0, 2147483647 | 0, false);
-        Long.MAX_VALUE = MAX_VALUE;
-        var MAX_UNSIGNED_VALUE = fromBits(4294967295 | 0, 4294967295 | 0, true);
-        Long.MAX_UNSIGNED_VALUE = MAX_UNSIGNED_VALUE;
-        var MIN_VALUE = fromBits(0, 2147483648 | 0, false);
-        Long.MIN_VALUE = MIN_VALUE;
-        var LongPrototype = Long.prototype;
-        LongPrototype.toInt = function toInt() {
+        Long2.fromValue = fromValue2;
+        var TWO_PWR_16_DBL2 = 1 << 16;
+        var TWO_PWR_24_DBL2 = 1 << 24;
+        var TWO_PWR_32_DBL2 = TWO_PWR_16_DBL2 * TWO_PWR_16_DBL2;
+        var TWO_PWR_64_DBL2 = TWO_PWR_32_DBL2 * TWO_PWR_32_DBL2;
+        var TWO_PWR_63_DBL2 = TWO_PWR_64_DBL2 / 2;
+        var TWO_PWR_242 = fromInt2(TWO_PWR_24_DBL2);
+        var ZERO2 = fromInt2(0);
+        Long2.ZERO = ZERO2;
+        var UZERO2 = fromInt2(0, true);
+        Long2.UZERO = UZERO2;
+        var ONE2 = fromInt2(1);
+        Long2.ONE = ONE2;
+        var UONE2 = fromInt2(1, true);
+        Long2.UONE = UONE2;
+        var NEG_ONE2 = fromInt2(-1);
+        Long2.NEG_ONE = NEG_ONE2;
+        var MAX_VALUE2 = fromBits2(4294967295 | 0, 2147483647 | 0, false);
+        Long2.MAX_VALUE = MAX_VALUE2;
+        var MAX_UNSIGNED_VALUE2 = fromBits2(4294967295 | 0, 4294967295 | 0, true);
+        Long2.MAX_UNSIGNED_VALUE = MAX_UNSIGNED_VALUE2;
+        var MIN_VALUE2 = fromBits2(0, 2147483648 | 0, false);
+        Long2.MIN_VALUE = MIN_VALUE2;
+        var LongPrototype2 = Long2.prototype;
+        LongPrototype2.toInt = function toInt2() {
           return this.unsigned ? this.low >>> 0 : this.low;
         };
-        LongPrototype.toNumber = function toNumber() {
+        LongPrototype2.toNumber = function toNumber2() {
           if (this.unsigned)
-            return (this.high >>> 0) * TWO_PWR_32_DBL + (this.low >>> 0);
-          return this.high * TWO_PWR_32_DBL + (this.low >>> 0);
+            return (this.high >>> 0) * TWO_PWR_32_DBL2 + (this.low >>> 0);
+          return this.high * TWO_PWR_32_DBL2 + (this.low >>> 0);
         };
-        LongPrototype.toString = function toString(radix) {
+        LongPrototype2.toString = function toString2(radix) {
           radix = radix || 10;
           if (radix < 2 || 36 < radix) throw RangeError("radix");
           if (this.isZero()) return "0";
           if (this.isNegative()) {
-            if (this.eq(MIN_VALUE)) {
-              var radixLong = fromNumber(radix), div = this.div(radixLong), rem1 = div.mul(radixLong).sub(this);
+            if (this.eq(MIN_VALUE2)) {
+              var radixLong = fromNumber2(radix), div = this.div(radixLong), rem1 = div.mul(radixLong).sub(this);
               return div.toString(radix) + rem1.toInt().toString(radix);
             } else return "-" + this.neg().toString(radix);
           }
-          var radixToPower = fromNumber(pow_dbl(radix, 6), this.unsigned), rem = this;
+          var radixToPower = fromNumber2(pow_dbl2(radix, 6), this.unsigned), rem = this;
           var result = "";
           while (true) {
             var remDiv = rem.div(radixToPower), intval = rem.sub(remDiv.mul(radixToPower)).toInt() >>> 0, digits = intval.toString(radix);
@@ -33861,94 +33861,94 @@ var require_umd = __commonJS({
             }
           }
         };
-        LongPrototype.getHighBits = function getHighBits() {
+        LongPrototype2.getHighBits = function getHighBits2() {
           return this.high;
         };
-        LongPrototype.getHighBitsUnsigned = function getHighBitsUnsigned() {
+        LongPrototype2.getHighBitsUnsigned = function getHighBitsUnsigned2() {
           return this.high >>> 0;
         };
-        LongPrototype.getLowBits = function getLowBits() {
+        LongPrototype2.getLowBits = function getLowBits2() {
           return this.low;
         };
-        LongPrototype.getLowBitsUnsigned = function getLowBitsUnsigned() {
+        LongPrototype2.getLowBitsUnsigned = function getLowBitsUnsigned2() {
           return this.low >>> 0;
         };
-        LongPrototype.getNumBitsAbs = function getNumBitsAbs() {
+        LongPrototype2.getNumBitsAbs = function getNumBitsAbs2() {
           if (this.isNegative())
-            return this.eq(MIN_VALUE) ? 64 : this.neg().getNumBitsAbs();
+            return this.eq(MIN_VALUE2) ? 64 : this.neg().getNumBitsAbs();
           var val = this.high != 0 ? this.high : this.low;
           for (var bit = 31; bit > 0; bit--) if ((val & 1 << bit) != 0) break;
           return this.high != 0 ? bit + 33 : bit + 1;
         };
-        LongPrototype.isSafeInteger = function isSafeInteger() {
+        LongPrototype2.isSafeInteger = function isSafeInteger2() {
           var top11Bits = this.high >> 21;
           if (!top11Bits) return true;
           if (this.unsigned) return false;
           return top11Bits === -1 && !(this.low === 0 && this.high === -2097152);
         };
-        LongPrototype.isZero = function isZero() {
+        LongPrototype2.isZero = function isZero2() {
           return this.high === 0 && this.low === 0;
         };
-        LongPrototype.eqz = LongPrototype.isZero;
-        LongPrototype.isNegative = function isNegative() {
+        LongPrototype2.eqz = LongPrototype2.isZero;
+        LongPrototype2.isNegative = function isNegative2() {
           return !this.unsigned && this.high < 0;
         };
-        LongPrototype.isPositive = function isPositive() {
+        LongPrototype2.isPositive = function isPositive2() {
           return this.unsigned || this.high >= 0;
         };
-        LongPrototype.isOdd = function isOdd() {
+        LongPrototype2.isOdd = function isOdd2() {
           return (this.low & 1) === 1;
         };
-        LongPrototype.isEven = function isEven() {
+        LongPrototype2.isEven = function isEven2() {
           return (this.low & 1) === 0;
         };
-        LongPrototype.equals = function equals(other) {
-          if (!isLong(other)) other = fromValue(other);
+        LongPrototype2.equals = function equals2(other) {
+          if (!isLong2(other)) other = fromValue2(other);
           if (this.unsigned !== other.unsigned && this.high >>> 31 === 1 && other.high >>> 31 === 1)
             return false;
           return this.high === other.high && this.low === other.low;
         };
-        LongPrototype.eq = LongPrototype.equals;
-        LongPrototype.notEquals = function notEquals(other) {
+        LongPrototype2.eq = LongPrototype2.equals;
+        LongPrototype2.notEquals = function notEquals2(other) {
           return !this.eq(
             /* validates */
             other
           );
         };
-        LongPrototype.neq = LongPrototype.notEquals;
-        LongPrototype.ne = LongPrototype.notEquals;
-        LongPrototype.lessThan = function lessThan(other) {
+        LongPrototype2.neq = LongPrototype2.notEquals;
+        LongPrototype2.ne = LongPrototype2.notEquals;
+        LongPrototype2.lessThan = function lessThan2(other) {
           return this.comp(
             /* validates */
             other
           ) < 0;
         };
-        LongPrototype.lt = LongPrototype.lessThan;
-        LongPrototype.lessThanOrEqual = function lessThanOrEqual(other) {
+        LongPrototype2.lt = LongPrototype2.lessThan;
+        LongPrototype2.lessThanOrEqual = function lessThanOrEqual2(other) {
           return this.comp(
             /* validates */
             other
           ) <= 0;
         };
-        LongPrototype.lte = LongPrototype.lessThanOrEqual;
-        LongPrototype.le = LongPrototype.lessThanOrEqual;
-        LongPrototype.greaterThan = function greaterThan(other) {
+        LongPrototype2.lte = LongPrototype2.lessThanOrEqual;
+        LongPrototype2.le = LongPrototype2.lessThanOrEqual;
+        LongPrototype2.greaterThan = function greaterThan2(other) {
           return this.comp(
             /* validates */
             other
           ) > 0;
         };
-        LongPrototype.gt = LongPrototype.greaterThan;
-        LongPrototype.greaterThanOrEqual = function greaterThanOrEqual(other) {
+        LongPrototype2.gt = LongPrototype2.greaterThan;
+        LongPrototype2.greaterThanOrEqual = function greaterThanOrEqual2(other) {
           return this.comp(
             /* validates */
             other
           ) >= 0;
         };
-        LongPrototype.gte = LongPrototype.greaterThanOrEqual;
-        LongPrototype.ge = LongPrototype.greaterThanOrEqual;
-        LongPrototype.compare = function compare(other) {
-          if (!isLong(other)) other = fromValue(other);
+        LongPrototype2.gte = LongPrototype2.greaterThanOrEqual;
+        LongPrototype2.ge = LongPrototype2.greaterThanOrEqual;
+        LongPrototype2.compare = function compare2(other) {
+          if (!isLong2(other)) other = fromValue2(other);
           if (this.eq(other)) return 0;
           var thisNeg = this.isNegative(), otherNeg = other.isNegative();
           if (thisNeg && !otherNeg) return -1;
@@ -33956,14 +33956,14 @@ var require_umd = __commonJS({
           if (!this.unsigned) return this.sub(other).isNegative() ? -1 : 1;
           return other.high >>> 0 > this.high >>> 0 || other.high === this.high && other.low >>> 0 > this.low >>> 0 ? -1 : 1;
         };
-        LongPrototype.comp = LongPrototype.compare;
-        LongPrototype.negate = function negate() {
-          if (!this.unsigned && this.eq(MIN_VALUE)) return MIN_VALUE;
-          return this.not().add(ONE);
+        LongPrototype2.comp = LongPrototype2.compare;
+        LongPrototype2.negate = function negate2() {
+          if (!this.unsigned && this.eq(MIN_VALUE2)) return MIN_VALUE2;
+          return this.not().add(ONE2);
         };
-        LongPrototype.neg = LongPrototype.negate;
-        LongPrototype.add = function add(addend) {
-          if (!isLong(addend)) addend = fromValue(addend);
+        LongPrototype2.neg = LongPrototype2.negate;
+        LongPrototype2.add = function add2(addend) {
+          if (!isLong2(addend)) addend = fromValue2(addend);
           var a48 = this.high >>> 16;
           var a32 = this.high & 65535;
           var a16 = this.low >>> 16;
@@ -33984,35 +33984,35 @@ var require_umd = __commonJS({
           c32 &= 65535;
           c48 += a48 + b48;
           c48 &= 65535;
-          return fromBits(c16 << 16 | c00, c48 << 16 | c32, this.unsigned);
+          return fromBits2(c16 << 16 | c00, c48 << 16 | c32, this.unsigned);
         };
-        LongPrototype.subtract = function subtract(subtrahend) {
-          if (!isLong(subtrahend)) subtrahend = fromValue(subtrahend);
+        LongPrototype2.subtract = function subtract2(subtrahend) {
+          if (!isLong2(subtrahend)) subtrahend = fromValue2(subtrahend);
           return this.add(subtrahend.neg());
         };
-        LongPrototype.sub = LongPrototype.subtract;
-        LongPrototype.multiply = function multiply(multiplier) {
+        LongPrototype2.sub = LongPrototype2.subtract;
+        LongPrototype2.multiply = function multiply2(multiplier) {
           if (this.isZero()) return this;
-          if (!isLong(multiplier)) multiplier = fromValue(multiplier);
-          if (wasm) {
-            var low = wasm["mul"](
+          if (!isLong2(multiplier)) multiplier = fromValue2(multiplier);
+          if (wasm2) {
+            var low = wasm2["mul"](
               this.low,
               this.high,
               multiplier.low,
               multiplier.high
             );
-            return fromBits(low, wasm["get_high"](), this.unsigned);
+            return fromBits2(low, wasm2["get_high"](), this.unsigned);
           }
-          if (multiplier.isZero()) return this.unsigned ? UZERO : ZERO;
-          if (this.eq(MIN_VALUE)) return multiplier.isOdd() ? MIN_VALUE : ZERO;
-          if (multiplier.eq(MIN_VALUE)) return this.isOdd() ? MIN_VALUE : ZERO;
+          if (multiplier.isZero()) return this.unsigned ? UZERO2 : ZERO2;
+          if (this.eq(MIN_VALUE2)) return multiplier.isOdd() ? MIN_VALUE2 : ZERO2;
+          if (multiplier.eq(MIN_VALUE2)) return this.isOdd() ? MIN_VALUE2 : ZERO2;
           if (this.isNegative()) {
             if (multiplier.isNegative()) return this.neg().mul(multiplier.neg());
             else return this.neg().mul(multiplier).neg();
           } else if (multiplier.isNegative())
             return this.mul(multiplier.neg()).neg();
-          if (this.lt(TWO_PWR_24) && multiplier.lt(TWO_PWR_24))
-            return fromNumber(
+          if (this.lt(TWO_PWR_242) && multiplier.lt(TWO_PWR_242))
+            return fromNumber2(
               this.toNumber() * multiplier.toNumber(),
               this.unsigned
             );
@@ -34045,172 +34045,172 @@ var require_umd = __commonJS({
           c32 &= 65535;
           c48 += a48 * b00 + a32 * b16 + a16 * b32 + a00 * b48;
           c48 &= 65535;
-          return fromBits(c16 << 16 | c00, c48 << 16 | c32, this.unsigned);
+          return fromBits2(c16 << 16 | c00, c48 << 16 | c32, this.unsigned);
         };
-        LongPrototype.mul = LongPrototype.multiply;
-        LongPrototype.divide = function divide(divisor) {
-          if (!isLong(divisor)) divisor = fromValue(divisor);
+        LongPrototype2.mul = LongPrototype2.multiply;
+        LongPrototype2.divide = function divide2(divisor) {
+          if (!isLong2(divisor)) divisor = fromValue2(divisor);
           if (divisor.isZero()) throw Error("division by zero");
-          if (wasm) {
+          if (wasm2) {
             if (!this.unsigned && this.high === -2147483648 && divisor.low === -1 && divisor.high === -1) {
               return this;
             }
-            var low = (this.unsigned ? wasm["div_u"] : wasm["div_s"])(
+            var low = (this.unsigned ? wasm2["div_u"] : wasm2["div_s"])(
               this.low,
               this.high,
               divisor.low,
               divisor.high
             );
-            return fromBits(low, wasm["get_high"](), this.unsigned);
+            return fromBits2(low, wasm2["get_high"](), this.unsigned);
           }
-          if (this.isZero()) return this.unsigned ? UZERO : ZERO;
+          if (this.isZero()) return this.unsigned ? UZERO2 : ZERO2;
           var approx, rem, res;
           if (!this.unsigned) {
-            if (this.eq(MIN_VALUE)) {
-              if (divisor.eq(ONE) || divisor.eq(NEG_ONE))
-                return MIN_VALUE;
-              else if (divisor.eq(MIN_VALUE)) return ONE;
+            if (this.eq(MIN_VALUE2)) {
+              if (divisor.eq(ONE2) || divisor.eq(NEG_ONE2))
+                return MIN_VALUE2;
+              else if (divisor.eq(MIN_VALUE2)) return ONE2;
               else {
                 var halfThis = this.shr(1);
                 approx = halfThis.div(divisor).shl(1);
-                if (approx.eq(ZERO)) {
-                  return divisor.isNegative() ? ONE : NEG_ONE;
+                if (approx.eq(ZERO2)) {
+                  return divisor.isNegative() ? ONE2 : NEG_ONE2;
                 } else {
                   rem = this.sub(divisor.mul(approx));
                   res = approx.add(rem.div(divisor));
                   return res;
                 }
               }
-            } else if (divisor.eq(MIN_VALUE)) return this.unsigned ? UZERO : ZERO;
+            } else if (divisor.eq(MIN_VALUE2)) return this.unsigned ? UZERO2 : ZERO2;
             if (this.isNegative()) {
               if (divisor.isNegative()) return this.neg().div(divisor.neg());
               return this.neg().div(divisor).neg();
             } else if (divisor.isNegative()) return this.div(divisor.neg()).neg();
-            res = ZERO;
+            res = ZERO2;
           } else {
             if (!divisor.unsigned) divisor = divisor.toUnsigned();
-            if (divisor.gt(this)) return UZERO;
+            if (divisor.gt(this)) return UZERO2;
             if (divisor.gt(this.shru(1)))
-              return UONE;
-            res = UZERO;
+              return UONE2;
+            res = UZERO2;
           }
           rem = this;
           while (rem.gte(divisor)) {
             approx = Math.max(1, Math.floor(rem.toNumber() / divisor.toNumber()));
-            var log2 = Math.ceil(Math.log(approx) / Math.LN2), delta = log2 <= 48 ? 1 : pow_dbl(2, log2 - 48), approxRes = fromNumber(approx), approxRem = approxRes.mul(divisor);
+            var log2 = Math.ceil(Math.log(approx) / Math.LN2), delta = log2 <= 48 ? 1 : pow_dbl2(2, log2 - 48), approxRes = fromNumber2(approx), approxRem = approxRes.mul(divisor);
             while (approxRem.isNegative() || approxRem.gt(rem)) {
               approx -= delta;
-              approxRes = fromNumber(approx, this.unsigned);
+              approxRes = fromNumber2(approx, this.unsigned);
               approxRem = approxRes.mul(divisor);
             }
-            if (approxRes.isZero()) approxRes = ONE;
+            if (approxRes.isZero()) approxRes = ONE2;
             res = res.add(approxRes);
             rem = rem.sub(approxRem);
           }
           return res;
         };
-        LongPrototype.div = LongPrototype.divide;
-        LongPrototype.modulo = function modulo(divisor) {
-          if (!isLong(divisor)) divisor = fromValue(divisor);
-          if (wasm) {
-            var low = (this.unsigned ? wasm["rem_u"] : wasm["rem_s"])(
+        LongPrototype2.div = LongPrototype2.divide;
+        LongPrototype2.modulo = function modulo2(divisor) {
+          if (!isLong2(divisor)) divisor = fromValue2(divisor);
+          if (wasm2) {
+            var low = (this.unsigned ? wasm2["rem_u"] : wasm2["rem_s"])(
               this.low,
               this.high,
               divisor.low,
               divisor.high
             );
-            return fromBits(low, wasm["get_high"](), this.unsigned);
+            return fromBits2(low, wasm2["get_high"](), this.unsigned);
           }
           return this.sub(this.div(divisor).mul(divisor));
         };
-        LongPrototype.mod = LongPrototype.modulo;
-        LongPrototype.rem = LongPrototype.modulo;
-        LongPrototype.not = function not() {
-          return fromBits(~this.low, ~this.high, this.unsigned);
+        LongPrototype2.mod = LongPrototype2.modulo;
+        LongPrototype2.rem = LongPrototype2.modulo;
+        LongPrototype2.not = function not2() {
+          return fromBits2(~this.low, ~this.high, this.unsigned);
         };
-        LongPrototype.countLeadingZeros = function countLeadingZeros() {
+        LongPrototype2.countLeadingZeros = function countLeadingZeros2() {
           return this.high ? Math.clz32(this.high) : Math.clz32(this.low) + 32;
         };
-        LongPrototype.clz = LongPrototype.countLeadingZeros;
-        LongPrototype.countTrailingZeros = function countTrailingZeros() {
-          return this.low ? ctz32(this.low) : ctz32(this.high) + 32;
+        LongPrototype2.clz = LongPrototype2.countLeadingZeros;
+        LongPrototype2.countTrailingZeros = function countTrailingZeros2() {
+          return this.low ? ctz322(this.low) : ctz322(this.high) + 32;
         };
-        LongPrototype.ctz = LongPrototype.countTrailingZeros;
-        LongPrototype.and = function and(other) {
-          if (!isLong(other)) other = fromValue(other);
-          return fromBits(
+        LongPrototype2.ctz = LongPrototype2.countTrailingZeros;
+        LongPrototype2.and = function and2(other) {
+          if (!isLong2(other)) other = fromValue2(other);
+          return fromBits2(
             this.low & other.low,
             this.high & other.high,
             this.unsigned
           );
         };
-        LongPrototype.or = function or(other) {
-          if (!isLong(other)) other = fromValue(other);
-          return fromBits(
+        LongPrototype2.or = function or2(other) {
+          if (!isLong2(other)) other = fromValue2(other);
+          return fromBits2(
             this.low | other.low,
             this.high | other.high,
             this.unsigned
           );
         };
-        LongPrototype.xor = function xor(other) {
-          if (!isLong(other)) other = fromValue(other);
-          return fromBits(
+        LongPrototype2.xor = function xor2(other) {
+          if (!isLong2(other)) other = fromValue2(other);
+          return fromBits2(
             this.low ^ other.low,
             this.high ^ other.high,
             this.unsigned
           );
         };
-        LongPrototype.shiftLeft = function shiftLeft(numBits) {
-          if (isLong(numBits)) numBits = numBits.toInt();
+        LongPrototype2.shiftLeft = function shiftLeft2(numBits) {
+          if (isLong2(numBits)) numBits = numBits.toInt();
           if ((numBits &= 63) === 0) return this;
           else if (numBits < 32)
-            return fromBits(
+            return fromBits2(
               this.low << numBits,
               this.high << numBits | this.low >>> 32 - numBits,
               this.unsigned
             );
-          else return fromBits(0, this.low << numBits - 32, this.unsigned);
+          else return fromBits2(0, this.low << numBits - 32, this.unsigned);
         };
-        LongPrototype.shl = LongPrototype.shiftLeft;
-        LongPrototype.shiftRight = function shiftRight(numBits) {
-          if (isLong(numBits)) numBits = numBits.toInt();
+        LongPrototype2.shl = LongPrototype2.shiftLeft;
+        LongPrototype2.shiftRight = function shiftRight2(numBits) {
+          if (isLong2(numBits)) numBits = numBits.toInt();
           if ((numBits &= 63) === 0) return this;
           else if (numBits < 32)
-            return fromBits(
+            return fromBits2(
               this.low >>> numBits | this.high << 32 - numBits,
               this.high >> numBits,
               this.unsigned
             );
           else
-            return fromBits(
+            return fromBits2(
               this.high >> numBits - 32,
               this.high >= 0 ? 0 : -1,
               this.unsigned
             );
         };
-        LongPrototype.shr = LongPrototype.shiftRight;
-        LongPrototype.shiftRightUnsigned = function shiftRightUnsigned(numBits) {
-          if (isLong(numBits)) numBits = numBits.toInt();
+        LongPrototype2.shr = LongPrototype2.shiftRight;
+        LongPrototype2.shiftRightUnsigned = function shiftRightUnsigned2(numBits) {
+          if (isLong2(numBits)) numBits = numBits.toInt();
           if ((numBits &= 63) === 0) return this;
           if (numBits < 32)
-            return fromBits(
+            return fromBits2(
               this.low >>> numBits | this.high << 32 - numBits,
               this.high >>> numBits,
               this.unsigned
             );
-          if (numBits === 32) return fromBits(this.high, 0, this.unsigned);
-          return fromBits(this.high >>> numBits - 32, 0, this.unsigned);
+          if (numBits === 32) return fromBits2(this.high, 0, this.unsigned);
+          return fromBits2(this.high >>> numBits - 32, 0, this.unsigned);
         };
-        LongPrototype.shru = LongPrototype.shiftRightUnsigned;
-        LongPrototype.shr_u = LongPrototype.shiftRightUnsigned;
-        LongPrototype.rotateLeft = function rotateLeft(numBits) {
+        LongPrototype2.shru = LongPrototype2.shiftRightUnsigned;
+        LongPrototype2.shr_u = LongPrototype2.shiftRightUnsigned;
+        LongPrototype2.rotateLeft = function rotateLeft2(numBits) {
           var b;
-          if (isLong(numBits)) numBits = numBits.toInt();
+          if (isLong2(numBits)) numBits = numBits.toInt();
           if ((numBits &= 63) === 0) return this;
-          if (numBits === 32) return fromBits(this.high, this.low, this.unsigned);
+          if (numBits === 32) return fromBits2(this.high, this.low, this.unsigned);
           if (numBits < 32) {
             b = 32 - numBits;
-            return fromBits(
+            return fromBits2(
               this.low << numBits | this.high >>> b,
               this.high << numBits | this.low >>> b,
               this.unsigned
@@ -34218,21 +34218,21 @@ var require_umd = __commonJS({
           }
           numBits -= 32;
           b = 32 - numBits;
-          return fromBits(
+          return fromBits2(
             this.high << numBits | this.low >>> b,
             this.low << numBits | this.high >>> b,
             this.unsigned
           );
         };
-        LongPrototype.rotl = LongPrototype.rotateLeft;
-        LongPrototype.rotateRight = function rotateRight(numBits) {
+        LongPrototype2.rotl = LongPrototype2.rotateLeft;
+        LongPrototype2.rotateRight = function rotateRight2(numBits) {
           var b;
-          if (isLong(numBits)) numBits = numBits.toInt();
+          if (isLong2(numBits)) numBits = numBits.toInt();
           if ((numBits &= 63) === 0) return this;
-          if (numBits === 32) return fromBits(this.high, this.low, this.unsigned);
+          if (numBits === 32) return fromBits2(this.high, this.low, this.unsigned);
           if (numBits < 32) {
             b = 32 - numBits;
-            return fromBits(
+            return fromBits2(
               this.high << b | this.low >>> numBits,
               this.low << b | this.high >>> numBits,
               this.unsigned
@@ -34240,25 +34240,25 @@ var require_umd = __commonJS({
           }
           numBits -= 32;
           b = 32 - numBits;
-          return fromBits(
+          return fromBits2(
             this.low << b | this.high >>> numBits,
             this.high << b | this.low >>> numBits,
             this.unsigned
           );
         };
-        LongPrototype.rotr = LongPrototype.rotateRight;
-        LongPrototype.toSigned = function toSigned() {
+        LongPrototype2.rotr = LongPrototype2.rotateRight;
+        LongPrototype2.toSigned = function toSigned2() {
           if (!this.unsigned) return this;
-          return fromBits(this.low, this.high, false);
+          return fromBits2(this.low, this.high, false);
         };
-        LongPrototype.toUnsigned = function toUnsigned() {
+        LongPrototype2.toUnsigned = function toUnsigned2() {
           if (this.unsigned) return this;
-          return fromBits(this.low, this.high, true);
+          return fromBits2(this.low, this.high, true);
         };
-        LongPrototype.toBytes = function toBytes(le) {
+        LongPrototype2.toBytes = function toBytes2(le) {
           return le ? this.toBytesLE() : this.toBytesBE();
         };
-        LongPrototype.toBytesLE = function toBytesLE() {
+        LongPrototype2.toBytesLE = function toBytesLE2() {
           var hi = this.high, lo = this.low;
           return [
             lo & 255,
@@ -34271,7 +34271,7 @@ var require_umd = __commonJS({
             hi >>> 24
           ];
         };
-        LongPrototype.toBytesBE = function toBytesBE() {
+        LongPrototype2.toBytesBE = function toBytesBE2() {
           var hi = this.high, lo = this.low;
           return [
             hi >>> 24,
@@ -34284,40 +34284,40 @@ var require_umd = __commonJS({
             lo & 255
           ];
         };
-        Long.fromBytes = function fromBytes(bytes, unsigned, le) {
-          return le ? Long.fromBytesLE(bytes, unsigned) : Long.fromBytesBE(bytes, unsigned);
+        Long2.fromBytes = function fromBytes2(bytes, unsigned, le) {
+          return le ? Long2.fromBytesLE(bytes, unsigned) : Long2.fromBytesBE(bytes, unsigned);
         };
-        Long.fromBytesLE = function fromBytesLE(bytes, unsigned) {
-          return new Long(
+        Long2.fromBytesLE = function fromBytesLE2(bytes, unsigned) {
+          return new Long2(
             bytes[0] | bytes[1] << 8 | bytes[2] << 16 | bytes[3] << 24,
             bytes[4] | bytes[5] << 8 | bytes[6] << 16 | bytes[7] << 24,
             unsigned
           );
         };
-        Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
-          return new Long(
+        Long2.fromBytesBE = function fromBytesBE2(bytes, unsigned) {
+          return new Long2(
             bytes[4] << 24 | bytes[5] << 16 | bytes[6] << 8 | bytes[7],
             bytes[0] << 24 | bytes[1] << 16 | bytes[2] << 8 | bytes[3],
             unsigned
           );
         };
         if (typeof BigInt === "function") {
-          Long.fromBigInt = function fromBigInt(value, unsigned) {
+          Long2.fromBigInt = function fromBigInt(value, unsigned) {
             var lowBits = Number(BigInt.asIntN(32, value));
             var highBits = Number(BigInt.asIntN(32, value >> BigInt(32)));
-            return fromBits(lowBits, highBits, unsigned);
+            return fromBits2(lowBits, highBits, unsigned);
           };
-          Long.fromValue = function fromValueWithBigInt(value, unsigned) {
-            if (typeof value === "bigint") return Long.fromBigInt(value, unsigned);
-            return fromValue(value, unsigned);
+          Long2.fromValue = function fromValueWithBigInt(value, unsigned) {
+            if (typeof value === "bigint") return Long2.fromBigInt(value, unsigned);
+            return fromValue2(value, unsigned);
           };
-          LongPrototype.toBigInt = function toBigInt() {
+          LongPrototype2.toBigInt = function toBigInt() {
             var lowBigInt = BigInt(this.low >>> 0);
             var highBigInt = BigInt(this.unsigned ? this.high >>> 0 : this.high);
             return highBigInt << BigInt(32) | lowBigInt;
           };
         }
-        var _default = _exports.default = Long;
+        var _default = _exports.default = Long2;
       }
     );
   }
@@ -38267,7 +38267,7 @@ var require_packet = __commonJS({
     init_shim();
     var ErrorCodeToName = require_errors();
     var NativeBuffer = require("buffer").Buffer;
-    var Long = require_umd();
+    var Long2 = require_umd();
     var StringParser = require_string2();
     var Types = require_types2();
     var INVALID_DATE = /* @__PURE__ */ new Date(NaN);
@@ -38347,7 +38347,7 @@ var require_packet = __commonJS({
       readInt64JSNumber() {
         const word0 = this.readInt32();
         const word1 = this.readInt32();
-        const l = new Long(word0, word1, true);
+        const l = new Long2(word0, word1, true);
         return l.toNumber();
       }
       readSInt64JSNumber() {
@@ -38356,25 +38356,25 @@ var require_packet = __commonJS({
         if (!(word1 & 2147483648)) {
           return word0 + 4294967296 * word1;
         }
-        const l = new Long(word0, word1, false);
+        const l = new Long2(word0, word1, false);
         return l.toNumber();
       }
       readInt64String() {
         const word0 = this.readInt32();
         const word1 = this.readInt32();
-        const res = new Long(word0, word1, true);
+        const res = new Long2(word0, word1, true);
         return res.toString();
       }
       readSInt64String() {
         const word0 = this.readInt32();
         const word1 = this.readInt32();
-        const res = new Long(word0, word1, false);
+        const res = new Long2(word0, word1, false);
         return res.toString();
       }
       readInt64() {
         const word0 = this.readInt32();
         const word1 = this.readInt32();
-        let res = new Long(word0, word1, true);
+        let res = new Long2(word0, word1, true);
         const resNumber = res.toNumber();
         const resString = res.toString();
         res = resNumber.toString() === resString ? resNumber : resString;
@@ -38383,7 +38383,7 @@ var require_packet = __commonJS({
       readSInt64() {
         const word0 = this.readInt32();
         const word1 = this.readInt32();
-        let res = new Long(word0, word1, false);
+        let res = new Long2(word0, word1, false);
         const resNumber = res.toNumber();
         const resString = res.toString();
         res = resNumber.toString() === resString ? resNumber : resString;
@@ -38429,7 +38429,7 @@ var require_packet = __commonJS({
           if (word1 < 2097152) {
             return word1 * 4294967296 + word0;
           }
-          res = new Long(word0, word1, !signed);
+          res = new Long2(word0, word1, !signed);
           const resNumber = res.toNumber();
           const resString = res.toString();
           res = resNumber.toString() === resString ? resNumber : resString;
@@ -39574,14 +39574,14 @@ var require_auth_41 = __commonJS({
       }
       return hash.digest();
     }
-    function xor(a, b) {
+    function xor2(a, b) {
       const result = Buffer.allocUnsafe(a.length);
       for (let i = 0; i < a.length; i++) {
         result[i] = a[i] ^ b[i];
       }
       return result;
     }
-    exports2.xor = xor;
+    exports2.xor = xor2;
     function token(password, scramble1, scramble2) {
       if (!password) {
         return Buffer.alloc(0);
@@ -39594,11 +39594,11 @@ var require_auth_41 = __commonJS({
       const authPluginData2 = scramble2.slice(0, 12);
       const stage2 = sha1(passwordSha);
       const stage3 = sha1(authPluginData1, authPluginData2, stage2);
-      return xor(stage3, passwordSha);
+      return xor2(stage3, passwordSha);
     };
     exports2.calculateToken = token;
     exports2.verifyToken = function(publicSeed1, publicSeed2, token2, doubleSha) {
-      const hashStage1 = xor(token2, sha1(publicSeed1, publicSeed2, doubleSha));
+      const hashStage1 = xor2(token2, sha1(publicSeed1, publicSeed2, doubleSha));
       const candidateHash2 = sha1(hashStage1);
       return candidateHash2.compare(doubleSha) === 0;
     };
@@ -41412,7 +41412,7 @@ var require_caching_sha2_password = __commonJS({
     init_shim();
     var PLUGIN_NAME = "caching_sha2_password";
     var crypto2 = require("crypto");
-    var { xor, xorRotating } = require_auth_41();
+    var { xor: xor2, xorRotating } = require_auth_41();
     var REQUEST_SERVER_KEY_PACKET = Buffer.from([2]);
     var FAST_AUTH_SUCCESS_PACKET = Buffer.from([3]);
     var PERFORM_FULL_AUTHENTICATION_PACKET = Buffer.from([4]);
@@ -41432,7 +41432,7 @@ var require_caching_sha2_password = __commonJS({
       const stage1 = sha256(Buffer.from(password));
       const stage2 = sha256(stage1);
       const stage3 = sha256(Buffer.concat([stage2, scramble]));
-      return xor(stage1, stage3);
+      return xor2(stage1, stage3);
     }
     function encrypt(password, scramble, key) {
       const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
@@ -47048,7 +47048,7 @@ var require_oracle_columncompiler = __commonJS({
     var {
       createAutoIncrementTriggerAndSequence
     } = require_incrementUtils();
-    var { toNumber } = require_helpers();
+    var { toNumber: toNumber2 } = require_helpers();
     var ColumnCompiler_Oracle = class extends ColumnCompiler {
       constructor() {
         super(...arguments);
@@ -47063,18 +47063,18 @@ var require_oracle_columncompiler = __commonJS({
         return "number(20, 0) not null" + (this.tableCompiler._canBeAddPrimaryKey(options) ? " primary key" : "");
       }
       floating(precision) {
-        const parsedPrecision = toNumber(precision, 0);
+        const parsedPrecision = toNumber2(precision, 0);
         return `float${parsedPrecision ? `(${parsedPrecision})` : ""}`;
       }
       double(precision, scale) {
-        return `number(${toNumber(precision, 8)}, ${toNumber(scale, 2)})`;
+        return `number(${toNumber2(precision, 8)}, ${toNumber2(scale, 2)})`;
       }
       decimal(precision, scale) {
         if (precision === null) return "decimal";
-        return `decimal(${toNumber(precision, 8)}, ${toNumber(scale, 2)})`;
+        return `decimal(${toNumber2(precision, 8)}, ${toNumber2(scale, 2)})`;
       }
       integer(length) {
-        return length ? `number(${toNumber(length, 11)})` : "integer";
+        return length ? `number(${toNumber2(length, 11)})` : "integer";
       }
       enu(allowed) {
         allowed = uniq(allowed);
@@ -47096,7 +47096,7 @@ var require_oracle_columncompiler = __commonJS({
         return "number(1, 0)";
       }
       varchar(length) {
-        return `varchar2(${toNumber(length, 255)})`;
+        return `varchar2(${toNumber2(length, 255)})`;
       }
       // Modifiers
       // ------
@@ -49280,6 +49280,930 @@ var import_dotenv = __toESM(require_main(), 1);
 var import_net = __toESM(require("net"), 1);
 var import_crypto = __toESM(require("crypto"), 1);
 var import_protobufjs = __toESM(require_protobufjs(), 1);
+
+// node_modules/long/index.js
+init_shim();
+var wasm = null;
+try {
+  wasm = new WebAssembly.Instance(
+    new WebAssembly.Module(
+      new Uint8Array([
+        // \0asm
+        0,
+        97,
+        115,
+        109,
+        // version 1
+        1,
+        0,
+        0,
+        0,
+        // section "type"
+        1,
+        13,
+        2,
+        // 0, () => i32
+        96,
+        0,
+        1,
+        127,
+        // 1, (i32, i32, i32, i32) => i32
+        96,
+        4,
+        127,
+        127,
+        127,
+        127,
+        1,
+        127,
+        // section "function"
+        3,
+        7,
+        6,
+        // 0, type 0
+        0,
+        // 1, type 1
+        1,
+        // 2, type 1
+        1,
+        // 3, type 1
+        1,
+        // 4, type 1
+        1,
+        // 5, type 1
+        1,
+        // section "global"
+        6,
+        6,
+        1,
+        // 0, "high", mutable i32
+        127,
+        1,
+        65,
+        0,
+        11,
+        // section "export"
+        7,
+        50,
+        6,
+        // 0, "mul"
+        3,
+        109,
+        117,
+        108,
+        0,
+        1,
+        // 1, "div_s"
+        5,
+        100,
+        105,
+        118,
+        95,
+        115,
+        0,
+        2,
+        // 2, "div_u"
+        5,
+        100,
+        105,
+        118,
+        95,
+        117,
+        0,
+        3,
+        // 3, "rem_s"
+        5,
+        114,
+        101,
+        109,
+        95,
+        115,
+        0,
+        4,
+        // 4, "rem_u"
+        5,
+        114,
+        101,
+        109,
+        95,
+        117,
+        0,
+        5,
+        // 5, "get_high"
+        8,
+        103,
+        101,
+        116,
+        95,
+        104,
+        105,
+        103,
+        104,
+        0,
+        0,
+        // section "code"
+        10,
+        191,
+        1,
+        6,
+        // 0, "get_high"
+        4,
+        0,
+        35,
+        0,
+        11,
+        // 1, "mul"
+        36,
+        1,
+        1,
+        126,
+        32,
+        0,
+        173,
+        32,
+        1,
+        173,
+        66,
+        32,
+        134,
+        132,
+        32,
+        2,
+        173,
+        32,
+        3,
+        173,
+        66,
+        32,
+        134,
+        132,
+        126,
+        34,
+        4,
+        66,
+        32,
+        135,
+        167,
+        36,
+        0,
+        32,
+        4,
+        167,
+        11,
+        // 2, "div_s"
+        36,
+        1,
+        1,
+        126,
+        32,
+        0,
+        173,
+        32,
+        1,
+        173,
+        66,
+        32,
+        134,
+        132,
+        32,
+        2,
+        173,
+        32,
+        3,
+        173,
+        66,
+        32,
+        134,
+        132,
+        127,
+        34,
+        4,
+        66,
+        32,
+        135,
+        167,
+        36,
+        0,
+        32,
+        4,
+        167,
+        11,
+        // 3, "div_u"
+        36,
+        1,
+        1,
+        126,
+        32,
+        0,
+        173,
+        32,
+        1,
+        173,
+        66,
+        32,
+        134,
+        132,
+        32,
+        2,
+        173,
+        32,
+        3,
+        173,
+        66,
+        32,
+        134,
+        132,
+        128,
+        34,
+        4,
+        66,
+        32,
+        135,
+        167,
+        36,
+        0,
+        32,
+        4,
+        167,
+        11,
+        // 4, "rem_s"
+        36,
+        1,
+        1,
+        126,
+        32,
+        0,
+        173,
+        32,
+        1,
+        173,
+        66,
+        32,
+        134,
+        132,
+        32,
+        2,
+        173,
+        32,
+        3,
+        173,
+        66,
+        32,
+        134,
+        132,
+        129,
+        34,
+        4,
+        66,
+        32,
+        135,
+        167,
+        36,
+        0,
+        32,
+        4,
+        167,
+        11,
+        // 5, "rem_u"
+        36,
+        1,
+        1,
+        126,
+        32,
+        0,
+        173,
+        32,
+        1,
+        173,
+        66,
+        32,
+        134,
+        132,
+        32,
+        2,
+        173,
+        32,
+        3,
+        173,
+        66,
+        32,
+        134,
+        132,
+        130,
+        34,
+        4,
+        66,
+        32,
+        135,
+        167,
+        36,
+        0,
+        32,
+        4,
+        167,
+        11
+      ])
+    ),
+    {}
+  ).exports;
+} catch {
+}
+function Long(low, high, unsigned) {
+  this.low = low | 0;
+  this.high = high | 0;
+  this.unsigned = !!unsigned;
+}
+Long.prototype.__isLong__;
+Object.defineProperty(Long.prototype, "__isLong__", { value: true });
+function isLong(obj) {
+  return (obj && obj["__isLong__"]) === true;
+}
+function ctz32(value) {
+  var c = Math.clz32(value & -value);
+  return value ? 31 - c : c;
+}
+Long.isLong = isLong;
+var INT_CACHE = {};
+var UINT_CACHE = {};
+function fromInt(value, unsigned) {
+  var obj, cachedObj, cache;
+  if (unsigned) {
+    value >>>= 0;
+    if (cache = 0 <= value && value < 256) {
+      cachedObj = UINT_CACHE[value];
+      if (cachedObj) return cachedObj;
+    }
+    obj = fromBits(value, 0, true);
+    if (cache) UINT_CACHE[value] = obj;
+    return obj;
+  } else {
+    value |= 0;
+    if (cache = -128 <= value && value < 128) {
+      cachedObj = INT_CACHE[value];
+      if (cachedObj) return cachedObj;
+    }
+    obj = fromBits(value, value < 0 ? -1 : 0, false);
+    if (cache) INT_CACHE[value] = obj;
+    return obj;
+  }
+}
+Long.fromInt = fromInt;
+function fromNumber(value, unsigned) {
+  if (isNaN(value)) return unsigned ? UZERO : ZERO;
+  if (unsigned) {
+    if (value < 0) return UZERO;
+    if (value >= TWO_PWR_64_DBL) return MAX_UNSIGNED_VALUE;
+  } else {
+    if (value <= -TWO_PWR_63_DBL) return MIN_VALUE;
+    if (value + 1 >= TWO_PWR_63_DBL) return MAX_VALUE;
+  }
+  if (value < 0) return fromNumber(-value, unsigned).neg();
+  return fromBits(
+    value % TWO_PWR_32_DBL | 0,
+    value / TWO_PWR_32_DBL | 0,
+    unsigned
+  );
+}
+Long.fromNumber = fromNumber;
+function fromBits(lowBits, highBits, unsigned) {
+  return new Long(lowBits, highBits, unsigned);
+}
+Long.fromBits = fromBits;
+var pow_dbl = Math.pow;
+function fromString(str, unsigned, radix) {
+  if (str.length === 0) throw Error("empty string");
+  if (typeof unsigned === "number") {
+    radix = unsigned;
+    unsigned = false;
+  } else {
+    unsigned = !!unsigned;
+  }
+  if (str === "NaN" || str === "Infinity" || str === "+Infinity" || str === "-Infinity")
+    return unsigned ? UZERO : ZERO;
+  radix = radix || 10;
+  if (radix < 2 || 36 < radix) throw RangeError("radix");
+  var p;
+  if ((p = str.indexOf("-")) > 0) throw Error("interior hyphen");
+  else if (p === 0) {
+    return fromString(str.substring(1), unsigned, radix).neg();
+  }
+  var radixToPower = fromNumber(pow_dbl(radix, 8));
+  var result = ZERO;
+  for (var i = 0; i < str.length; i += 8) {
+    var size = Math.min(8, str.length - i), value = parseInt(str.substring(i, i + size), radix);
+    if (size < 8) {
+      var power = fromNumber(pow_dbl(radix, size));
+      result = result.mul(power).add(fromNumber(value));
+    } else {
+      result = result.mul(radixToPower);
+      result = result.add(fromNumber(value));
+    }
+  }
+  result.unsigned = unsigned;
+  return result;
+}
+Long.fromString = fromString;
+function fromValue(val, unsigned) {
+  if (typeof val === "number") return fromNumber(val, unsigned);
+  if (typeof val === "string") return fromString(val, unsigned);
+  return fromBits(
+    val.low,
+    val.high,
+    typeof unsigned === "boolean" ? unsigned : val.unsigned
+  );
+}
+Long.fromValue = fromValue;
+var TWO_PWR_16_DBL = 1 << 16;
+var TWO_PWR_24_DBL = 1 << 24;
+var TWO_PWR_32_DBL = TWO_PWR_16_DBL * TWO_PWR_16_DBL;
+var TWO_PWR_64_DBL = TWO_PWR_32_DBL * TWO_PWR_32_DBL;
+var TWO_PWR_63_DBL = TWO_PWR_64_DBL / 2;
+var TWO_PWR_24 = fromInt(TWO_PWR_24_DBL);
+var ZERO = fromInt(0);
+Long.ZERO = ZERO;
+var UZERO = fromInt(0, true);
+Long.UZERO = UZERO;
+var ONE = fromInt(1);
+Long.ONE = ONE;
+var UONE = fromInt(1, true);
+Long.UONE = UONE;
+var NEG_ONE = fromInt(-1);
+Long.NEG_ONE = NEG_ONE;
+var MAX_VALUE = fromBits(4294967295 | 0, 2147483647 | 0, false);
+Long.MAX_VALUE = MAX_VALUE;
+var MAX_UNSIGNED_VALUE = fromBits(4294967295 | 0, 4294967295 | 0, true);
+Long.MAX_UNSIGNED_VALUE = MAX_UNSIGNED_VALUE;
+var MIN_VALUE = fromBits(0, 2147483648 | 0, false);
+Long.MIN_VALUE = MIN_VALUE;
+var LongPrototype = Long.prototype;
+LongPrototype.toInt = function toInt() {
+  return this.unsigned ? this.low >>> 0 : this.low;
+};
+LongPrototype.toNumber = function toNumber() {
+  if (this.unsigned)
+    return (this.high >>> 0) * TWO_PWR_32_DBL + (this.low >>> 0);
+  return this.high * TWO_PWR_32_DBL + (this.low >>> 0);
+};
+LongPrototype.toString = function toString(radix) {
+  radix = radix || 10;
+  if (radix < 2 || 36 < radix) throw RangeError("radix");
+  if (this.isZero()) return "0";
+  if (this.isNegative()) {
+    if (this.eq(MIN_VALUE)) {
+      var radixLong = fromNumber(radix), div = this.div(radixLong), rem1 = div.mul(radixLong).sub(this);
+      return div.toString(radix) + rem1.toInt().toString(radix);
+    } else return "-" + this.neg().toString(radix);
+  }
+  var radixToPower = fromNumber(pow_dbl(radix, 6), this.unsigned), rem = this;
+  var result = "";
+  while (true) {
+    var remDiv = rem.div(radixToPower), intval = rem.sub(remDiv.mul(radixToPower)).toInt() >>> 0, digits = intval.toString(radix);
+    rem = remDiv;
+    if (rem.isZero()) return digits + result;
+    else {
+      while (digits.length < 6) digits = "0" + digits;
+      result = "" + digits + result;
+    }
+  }
+};
+LongPrototype.getHighBits = function getHighBits() {
+  return this.high;
+};
+LongPrototype.getHighBitsUnsigned = function getHighBitsUnsigned() {
+  return this.high >>> 0;
+};
+LongPrototype.getLowBits = function getLowBits() {
+  return this.low;
+};
+LongPrototype.getLowBitsUnsigned = function getLowBitsUnsigned() {
+  return this.low >>> 0;
+};
+LongPrototype.getNumBitsAbs = function getNumBitsAbs() {
+  if (this.isNegative())
+    return this.eq(MIN_VALUE) ? 64 : this.neg().getNumBitsAbs();
+  var val = this.high != 0 ? this.high : this.low;
+  for (var bit = 31; bit > 0; bit--) if ((val & 1 << bit) != 0) break;
+  return this.high != 0 ? bit + 33 : bit + 1;
+};
+LongPrototype.isSafeInteger = function isSafeInteger() {
+  var top11Bits = this.high >> 21;
+  if (!top11Bits) return true;
+  if (this.unsigned) return false;
+  return top11Bits === -1 && !(this.low === 0 && this.high === -2097152);
+};
+LongPrototype.isZero = function isZero() {
+  return this.high === 0 && this.low === 0;
+};
+LongPrototype.eqz = LongPrototype.isZero;
+LongPrototype.isNegative = function isNegative() {
+  return !this.unsigned && this.high < 0;
+};
+LongPrototype.isPositive = function isPositive() {
+  return this.unsigned || this.high >= 0;
+};
+LongPrototype.isOdd = function isOdd() {
+  return (this.low & 1) === 1;
+};
+LongPrototype.isEven = function isEven() {
+  return (this.low & 1) === 0;
+};
+LongPrototype.equals = function equals(other) {
+  if (!isLong(other)) other = fromValue(other);
+  if (this.unsigned !== other.unsigned && this.high >>> 31 === 1 && other.high >>> 31 === 1)
+    return false;
+  return this.high === other.high && this.low === other.low;
+};
+LongPrototype.eq = LongPrototype.equals;
+LongPrototype.notEquals = function notEquals(other) {
+  return !this.eq(
+    /* validates */
+    other
+  );
+};
+LongPrototype.neq = LongPrototype.notEquals;
+LongPrototype.ne = LongPrototype.notEquals;
+LongPrototype.lessThan = function lessThan(other) {
+  return this.comp(
+    /* validates */
+    other
+  ) < 0;
+};
+LongPrototype.lt = LongPrototype.lessThan;
+LongPrototype.lessThanOrEqual = function lessThanOrEqual(other) {
+  return this.comp(
+    /* validates */
+    other
+  ) <= 0;
+};
+LongPrototype.lte = LongPrototype.lessThanOrEqual;
+LongPrototype.le = LongPrototype.lessThanOrEqual;
+LongPrototype.greaterThan = function greaterThan(other) {
+  return this.comp(
+    /* validates */
+    other
+  ) > 0;
+};
+LongPrototype.gt = LongPrototype.greaterThan;
+LongPrototype.greaterThanOrEqual = function greaterThanOrEqual(other) {
+  return this.comp(
+    /* validates */
+    other
+  ) >= 0;
+};
+LongPrototype.gte = LongPrototype.greaterThanOrEqual;
+LongPrototype.ge = LongPrototype.greaterThanOrEqual;
+LongPrototype.compare = function compare(other) {
+  if (!isLong(other)) other = fromValue(other);
+  if (this.eq(other)) return 0;
+  var thisNeg = this.isNegative(), otherNeg = other.isNegative();
+  if (thisNeg && !otherNeg) return -1;
+  if (!thisNeg && otherNeg) return 1;
+  if (!this.unsigned) return this.sub(other).isNegative() ? -1 : 1;
+  return other.high >>> 0 > this.high >>> 0 || other.high === this.high && other.low >>> 0 > this.low >>> 0 ? -1 : 1;
+};
+LongPrototype.comp = LongPrototype.compare;
+LongPrototype.negate = function negate() {
+  if (!this.unsigned && this.eq(MIN_VALUE)) return MIN_VALUE;
+  return this.not().add(ONE);
+};
+LongPrototype.neg = LongPrototype.negate;
+LongPrototype.add = function add(addend) {
+  if (!isLong(addend)) addend = fromValue(addend);
+  var a48 = this.high >>> 16;
+  var a32 = this.high & 65535;
+  var a16 = this.low >>> 16;
+  var a00 = this.low & 65535;
+  var b48 = addend.high >>> 16;
+  var b32 = addend.high & 65535;
+  var b16 = addend.low >>> 16;
+  var b00 = addend.low & 65535;
+  var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+  c00 += a00 + b00;
+  c16 += c00 >>> 16;
+  c00 &= 65535;
+  c16 += a16 + b16;
+  c32 += c16 >>> 16;
+  c16 &= 65535;
+  c32 += a32 + b32;
+  c48 += c32 >>> 16;
+  c32 &= 65535;
+  c48 += a48 + b48;
+  c48 &= 65535;
+  return fromBits(c16 << 16 | c00, c48 << 16 | c32, this.unsigned);
+};
+LongPrototype.subtract = function subtract(subtrahend) {
+  if (!isLong(subtrahend)) subtrahend = fromValue(subtrahend);
+  return this.add(subtrahend.neg());
+};
+LongPrototype.sub = LongPrototype.subtract;
+LongPrototype.multiply = function multiply(multiplier) {
+  if (this.isZero()) return this;
+  if (!isLong(multiplier)) multiplier = fromValue(multiplier);
+  if (wasm) {
+    var low = wasm["mul"](this.low, this.high, multiplier.low, multiplier.high);
+    return fromBits(low, wasm["get_high"](), this.unsigned);
+  }
+  if (multiplier.isZero()) return this.unsigned ? UZERO : ZERO;
+  if (this.eq(MIN_VALUE)) return multiplier.isOdd() ? MIN_VALUE : ZERO;
+  if (multiplier.eq(MIN_VALUE)) return this.isOdd() ? MIN_VALUE : ZERO;
+  if (this.isNegative()) {
+    if (multiplier.isNegative()) return this.neg().mul(multiplier.neg());
+    else return this.neg().mul(multiplier).neg();
+  } else if (multiplier.isNegative()) return this.mul(multiplier.neg()).neg();
+  if (this.lt(TWO_PWR_24) && multiplier.lt(TWO_PWR_24))
+    return fromNumber(this.toNumber() * multiplier.toNumber(), this.unsigned);
+  var a48 = this.high >>> 16;
+  var a32 = this.high & 65535;
+  var a16 = this.low >>> 16;
+  var a00 = this.low & 65535;
+  var b48 = multiplier.high >>> 16;
+  var b32 = multiplier.high & 65535;
+  var b16 = multiplier.low >>> 16;
+  var b00 = multiplier.low & 65535;
+  var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+  c00 += a00 * b00;
+  c16 += c00 >>> 16;
+  c00 &= 65535;
+  c16 += a16 * b00;
+  c32 += c16 >>> 16;
+  c16 &= 65535;
+  c16 += a00 * b16;
+  c32 += c16 >>> 16;
+  c16 &= 65535;
+  c32 += a32 * b00;
+  c48 += c32 >>> 16;
+  c32 &= 65535;
+  c32 += a16 * b16;
+  c48 += c32 >>> 16;
+  c32 &= 65535;
+  c32 += a00 * b32;
+  c48 += c32 >>> 16;
+  c32 &= 65535;
+  c48 += a48 * b00 + a32 * b16 + a16 * b32 + a00 * b48;
+  c48 &= 65535;
+  return fromBits(c16 << 16 | c00, c48 << 16 | c32, this.unsigned);
+};
+LongPrototype.mul = LongPrototype.multiply;
+LongPrototype.divide = function divide(divisor) {
+  if (!isLong(divisor)) divisor = fromValue(divisor);
+  if (divisor.isZero()) throw Error("division by zero");
+  if (wasm) {
+    if (!this.unsigned && this.high === -2147483648 && divisor.low === -1 && divisor.high === -1) {
+      return this;
+    }
+    var low = (this.unsigned ? wasm["div_u"] : wasm["div_s"])(
+      this.low,
+      this.high,
+      divisor.low,
+      divisor.high
+    );
+    return fromBits(low, wasm["get_high"](), this.unsigned);
+  }
+  if (this.isZero()) return this.unsigned ? UZERO : ZERO;
+  var approx, rem, res;
+  if (!this.unsigned) {
+    if (this.eq(MIN_VALUE)) {
+      if (divisor.eq(ONE) || divisor.eq(NEG_ONE))
+        return MIN_VALUE;
+      else if (divisor.eq(MIN_VALUE)) return ONE;
+      else {
+        var halfThis = this.shr(1);
+        approx = halfThis.div(divisor).shl(1);
+        if (approx.eq(ZERO)) {
+          return divisor.isNegative() ? ONE : NEG_ONE;
+        } else {
+          rem = this.sub(divisor.mul(approx));
+          res = approx.add(rem.div(divisor));
+          return res;
+        }
+      }
+    } else if (divisor.eq(MIN_VALUE)) return this.unsigned ? UZERO : ZERO;
+    if (this.isNegative()) {
+      if (divisor.isNegative()) return this.neg().div(divisor.neg());
+      return this.neg().div(divisor).neg();
+    } else if (divisor.isNegative()) return this.div(divisor.neg()).neg();
+    res = ZERO;
+  } else {
+    if (!divisor.unsigned) divisor = divisor.toUnsigned();
+    if (divisor.gt(this)) return UZERO;
+    if (divisor.gt(this.shru(1)))
+      return UONE;
+    res = UZERO;
+  }
+  rem = this;
+  while (rem.gte(divisor)) {
+    approx = Math.max(1, Math.floor(rem.toNumber() / divisor.toNumber()));
+    var log2 = Math.ceil(Math.log(approx) / Math.LN2), delta = log2 <= 48 ? 1 : pow_dbl(2, log2 - 48), approxRes = fromNumber(approx), approxRem = approxRes.mul(divisor);
+    while (approxRem.isNegative() || approxRem.gt(rem)) {
+      approx -= delta;
+      approxRes = fromNumber(approx, this.unsigned);
+      approxRem = approxRes.mul(divisor);
+    }
+    if (approxRes.isZero()) approxRes = ONE;
+    res = res.add(approxRes);
+    rem = rem.sub(approxRem);
+  }
+  return res;
+};
+LongPrototype.div = LongPrototype.divide;
+LongPrototype.modulo = function modulo(divisor) {
+  if (!isLong(divisor)) divisor = fromValue(divisor);
+  if (wasm) {
+    var low = (this.unsigned ? wasm["rem_u"] : wasm["rem_s"])(
+      this.low,
+      this.high,
+      divisor.low,
+      divisor.high
+    );
+    return fromBits(low, wasm["get_high"](), this.unsigned);
+  }
+  return this.sub(this.div(divisor).mul(divisor));
+};
+LongPrototype.mod = LongPrototype.modulo;
+LongPrototype.rem = LongPrototype.modulo;
+LongPrototype.not = function not() {
+  return fromBits(~this.low, ~this.high, this.unsigned);
+};
+LongPrototype.countLeadingZeros = function countLeadingZeros() {
+  return this.high ? Math.clz32(this.high) : Math.clz32(this.low) + 32;
+};
+LongPrototype.clz = LongPrototype.countLeadingZeros;
+LongPrototype.countTrailingZeros = function countTrailingZeros() {
+  return this.low ? ctz32(this.low) : ctz32(this.high) + 32;
+};
+LongPrototype.ctz = LongPrototype.countTrailingZeros;
+LongPrototype.and = function and(other) {
+  if (!isLong(other)) other = fromValue(other);
+  return fromBits(this.low & other.low, this.high & other.high, this.unsigned);
+};
+LongPrototype.or = function or(other) {
+  if (!isLong(other)) other = fromValue(other);
+  return fromBits(this.low | other.low, this.high | other.high, this.unsigned);
+};
+LongPrototype.xor = function xor(other) {
+  if (!isLong(other)) other = fromValue(other);
+  return fromBits(this.low ^ other.low, this.high ^ other.high, this.unsigned);
+};
+LongPrototype.shiftLeft = function shiftLeft(numBits) {
+  if (isLong(numBits)) numBits = numBits.toInt();
+  if ((numBits &= 63) === 0) return this;
+  else if (numBits < 32)
+    return fromBits(
+      this.low << numBits,
+      this.high << numBits | this.low >>> 32 - numBits,
+      this.unsigned
+    );
+  else return fromBits(0, this.low << numBits - 32, this.unsigned);
+};
+LongPrototype.shl = LongPrototype.shiftLeft;
+LongPrototype.shiftRight = function shiftRight(numBits) {
+  if (isLong(numBits)) numBits = numBits.toInt();
+  if ((numBits &= 63) === 0) return this;
+  else if (numBits < 32)
+    return fromBits(
+      this.low >>> numBits | this.high << 32 - numBits,
+      this.high >> numBits,
+      this.unsigned
+    );
+  else
+    return fromBits(
+      this.high >> numBits - 32,
+      this.high >= 0 ? 0 : -1,
+      this.unsigned
+    );
+};
+LongPrototype.shr = LongPrototype.shiftRight;
+LongPrototype.shiftRightUnsigned = function shiftRightUnsigned(numBits) {
+  if (isLong(numBits)) numBits = numBits.toInt();
+  if ((numBits &= 63) === 0) return this;
+  if (numBits < 32)
+    return fromBits(
+      this.low >>> numBits | this.high << 32 - numBits,
+      this.high >>> numBits,
+      this.unsigned
+    );
+  if (numBits === 32) return fromBits(this.high, 0, this.unsigned);
+  return fromBits(this.high >>> numBits - 32, 0, this.unsigned);
+};
+LongPrototype.shru = LongPrototype.shiftRightUnsigned;
+LongPrototype.shr_u = LongPrototype.shiftRightUnsigned;
+LongPrototype.rotateLeft = function rotateLeft(numBits) {
+  var b;
+  if (isLong(numBits)) numBits = numBits.toInt();
+  if ((numBits &= 63) === 0) return this;
+  if (numBits === 32) return fromBits(this.high, this.low, this.unsigned);
+  if (numBits < 32) {
+    b = 32 - numBits;
+    return fromBits(
+      this.low << numBits | this.high >>> b,
+      this.high << numBits | this.low >>> b,
+      this.unsigned
+    );
+  }
+  numBits -= 32;
+  b = 32 - numBits;
+  return fromBits(
+    this.high << numBits | this.low >>> b,
+    this.low << numBits | this.high >>> b,
+    this.unsigned
+  );
+};
+LongPrototype.rotl = LongPrototype.rotateLeft;
+LongPrototype.rotateRight = function rotateRight(numBits) {
+  var b;
+  if (isLong(numBits)) numBits = numBits.toInt();
+  if ((numBits &= 63) === 0) return this;
+  if (numBits === 32) return fromBits(this.high, this.low, this.unsigned);
+  if (numBits < 32) {
+    b = 32 - numBits;
+    return fromBits(
+      this.high << b | this.low >>> numBits,
+      this.low << b | this.high >>> numBits,
+      this.unsigned
+    );
+  }
+  numBits -= 32;
+  b = 32 - numBits;
+  return fromBits(
+    this.low << b | this.high >>> numBits,
+    this.high << b | this.low >>> numBits,
+    this.unsigned
+  );
+};
+LongPrototype.rotr = LongPrototype.rotateRight;
+LongPrototype.toSigned = function toSigned() {
+  if (!this.unsigned) return this;
+  return fromBits(this.low, this.high, false);
+};
+LongPrototype.toUnsigned = function toUnsigned() {
+  if (this.unsigned) return this;
+  return fromBits(this.low, this.high, true);
+};
+LongPrototype.toBytes = function toBytes(le) {
+  return le ? this.toBytesLE() : this.toBytesBE();
+};
+LongPrototype.toBytesLE = function toBytesLE() {
+  var hi = this.high, lo = this.low;
+  return [
+    lo & 255,
+    lo >>> 8 & 255,
+    lo >>> 16 & 255,
+    lo >>> 24,
+    hi & 255,
+    hi >>> 8 & 255,
+    hi >>> 16 & 255,
+    hi >>> 24
+  ];
+};
+LongPrototype.toBytesBE = function toBytesBE() {
+  var hi = this.high, lo = this.low;
+  return [
+    hi >>> 24,
+    hi >>> 16 & 255,
+    hi >>> 8 & 255,
+    hi & 255,
+    lo >>> 24,
+    lo >>> 16 & 255,
+    lo >>> 8 & 255,
+    lo & 255
+  ];
+};
+Long.fromBytes = function fromBytes(bytes, unsigned, le) {
+  return le ? Long.fromBytesLE(bytes, unsigned) : Long.fromBytesBE(bytes, unsigned);
+};
+Long.fromBytesLE = function fromBytesLE(bytes, unsigned) {
+  return new Long(
+    bytes[0] | bytes[1] << 8 | bytes[2] << 16 | bytes[3] << 24,
+    bytes[4] | bytes[5] << 8 | bytes[6] << 16 | bytes[7] << 24,
+    unsigned
+  );
+};
+Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
+  return new Long(
+    bytes[4] << 24 | bytes[5] << 16 | bytes[6] << 8 | bytes[7],
+    bytes[0] << 24 | bytes[1] << 16 | bytes[2] << 8 | bytes[3],
+    unsigned
+  );
+};
+if (typeof BigInt === "function") {
+  Long.fromBigInt = function fromBigInt(value, unsigned) {
+    var lowBits = Number(BigInt.asIntN(32, value));
+    var highBits = Number(BigInt.asIntN(32, value >> BigInt(32)));
+    return fromBits(lowBits, highBits, unsigned);
+  };
+  Long.fromValue = function fromValueWithBigInt(value, unsigned) {
+    if (typeof value === "bigint") return Long.fromBigInt(value, unsigned);
+    return fromValue(value, unsigned);
+  };
+  LongPrototype.toBigInt = function toBigInt() {
+    var lowBigInt = BigInt(this.low >>> 0);
+    var highBigInt = BigInt(this.unsigned ? this.high >>> 0 : this.high);
+    return highBigInt << BigInt(32) | lowBigInt;
+  };
+}
+var long_default = Long;
+
+// index.js
 var import_path = __toESM(require("path"), 1);
 var import_url = require("url");
 var import_knex = __toESM(require_knex(), 1);
@@ -49300,7 +50224,12 @@ var config = {
   },
   moomoo: {
     host: process.env.MOOMOO_OPEND_HOST || "127.0.0.1",
-    port: parseInt(process.env.MOOMOO_OPEND_PORT || "11111")
+    port: parseInt(process.env.MOOMOO_OPEND_PORT || "11111"),
+    accountId: process.env.MOOMOO_ACCOUNT_ID || "",
+    tradePwdMd5: process.env.MOOMOO_TRADE_PWD_MD5 || "",
+    securityFirm: parseInt(process.env.MOOMOO_SECURITY_FIRM || "3"),
+    trdMarket: parseInt(process.env.MOOMOO_TRD_MARKET || "2"),
+    currency: parseInt(process.env.MOOMOO_CURRENCY || "2")
   },
   refreshIntervalMinutes: parseInt(process.env.REFRESH_INTERVAL_MINUTES || "5")
 };
@@ -49314,6 +50243,8 @@ var PROTO_ID_INIT_CONNECT = 1001;
 var PROTO_ID_GET_OPTION_CHAIN = 3209;
 var PROTO_ID_GET_SECURITY_SNAPSHOT = 3203;
 var PROTO_ID_GET_OPTION_EXPIRY = 3224;
+var PROTO_ID_UNLOCK_TRADE = 2005;
+var PROTO_ID_GET_FUNDS = 2101;
 var socket = null;
 var connected = false;
 var serialNo = 0;
@@ -49332,7 +50263,11 @@ async function loadProtos() {
     import_path.default.join(PROTO_DIR, "Qot_Common.proto"),
     import_path.default.join(PROTO_DIR, "Qot_GetOptionChain.proto"),
     import_path.default.join(PROTO_DIR, "Qot_GetSecuritySnapshot.proto"),
-    import_path.default.join(PROTO_DIR, "Qot_GetOptionExpirationDate.proto")
+    import_path.default.join(PROTO_DIR, "Qot_GetOptionExpirationDate.proto"),
+    import_path.default.join(PROTO_DIR, "Trd_Common.proto"),
+    import_path.default.join(PROTO_DIR, "Trd_GetAccList.proto"),
+    import_path.default.join(PROTO_DIR, "Trd_GetFunds.proto"),
+    import_path.default.join(PROTO_DIR, "Trd_UnlockTrade.proto")
   ]);
   return protoRoot;
 }
@@ -49587,6 +50522,113 @@ async function refreshStockPrices() {
     log(`  ${symbol} stock price: $${stockPrice.toFixed(2)} (prev close: $${prevClose?.toFixed(2) ?? "N/A"})`);
   }
 }
+var tradeUnlockedFirms = /* @__PURE__ */ new Set();
+async function unlockTrade(securityFirm) {
+  if (tradeUnlockedFirms.has(securityFirm)) return true;
+  if (!config.moomoo.tradePwdMd5) {
+    log("MOOMOO_TRADE_PWD_MD5 not configured, skipping unlock", "WARN");
+    return false;
+  }
+  const c2s = { unlock: true, pwdMD5: config.moomoo.tradePwdMd5 };
+  if (securityFirm) c2s.securityFirm = securityFirm;
+  const Req = protoRoot.lookupType("Trd_UnlockTrade.Request");
+  const body = Req.encode(Req.create({ c2s })).finish();
+  const resp = await sendRequest(PROTO_ID_UNLOCK_TRADE, body);
+  const Resp = protoRoot.lookupType("Trd_UnlockTrade.Response");
+  const result = Resp.decode(resp);
+  if (result.retType !== 0) {
+    log(`UnlockTrade(firm=${securityFirm}) failed: ${result.retMsg}`, "WARN");
+    return false;
+  }
+  tradeUnlockedFirms.add(securityFirm);
+  log(`Trade unlocked for securityFirm=${securityFirm}`);
+  return true;
+}
+async function tryGetFunds(accID, trdMarket, currency) {
+  const accIDLong = typeof accID === "string" ? long_default.fromString(accID, true) : long_default.fromNumber(accID, true);
+  const c2s = {
+    header: { trdEnv: 1, accID: accIDLong, trdMarket },
+    refreshCache: true
+  };
+  if (currency) c2s.currency = currency;
+  const Req = protoRoot.lookupType("Trd_GetFunds.Request");
+  const body = Req.encode(Req.create({ c2s })).finish();
+  const resp = await sendRequest(PROTO_ID_GET_FUNDS, body);
+  const Resp = protoRoot.lookupType("Trd_GetFunds.Response");
+  const result = Resp.decode(resp);
+  if (result.retType !== 0) {
+    log(`GetFunds(accID=${accID}, market=${trdMarket}) failed: ${result.retMsg}`, "WARN");
+    return null;
+  }
+  return result.s2c?.funds || null;
+}
+function fundsToDbRow(funds, accID) {
+  return {
+    acc_id: accID,
+    trd_market: config.moomoo.trdMarket,
+    power: funds.power ?? 0,
+    total_assets: funds.totalAssets ?? 0,
+    cash: funds.cash ?? 0,
+    market_val: funds.marketVal ?? 0,
+    frozen_cash: funds.frozenCash ?? 0,
+    debt_cash: funds.debtCash ?? 0,
+    avl_withdrawal_cash: funds.avlWithdrawalCash ?? 0,
+    max_power_short: funds.maxPowerShort ?? null,
+    net_cash_power: funds.netCashPower ?? null,
+    long_mv: funds.longMv ?? null,
+    short_mv: funds.shortMv ?? null,
+    pending_asset: funds.pendingAsset ?? null,
+    max_withdrawal: funds.maxWithdrawal ?? null,
+    risk_level: funds.riskLevel ?? null,
+    risk_status: funds.riskStatus ?? null,
+    margin_call_margin: funds.marginCallMargin ?? null,
+    unrealized_pl: funds.unrealizedPL ?? null,
+    realized_pl: funds.realizedPL ?? null,
+    initial_margin: funds.initialMargin ?? null,
+    maintenance_margin: funds.maintenanceMargin ?? null,
+    is_pdt: funds.isPdt ?? false,
+    pdt_seq: funds.pdtSeq ?? null,
+    beginning_dtbp: funds.beginningDTBP ?? null,
+    remaining_dtbp: funds.remainingDTBP ?? null,
+    dt_call_amount: funds.dtCallAmount ?? null,
+    dt_status: funds.dtStatus ?? null,
+    securities_assets: funds.securitiesAssets ?? null,
+    fund_assets: funds.fundAssets ?? null,
+    bond_assets: funds.bondAssets ?? null,
+    currency: funds.currency ?? null,
+    fetched_at: /* @__PURE__ */ new Date()
+  };
+}
+async function refreshAccountFunds() {
+  if (!config.moomoo.accountId) {
+    log("MOOMOO_ACCOUNT_ID not configured, skipping funds refresh", "WARN");
+    return;
+  }
+  log("Fetching account funds...");
+  const isConnected = await connectToOpenD();
+  if (!isConnected) {
+    log("Cannot fetch funds: OpenD not available", "WARN");
+    return;
+  }
+  await unlockTrade(config.moomoo.securityFirm);
+  const funds = await tryGetFunds(config.moomoo.accountId, config.moomoo.trdMarket, config.moomoo.currency);
+  if (!funds) {
+    log("GetFunds returned no data", "WARN");
+    return;
+  }
+  const dbRow = fundsToDbRow(funds, config.moomoo.accountId);
+  try {
+    const existing = await db("account_funds_cache").where("acc_id", config.moomoo.accountId).first();
+    if (existing) {
+      await db("account_funds_cache").where("acc_id", config.moomoo.accountId).update(dbRow);
+    } else {
+      await db("account_funds_cache").insert(dbRow);
+    }
+  } catch (err) {
+    log(`Failed to save account funds to DB: ${err.message}`, "WARN");
+  }
+  log(`  Account funds: totalAssets=$${(funds.totalAssets ?? 0).toFixed(2)}, cash=$${(funds.cash ?? 0).toFixed(2)}, power=$${(funds.power ?? 0).toFixed(2)}`);
+}
 async function refreshPrices() {
   log("Starting price refresh...");
   const positions = await db("positions").whereIn("status", ["OPEN", "MONITORING"]).where("position_type", "option").whereNotNull("expiration_date").select("id", "ticker", "strike_price", "expiration_date");
@@ -49739,6 +50781,11 @@ async function runOnce() {
   } catch (err) {
     log(`Option price refresh failed: ${err.message}`, "ERROR");
   }
+  try {
+    await refreshAccountFunds();
+  } catch (err) {
+    log(`Account funds refresh failed: ${err.message}`, "ERROR");
+  }
   expiryCache.clear();
 }
 process.on("SIGINT", async () => {
@@ -49760,6 +50807,7 @@ main().catch((err) => {
 /*! Bundled license information:
 
 long/umd/index.js:
+long/index.js:
   (**
    * @license
    * Copyright 2009 The Closure Library Authors

@@ -1,6 +1,7 @@
 import net from 'net';
 import crypto from 'crypto';
 import protobuf from 'protobufjs';
+import Long from 'long';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { env } from '../config/env.js';
@@ -13,6 +14,9 @@ const PROTO_ID_INIT_CONNECT = 1001;
 const PROTO_ID_GET_OPTION_CHAIN = 3209;
 const PROTO_ID_GET_SECURITY_SNAPSHOT = 3203;
 const PROTO_ID_GET_OPTION_EXPIRY = 3224;
+const PROTO_ID_GET_ACC_LIST = 2001;
+const PROTO_ID_UNLOCK_TRADE = 2005;
+const PROTO_ID_GET_FUNDS = 2101;
 
 let socket = null;
 let connected = false;
@@ -31,6 +35,10 @@ async function loadProtos() {
         path.join(PROTO_DIR, 'Qot_GetOptionChain.proto'),
         path.join(PROTO_DIR, 'Qot_GetSecuritySnapshot.proto'),
         path.join(PROTO_DIR, 'Qot_GetOptionExpirationDate.proto'),
+        path.join(PROTO_DIR, 'Trd_Common.proto'),
+        path.join(PROTO_DIR, 'Trd_GetAccList.proto'),
+        path.join(PROTO_DIR, 'Trd_GetFunds.proto'),
+        path.join(PROTO_DIR, 'Trd_UnlockTrade.proto'),
     ]);
     return protoRoot;
 }
@@ -380,11 +388,201 @@ export async function getOptionQuotes(positions) {
     }
 }
 
+/**
+ * Unlock trade access (required before GetFunds on live accounts).
+ */
+let tradeUnlockedFirms = new Set();
+async function unlockTrade(securityFirm) {
+    if (tradeUnlockedFirms.has(securityFirm)) return true;
+    if (!env.moomooTradePwdMd5) {
+        console.warn('[Moomoo] MOOMOO_TRADE_PWD_MD5 not configured, skipping unlock');
+        return false;
+    }
+
+    const c2s = { unlock: true, pwdMD5: env.moomooTradePwdMd5 };
+    if (securityFirm) c2s.securityFirm = securityFirm;
+
+    const Req = protoRoot.lookupType('Trd_UnlockTrade.Request');
+    const body = Req.encode(Req.create({ c2s })).finish();
+
+    const resp = await sendRequest(PROTO_ID_UNLOCK_TRADE, body);
+    const Resp = protoRoot.lookupType('Trd_UnlockTrade.Response');
+    const result = Resp.decode(resp);
+
+    if (result.retType !== 0) {
+        console.warn(`[Moomoo] UnlockTrade(firm=${securityFirm}) failed: ${result.retMsg}`);
+        return false;
+    }
+
+    tradeUnlockedFirms.add(securityFirm);
+    console.log(`[Moomoo] Trade unlocked for securityFirm=${securityFirm}`);
+    return true;
+}
+
+/**
+ * Get list of trading accounts.
+ */
+export async function getAccList() {
+    const isConnected = await ensureConnected();
+    if (!isConnected) return [];
+
+    try {
+        const Req = protoRoot.lookupType('Trd_GetAccList.Request');
+        const body = Req.encode(Req.create({ c2s: { userID: 0, needGeneralSecAccount: true } })).finish();
+
+        const resp = await sendRequest(PROTO_ID_GET_ACC_LIST, body);
+        const Resp = protoRoot.lookupType('Trd_GetAccList.Response');
+        const result = Resp.decode(resp);
+
+        if (result.retType !== 0) {
+            console.warn(`[Moomoo] GetAccList failed: ${result.retMsg}`);
+            return [];
+        }
+
+        const accounts = (result.s2c?.accList || []).map(acc => ({
+            accID: acc.accID?.toString() || '',
+            accType: acc.accType,
+            accStatus: acc.accStatus,
+            securityFirm: acc.securityFirm,
+            trdMarketAuthList: acc.trdMarketAuthList || [],
+            simAccType: acc.simAccType,
+            cardNum: acc.cardNum || '',
+            uniCardNum: acc.uniCardNum || '',
+        }));
+
+        console.log('[Moomoo] Available accounts:', JSON.stringify(accounts, null, 2));
+        return accounts;
+    } catch (error) {
+        console.error('[Moomoo] GetAccList error:', error.message);
+        return [];
+    }
+}
+
+/**
+ * Get account funds from Moomoo.
+ * @returns {Object|null} funds data or null on failure
+ */
+/**
+ * Try GetFunds with a specific accID and trdMarket.
+ * @returns {Object|null}
+ */
+async function tryGetFunds(accID, trdMarket, currency) {
+    // accID is uint64 — use Long to avoid precision loss for large values
+    const accIDLong = typeof accID === 'string' ? Long.fromString(accID, true) : Long.fromNumber(accID, true);
+
+    const c2s = {
+        header: {
+            trdEnv: 1,  // REAL
+            accID: accIDLong,
+            trdMarket: trdMarket,
+        },
+        refreshCache: true,
+    };
+    if (currency) c2s.currency = currency;
+
+    const Req = protoRoot.lookupType('Trd_GetFunds.Request');
+    const body = Req.encode(Req.create({ c2s })).finish();
+
+    const resp = await sendRequest(PROTO_ID_GET_FUNDS, body);
+    const Resp = protoRoot.lookupType('Trd_GetFunds.Response');
+    const result = Resp.decode(resp);
+
+    if (result.retType !== 0) {
+        console.warn(`[Moomoo] GetFunds(accID=${accID}, market=${trdMarket}) failed: ${result.retMsg}`);
+        return null;
+    }
+
+    return result.s2c?.funds || null;
+}
+
+function mapFundsToResponse(f) {
+    return {
+        power: f.power ?? 0,
+        totalAssets: f.totalAssets ?? 0,
+        cash: f.cash ?? 0,
+        marketVal: f.marketVal ?? 0,
+        frozenCash: f.frozenCash ?? 0,
+        debtCash: f.debtCash ?? 0,
+        avlWithdrawalCash: f.avlWithdrawalCash ?? 0,
+        maxPowerShort: f.maxPowerShort ?? null,
+        netCashPower: f.netCashPower ?? null,
+        longMv: f.longMv ?? null,
+        shortMv: f.shortMv ?? null,
+        pendingAsset: f.pendingAsset ?? null,
+        maxWithdrawal: f.maxWithdrawal ?? null,
+        riskLevel: f.riskLevel ?? null,
+        riskStatus: f.riskStatus ?? null,
+        marginCallMargin: f.marginCallMargin ?? null,
+        unrealizedPL: f.unrealizedPL ?? null,
+        realizedPL: f.realizedPL ?? null,
+        initialMargin: f.initialMargin ?? null,
+        maintenanceMargin: f.maintenanceMargin ?? null,
+        isPdt: f.isPdt ?? false,
+        pdtSeq: f.pdtSeq ?? null,
+        beginningDTBP: f.beginningDTBP ?? null,
+        remainingDTBP: f.remainingDTBP ?? null,
+        dtCallAmount: f.dtCallAmount ?? null,
+        dtStatus: f.dtStatus ?? null,
+        securitiesAssets: f.securitiesAssets ?? null,
+        fundAssets: f.fundAssets ?? null,
+        bondAssets: f.bondAssets ?? null,
+        currency: f.currency ?? null,
+        fetchedAt: new Date().toISOString(),
+    };
+}
+
+export async function getAccountFunds() {
+    const isConnected = await ensureConnected();
+    if (!isConnected) return null;
+
+    try {
+        // Unlock trade for configured security firm
+        await unlockTrade(env.moomooSecurityFirm);
+
+        const configuredAccID = env.moomooAccountId;
+        const trdMarket = env.moomooTrdMarket;
+        const currency = env.moomooCurrency;
+
+        if (configuredAccID) {
+            // Use exact configured values
+            console.log(`[Moomoo] GetFunds: accID=${configuredAccID}, market=${trdMarket}, currency=${currency}`);
+            const funds = await tryGetFunds(configuredAccID, trdMarket, currency);
+            if (funds) {
+                return { ...mapFundsToResponse(funds), accID: configuredAccID, trdMarket };
+            }
+        }
+
+        // Fallback: auto-discover from account list
+        const accounts = await getAccList();
+        const realAccounts = accounts.filter(a => a.accStatus === 0 && !a.simAccType);
+        for (const acc of realAccounts) {
+            if (acc.securityFirm && acc.securityFirm !== env.moomooSecurityFirm) {
+                await unlockTrade(acc.securityFirm);
+            }
+            const markets = acc.trdMarketAuthList?.length > 0 ? acc.trdMarketAuthList : [trdMarket];
+            for (const market of markets) {
+                const funds = await tryGetFunds(acc.accID, market, currency);
+                if (funds) {
+                    console.log(`[Moomoo] GetFunds success (auto): accID=${acc.accID}, market=${market}`);
+                    return { ...mapFundsToResponse(funds), accID: acc.accID, trdMarket: market };
+                }
+            }
+        }
+
+        console.warn('[Moomoo] GetFunds failed for all accounts');
+        return null;
+    } catch (error) {
+        console.error('[Moomoo] GetFunds error:', error.message);
+        return null;
+    }
+}
+
 export function disconnect() {
     if (socket) {
         socket.destroy();
         socket = null;
         connected = false;
     }
+    tradeUnlockedFirms.clear();
     expiryCache.clear();
 }

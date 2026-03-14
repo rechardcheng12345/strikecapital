@@ -28,4 +28,9 @@ export const env = {
     // Moomoo OpenD
     moomooHost: process.env.MOOMOO_OPEND_HOST || '127.0.0.1',
     moomooPort: parseInt(process.env.MOOMOO_OPEND_PORT || '11111'),
+    moomooAccountId: process.env.MOOMOO_ACCOUNT_ID || '',
+    moomooTradePwdMd5: process.env.MOOMOO_TRADE_PWD_MD5 || '',
+    moomooSecurityFirm: parseInt(process.env.MOOMOO_SECURITY_FIRM || '3'),  // 3=FutuSG
+    moomooTrdMarket: parseInt(process.env.MOOMOO_TRD_MARKET || '2'),        // 2=US
+    moomooCurrency: parseInt(process.env.MOOMOO_CURRENCY || '2'),           // 2=USD
 };
