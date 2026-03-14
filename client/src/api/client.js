@@ -135,12 +135,15 @@ export const fundApi = {
 // ─── Admin API ────────────────────────────────────────
 export const adminApi = {
     getDashboardStats: () => api.get('/admin/dashboard/stats'),
+    getInvestorView: () => api.get('/admin/dashboard/investor-view'),
     // Investors
     getInvestors: (page = 1, limit = 20, search) => api.get(`/admin/investors?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
     getInvestor: (id) => api.get(`/admin/investors/${id}`),
     createInvestor: (data) => api.post('/admin/investors', data),
     updateInvestor: (id, data) => api.put(`/admin/investors/${id}`, data),
     deleteInvestor: (id) => api.delete(`/admin/investors/${id}`),
+    getFundSummary: () => api.get('/admin/investors/fund-summary'),
+    resetInvestorPassword: (id, password) => api.post(`/admin/investors/${id}/reset-password`, { password }),
     // P&L
     getPnl: (period = 'all') => api.get(`/admin/pnl?period=${period}`),
     createPnlRecord: (data) => api.post('/admin/pnl', data),

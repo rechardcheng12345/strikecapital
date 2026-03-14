@@ -32,8 +32,10 @@ router.get('/dashboard/stats', async (req, res, next) => {
             .whereIn('status', ['OPEN', 'MONITORING'])
             .sum('collateral as total');
         const total_collateral = parseFloat(collateralResult?.total || '0');
-        // Total active investors
-        const [investorCount] = await db('users').where({ role: 'investor', is_active: true }).count('* as count');
+        // Total active investors (includes admin with allocation)
+        const [investorCount] = await db('investor_allocations')
+            .where({ is_active: true })
+            .countDistinct('user_id as count');
         const total_investors = parseInt(investorCount?.count || '0');
         // Total realized P&L
         const [pnlResult] = await db('pnl_records').sum('pnl_amount as total');
@@ -51,6 +53,28 @@ router.get('/dashboard/stats', async (req, res, next) => {
             .where('expiration_date', '<=', sevenDaysFromNow.toISOString().split('T')[0])
             .count('* as count');
         const positions_expiring_soon = parseInt(expiringResult?.count || '0');
+
+        // Unrealized P&L from open option positions with current_price
+        const openOptionPositions = await db('positions')
+            .whereIn('status', ['OPEN', 'MONITORING'])
+            .whereNotNull('current_price')
+            .select('premium_received', 'current_price', 'contracts', 'position_type', 'shares', 'cost_basis');
+        let total_unrealized_pnl = 0;
+        for (const pos of openOptionPositions) {
+            if (pos.position_type === 'stock' && pos.shares) {
+                total_unrealized_pnl += (parseFloat(pos.current_price) - parseFloat(pos.cost_basis)) * pos.shares;
+            } else if (pos.contracts > 0) {
+                total_unrealized_pnl += parseFloat(pos.premium_received) - (parseFloat(pos.current_price) * pos.contracts * 100);
+            }
+        }
+
+        // Last price update timestamp
+        const [latestUpdate] = await db('positions')
+            .whereNotNull('last_price_update')
+            .orderBy('last_price_update', 'desc')
+            .limit(1)
+            .select('last_price_update');
+
         res.json({
             total_positions,
             open_positions,
@@ -58,17 +82,103 @@ router.get('/dashboard/stats', async (req, res, next) => {
             total_collateral: Math.round(total_collateral * 100) / 100,
             total_investors,
             total_realized_pnl: Math.round(total_realized_pnl * 100) / 100,
+            total_unrealized_pnl: Math.round(total_unrealized_pnl * 100) / 100,
             capital_utilization: Math.round(capital_utilization * 100) / 100,
             positions_expiring_soon,
+            last_price_update: latestUpdate?.last_price_update || null,
         });
     }
     catch (error) {
         next(error);
     }
 });
+// ─── Investor Dashboard (admin preview) ─────────────────────────
+router.get('/dashboard/investor-view', async (req, res, next) => {
+    try {
+        // Fund settings
+        const settings = await db('fund_settings').first();
+        const totalCapital = parseFloat(settings?.total_fund_capital || '0');
+
+        // Total invested across all active allocations
+        const [allocResult] = await db('investor_allocations')
+            .where({ is_active: true })
+            .sum('invested_amount as total')
+            .count('* as count');
+        const totalInvested = parseFloat(allocResult?.total || '0');
+        const investorCount = parseInt(allocResult?.count || '0');
+        const totalAllocationPct = totalCapital > 0
+            ? Math.round((totalInvested / totalCapital) * 100 * 100) / 100
+            : 0;
+
+        // Active positions count
+        const [activeResult] = await db('positions')
+            .whereIn('status', ['OPEN', 'MONITORING'])
+            .count('* as count');
+
+        // Total realized P&L
+        const [pnlResult] = await db('pnl_records').sum('pnl_amount as total');
+        const totalPnl = parseFloat(pnlResult?.total || '0');
+
+        // Win rate from resolved positions
+        const [resolvedCount] = await db('positions').where('status', 'RESOLVED').count('* as count');
+        const [wonCount] = await db('positions')
+            .where('status', 'RESOLVED')
+            .whereIn('resolution_type', ['expired_worthless', 'rolled'])
+            .count('* as count');
+        const resolved = parseInt(resolvedCount?.count || '0');
+        const won = parseInt(wonCount?.count || '0');
+        const winRate = resolved > 0 ? Math.round((won / resolved) * 100) : 0;
+
+        // Unrealized P&L from open positions
+        const openPositions = await db('positions')
+            .whereIn('status', ['OPEN', 'MONITORING'])
+            .whereNotNull('current_price')
+            .select('premium_received', 'current_price', 'contracts', 'position_type', 'shares', 'cost_basis');
+        let totalUnrealizedPnl = 0;
+        for (const pos of openPositions) {
+            if (pos.position_type === 'stock' && pos.shares) {
+                totalUnrealizedPnl += (parseFloat(pos.current_price) - parseFloat(pos.cost_basis)) * pos.shares;
+            } else if (pos.contracts > 0) {
+                totalUnrealizedPnl += parseFloat(pos.premium_received) - (parseFloat(pos.current_price) * pos.contracts * 100);
+            }
+        }
+
+        // Last price update
+        const [latestUpdate] = await db('positions')
+            .whereNotNull('last_price_update')
+            .orderBy('last_price_update', 'desc')
+            .limit(1)
+            .select('last_price_update');
+
+        res.json({
+            allocation: {
+                allocation_amount: totalInvested,
+                allocation_pct: totalAllocationPct,
+            },
+            total_pnl: Math.round(totalPnl * 100) / 100,
+            unrealized_pnl: Math.round(totalUnrealizedPnl * 100) / 100,
+            active_positions: parseInt(activeResult?.count || '0'),
+            win_rate: winRate,
+            investor_count: investorCount,
+            total_fund_capital: totalCapital,
+            last_price_update: latestUpdate?.last_price_update || null,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // ─── Investor Management ─────────────────────────────────────
+// Helper: auto-calculate allocation percentage
+async function calcAllocationPct(investedAmount) {
+    const settings = await db('fund_settings').first();
+    const totalCapital = parseFloat(settings?.total_fund_capital || '0');
+    return totalCapital > 0 ? Math.round((investedAmount / totalCapital) * 100 * 100) / 100 : 0;
+}
+
 const createInvestorSchema = z.object({
     email: z.string().email(),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
     full_name: z.string().min(2),
     phone: z.string().optional(),
     allocation_amount: z.number().min(0).optional(),
@@ -78,25 +188,77 @@ const updateInvestorSchema = z.object({
     phone: z.string().optional(),
     is_active: z.boolean().optional(),
     invested_amount: z.number().min(0).optional(),
-    allocation_pct: z.number().min(0).max(100).optional(),
+    role: z.enum(['investor', 'admin']).optional(),
 });
+const resetPasswordSchema = z.object({
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+// GET /investors/fund-summary — Fund overview for investor management page
+router.get('/investors/fund-summary', async (req, res, next) => {
+    try {
+        const settings = await db('fund_settings').first();
+        const totalCapital = parseFloat(settings?.total_fund_capital || '0');
+        const [allocResult] = await db('investor_allocations')
+            .where({ is_active: true })
+            .sum('invested_amount as total');
+        const totalAllocated = parseFloat(allocResult?.total || '0');
+        const [countResult] = await db('investor_allocations')
+            .where({ is_active: true })
+            .countDistinct('user_id as count');
+        const investorCount = parseInt(countResult?.count || '0');
+        res.json({
+            total_fund_capital: totalCapital,
+            total_allocated: Math.round(totalAllocated * 100) / 100,
+            remaining_capacity: Math.round((totalCapital - totalAllocated) * 100) / 100,
+            investor_count: investorCount,
+            allocation_pct_used: totalCapital > 0 ? Math.round((totalAllocated / totalCapital) * 100 * 100) / 100 : 0,
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+
+// GET /investors — List investors (includes admin with allocation)
 router.get('/investors', async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
-        const [{ count }] = await db('users').where({ role: 'investor' }).count('* as count');
-        const total = parseInt(count);
-        const investors = await db('users')
-            .where({ role: 'investor' })
+        const search = req.query.search;
+
+        let baseQuery = db('users')
             .leftJoin('investor_allocations', function () {
-            this.on('users.id', '=', 'investor_allocations.user_id')
-                .andOn('investor_allocations.is_active', '=', db.raw('true'));
-        })
-            .select('users.id', 'users.email', 'users.full_name', 'users.phone', 'users.is_active', 'users.created_at', 'investor_allocations.invested_amount', 'investor_allocations.allocation_pct')
-            .orderBy('users.created_at', 'desc')
+                this.on('users.id', '=', 'investor_allocations.user_id')
+                    .andOn('investor_allocations.is_active', '=', db.raw('true'));
+            })
+            .where(function () {
+                this.where('users.role', 'investor')
+                    .orWhereNotNull('investor_allocations.id');
+            });
+
+        if (search) {
+            baseQuery = baseQuery.andWhere(function () {
+                this.where('users.full_name', 'like', `%${search}%`)
+                    .orWhere('users.email', 'like', `%${search}%`);
+            });
+        }
+
+        const [{ count }] = await baseQuery.clone().count('users.id as count');
+        const total = parseInt(count);
+
+        const investors = await baseQuery.clone()
+            .select(
+                'users.id', 'users.email', 'users.full_name', 'users.phone',
+                'users.role', 'users.is_active', 'users.created_at',
+                'investor_allocations.invested_amount', 'investor_allocations.allocation_pct',
+                'investor_allocations.start_date as allocation_start_date'
+            )
+            .orderByRaw('COALESCE(investor_allocations.allocation_pct, 0) DESC, users.created_at DESC')
             .limit(limit)
             .offset(offset);
+
         res.json({
             investors,
             pagination: { page, limit, total, pages: Math.ceil(total / limit) },
@@ -106,9 +268,11 @@ router.get('/investors', async (req, res, next) => {
         next(error);
     }
 });
+
+// GET /investors/:id — Get single investor detail
 router.get('/investors/:id', async (req, res, next) => {
     try {
-        const user = await db('users').where({ id: req.params.id, role: 'investor' }).first();
+        const user = await db('users').where({ id: req.params.id }).first();
         if (!user)
             throw new AppError('Investor not found', 404);
         const allocation = await db('investor_allocations')
@@ -120,23 +284,22 @@ router.get('/investors/:id', async (req, res, next) => {
         next(error);
     }
 });
+
+// POST /investors — Create new investor (admin sets password)
 router.post('/investors', validate(createInvestorSchema), async (req, res, next) => {
     try {
-        const { email, full_name, phone, allocation_amount } = req.body;
+        const { email, password, full_name, phone, allocation_amount } = req.body;
         const existing = await db('users').where({ email }).first();
         if (existing)
             throw new AppError('Email already exists', 400);
-        const tempPassword = crypto.randomBytes(4).toString('hex');
-        const password_hash = await bcrypt.hash(tempPassword, 10);
+        const password_hash = await bcrypt.hash(password, 10);
         const user = await insertAndFetch('users', { email, password_hash, full_name, phone: phone || null, role: 'investor' });
         if (allocation_amount && allocation_amount > 0) {
-            const settings = await db('fund_settings').first();
-            const totalCapital = parseFloat(settings?.total_fund_capital || '0');
-            const pct = totalCapital > 0 ? (allocation_amount / totalCapital) * 100 : 0;
+            const pct = await calcAllocationPct(allocation_amount);
             await db('investor_allocations').insert({
                 user_id: user.id,
                 invested_amount: allocation_amount,
-                allocation_pct: Math.round(pct * 100) / 100,
+                allocation_pct: pct,
                 start_date: new Date().toISOString().split('T')[0],
                 is_active: true,
                 created_by: req.user.id,
@@ -150,18 +313,20 @@ router.post('/investors', validate(createInvestorSchema), async (req, res, next)
             newValues: { email, full_name, allocation_amount },
             ipAddress: req.ip,
         });
-        res.status(201).json({ user, temporary_password: tempPassword, message: 'Investor created' });
+        res.status(201).json({ user, message: 'Investor created' });
     }
     catch (error) {
         next(error);
     }
 });
+
+// PUT /investors/:id — Update investor profile and allocation
 router.put('/investors/:id', validate(updateInvestorSchema), async (req, res, next) => {
     try {
-        const user = await db('users').where({ id: req.params.id, role: 'investor' }).first();
+        const user = await db('users').where({ id: req.params.id }).first();
         if (!user)
             throw new AppError('Investor not found', 404);
-        const { full_name, phone, is_active, invested_amount, allocation_pct } = req.body;
+        const { full_name, phone, is_active, invested_amount, role } = req.body;
         const userUpdates = {};
         if (full_name !== undefined)
             userUpdates.full_name = full_name;
@@ -169,26 +334,27 @@ router.put('/investors/:id', validate(updateInvestorSchema), async (req, res, ne
             userUpdates.phone = phone;
         if (is_active !== undefined)
             userUpdates.is_active = is_active;
+        if (role !== undefined)
+            userUpdates.role = role;
         if (Object.keys(userUpdates).length > 0) {
             userUpdates.updated_at = new Date();
             await db('users').where({ id: user.id }).update(userUpdates);
         }
-        if (invested_amount !== undefined || allocation_pct !== undefined) {
+        if (invested_amount !== undefined) {
+            const allocation_pct = await calcAllocationPct(invested_amount);
             const existing = await db('investor_allocations').where({ user_id: user.id, is_active: true }).first();
-            const allocUpdates = {};
-            if (invested_amount !== undefined)
-                allocUpdates.invested_amount = invested_amount;
-            if (allocation_pct !== undefined)
-                allocUpdates.allocation_pct = allocation_pct;
-            allocUpdates.updated_at = new Date();
             if (existing) {
-                await db('investor_allocations').where({ id: existing.id }).update(allocUpdates);
+                await db('investor_allocations').where({ id: existing.id }).update({
+                    invested_amount,
+                    allocation_pct,
+                    updated_at: new Date(),
+                });
             }
             else {
                 await db('investor_allocations').insert({
                     user_id: user.id,
-                    invested_amount: invested_amount || 0,
-                    allocation_pct: allocation_pct || 0,
+                    invested_amount,
+                    allocation_pct,
                     start_date: new Date().toISOString().split('T')[0],
                     is_active: true,
                     created_by: req.user.id,
@@ -205,19 +371,21 @@ router.put('/investors/:id', validate(updateInvestorSchema), async (req, res, ne
             ipAddress: req.ip,
         });
         const updated = await db('users').where({ id: user.id }).first();
-        res.json(updated);
+        const allocation = await db('investor_allocations').where({ user_id: user.id, is_active: true }).first();
+        res.json({ ...updated, invested_amount: allocation?.invested_amount, allocation_pct: allocation?.allocation_pct });
     }
     catch (error) {
         next(error);
     }
 });
-router.post('/investors/:id/reset-password', async (req, res, next) => {
+
+// POST /investors/:id/reset-password — Admin sets new password
+router.post('/investors/:id/reset-password', validate(resetPasswordSchema), async (req, res, next) => {
     try {
-        const user = await db('users').where({ id: req.params.id, role: 'investor' }).first();
+        const user = await db('users').where({ id: req.params.id }).first();
         if (!user)
             throw new AppError('Investor not found', 404);
-        const tempPassword = crypto.randomBytes(4).toString('hex');
-        const password_hash = await bcrypt.hash(tempPassword, 10);
+        const password_hash = await bcrypt.hash(req.body.password, 10);
         await db('users').where({ id: user.id }).update({ password_hash, updated_at: new Date() });
         await logAudit({
             userId: req.user.id,
@@ -226,7 +394,32 @@ router.post('/investors/:id/reset-password', async (req, res, next) => {
             entityId: user.id,
             ipAddress: req.ip,
         });
-        res.json({ message: 'Password reset', temporary_password: tempPassword });
+        res.json({ message: 'Password updated successfully' });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+
+// DELETE /investors/:id — Soft-delete investor
+router.delete('/investors/:id', async (req, res, next) => {
+    try {
+        const user = await db('users').where({ id: req.params.id }).first();
+        if (!user)
+            throw new AppError('Investor not found', 404);
+        if (user.id === req.user.id)
+            throw new AppError('Cannot delete your own account', 400);
+        await db('users').where({ id: user.id }).update({ is_active: false, updated_at: new Date() });
+        await db('investor_allocations').where({ user_id: user.id, is_active: true }).update({ is_active: false, updated_at: new Date() });
+        await logAudit({
+            userId: req.user.id,
+            action: 'investor.delete',
+            entityType: 'user',
+            entityId: user.id,
+            oldValues: { full_name: user.full_name, email: user.email },
+            ipAddress: req.ip,
+        });
+        res.json({ message: 'Investor deactivated' });
     }
     catch (error) {
         next(error);

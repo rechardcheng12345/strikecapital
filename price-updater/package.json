@@ -1,0 +1,23 @@
+{
+  "name": "strikecapital-price-updater",
+  "version": "1.0.0",
+  "description": "Standalone price updater for StrikeCapital - runs on the PC with Moomoo OpenD",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "start:loop": "node index.js --loop",
+    "build": "node build.js",
+    "build:exe": "node build.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "knex": "^3.1.0",
+    "mysql2": "^3.11.0",
+    "protobufjs": "^7.4.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "@yao-pkg/pkg": "^6.5.0"
+  }
+}

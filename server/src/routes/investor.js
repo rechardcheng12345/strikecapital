@@ -33,15 +33,39 @@ router.get('/dashboard', async (req, res, next) => {
         const [unreadResult] = await db('notifications')
             .where({ user_id: userId, is_read: false })
             .count('* as count');
+
+        // Unrealized P&L from open positions with current_price
+        const openPositions = await db('positions')
+            .whereIn('status', ['OPEN', 'MONITORING'])
+            .whereNotNull('current_price')
+            .select('premium_received', 'current_price', 'contracts', 'position_type', 'shares', 'cost_basis');
+        let totalUnrealizedPnl = 0;
+        for (const pos of openPositions) {
+            if (pos.position_type === 'stock' && pos.shares) {
+                totalUnrealizedPnl += (parseFloat(pos.current_price) - parseFloat(pos.cost_basis)) * pos.shares;
+            } else if (pos.contracts > 0) {
+                totalUnrealizedPnl += parseFloat(pos.premium_received) - (parseFloat(pos.current_price) * pos.contracts * 100);
+            }
+        }
+
+        // Last price update
+        const [latestUpdate] = await db('positions')
+            .whereNotNull('last_price_update')
+            .orderBy('last_price_update', 'desc')
+            .limit(1)
+            .select('last_price_update');
+
         res.json({
             allocation: {
-                allocation_amount: parseFloat(allocation?.allocation_amount || '0'),
+                allocation_amount: parseFloat(allocation?.invested_amount || '0'),
                 allocation_pct: parseFloat(allocation?.allocation_pct || '0'),
             },
             total_pnl_share: Math.round(totalPnl * allocationPct * 100) / 100,
+            unrealized_pnl_share: Math.round(totalUnrealizedPnl * allocationPct * 100) / 100,
             active_positions: parseInt(activeResult?.count || '0'),
             win_rate: winRate,
             unread_notifications: parseInt(unreadResult?.count || '0'),
+            last_price_update: latestUpdate?.last_price_update || null,
         });
     }
     catch (error) {
@@ -62,7 +86,42 @@ router.get('/positions', async (req, res, next) => {
             countQuery = countQuery.where('status', status);
         }
         const [{ count }] = await countQuery.count('* as count');
-        const positions = await query.orderBy('created_at', 'desc').limit(limit).offset(offset);
+        const rawPositions = await query.orderBy('created_at', 'desc').limit(limit).offset(offset);
+        // Load cached stock prices for distance_to_strike
+        const symbols = [...new Set(rawPositions.map(p =>
+            p.ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase()
+        ).filter(s => s))];
+        const cachedStocks = symbols.length > 0
+            ? await db('market_data_cache').whereIn('ticker', symbols).select('ticker', 'current_price')
+            : [];
+        const stockPriceMap = new Map(cachedStocks.map(r => [r.ticker, parseFloat(r.current_price)]));
+
+        // Add computed fields
+        const positions = rawPositions.map(pos => {
+            const p = { ...pos };
+            if (p.current_price != null) {
+                if (p.position_type === 'stock' && p.shares) {
+                    p.unrealized_pnl = Math.round(((parseFloat(p.current_price) - parseFloat(p.cost_basis)) * p.shares) * 100) / 100;
+                } else if (p.contracts > 0) {
+                    p.unrealized_pnl = Math.round((parseFloat(p.premium_received) - (parseFloat(p.current_price) * p.contracts * 100)) * 100) / 100;
+                } else {
+                    p.unrealized_pnl = null;
+                }
+            } else {
+                p.unrealized_pnl = null;
+            }
+            // Distance to strike from stock price
+            if (p.position_type === 'option') {
+                const sym = p.ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase();
+                const sp = stockPriceMap.get(sym);
+                if (sp && sp > 0) {
+                    const strike = parseFloat(p.strike_price);
+                    p.distance_to_strike = Math.round(((sp - strike) / sp) * 100 * 100) / 100;
+                    p.stock_price = sp;
+                }
+            }
+            return p;
+        });
         res.json({
             positions,
             pagination: {
@@ -81,7 +140,29 @@ router.get('/positions/:id', async (req, res, next) => {
         const position = await db('positions').where({ id: req.params.id }).first();
         if (!position)
             throw new AppError('Position not found', 404);
-        res.json(position);
+        // Add computed fields
+        const p = { ...position };
+        if (p.current_price != null) {
+            if (p.position_type === 'stock' && p.shares) {
+                p.unrealized_pnl = Math.round(((parseFloat(p.current_price) - parseFloat(p.cost_basis)) * p.shares) * 100) / 100;
+            } else if (p.contracts > 0) {
+                p.unrealized_pnl = Math.round((parseFloat(p.premium_received) - (parseFloat(p.current_price) * p.contracts * 100)) * 100) / 100;
+            }
+        }
+        // Distance to strike from cached stock price
+        if (p.position_type === 'option') {
+            const sym = p.ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase();
+            const cached = await db('market_data_cache').where('ticker', sym).first();
+            if (cached) {
+                const sp = parseFloat(cached.current_price);
+                if (sp > 0) {
+                    const strike = parseFloat(p.strike_price);
+                    p.distance_to_strike = Math.round(((sp - strike) / sp) * 100 * 100) / 100;
+                    p.stock_price = sp;
+                }
+            }
+        }
+        res.json(p);
     }
     catch (error) {
         next(error);

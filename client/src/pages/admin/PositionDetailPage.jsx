@@ -96,6 +96,8 @@ export function PositionDetailPage() {
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [actionError, setActionError] = useState(null);
+    const [refreshing, setRefreshing] = useState(false);
+    const [refreshLog, setRefreshLog] = useState(null);
     // Resolve form
     const [resolveForm, setResolveForm] = useState({
         resolution_type: 'expired_worthless',
@@ -177,6 +179,23 @@ export function PositionDetailPage() {
         queryClient.invalidateQueries({ queryKey: ['positions'] });
         navigate('/admin/positions');
     };
+    const handleRefreshPrices = async () => {
+        setRefreshing(true);
+        setRefreshLog(null);
+        try {
+            const res = await positionApi.refreshPrices();
+            if (res.error) {
+                setRefreshLog({ error: res.error });
+            } else {
+                setRefreshLog(res.data);
+                queryClient.invalidateQueries({ queryKey: ['position', positionId] });
+                refetch();
+            }
+        } catch (err) {
+            setRefreshLog({ error: err.message || 'Failed to refresh prices' });
+        }
+        setRefreshing(false);
+    };
     // ─── Back path ────────────────────────────────────
     const backPath = isAdmin ? '/admin/positions' : '/positions';
     // ─── Render ───────────────────────────────────────
@@ -200,7 +219,7 @@ export function PositionDetailPage() {
               <h1 className="text-2xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                 {position.position_type === 'stock'
                 ? `${position.ticker} Stock`
-                : `${position.ticker} $${position.strike_price.toFixed(2)}P`}
+                : `${position.ticker} $${parseFloat(position.strike_price).toFixed(2)}P`}
               </h1>
               <Badge variant={statusBadgeVariant(position.status)}>
                 {POSITION_STATUS[position.status]?.label ?? position.status}
@@ -246,7 +265,80 @@ export function PositionDetailPage() {
                 <Trash2 className="w-4 h-4 mr-1.5"/>
                 Delete
               </Button>
+              {position.position_type !== 'stock' && (
+                <Button variant="outline" size="sm" loading={refreshing} onClick={handleRefreshPrices}>
+                  <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? 'animate-spin' : ''}`}/>
+                  Refresh Prices
+                </Button>
+              )}
             </div>)}
+
+          {/* ─── Refresh Prices Log ─────────────────────── */}
+          {refreshLog && (
+            <Card className="rounded-none">
+              <CardHeader className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  Price Refresh Log
+                </h3>
+                <button onClick={() => setRefreshLog(null)} className="text-gray-400 hover:text-gray-600 text-xs">
+                  Dismiss
+                </button>
+              </CardHeader>
+              <CardBody>
+                {refreshLog.error ? (
+                  <p className="text-red-600 text-sm">{refreshLog.error}</p>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-700">
+                      Updated <span className="font-semibold">{refreshLog.updated}</span> position(s) from{' '}
+                      <span className="font-semibold">{refreshLog.prices?.length || 0}</span> option quote(s).
+                      {refreshLog.source && (
+                        <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-none text-xs font-medium ${refreshLog.source === 'moomoo' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          Source: {refreshLog.source === 'moomoo' ? 'Live API' : 'Cached'}
+                        </span>
+                      )}
+                    </p>
+                    {refreshLog.prices?.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-gray-50 text-left">
+                              <th className="px-3 py-2 font-semibold">Ticker</th>
+                              <th className="px-3 py-2 font-semibold">Strike</th>
+                              <th className="px-3 py-2 font-semibold">Expiry</th>
+                              <th className="px-3 py-2 font-semibold">Option Code</th>
+                              <th className="px-3 py-2 font-semibold text-right">Price</th>
+                              <th className="px-3 py-2 font-semibold text-right">IV</th>
+                              <th className="px-3 py-2 font-semibold text-right">Delta</th>
+                              <th className="px-3 py-2 font-semibold text-right">Stock</th>
+                              <th className="px-3 py-2 font-semibold text-right">Dist. to Strike</th>
+                              <th className="px-3 py-2 font-semibold text-right">Last Updated</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {refreshLog.prices.map((p, i) => (
+                              <tr key={i} className="hover:bg-gray-50">
+                                <td className="px-3 py-2 font-medium">{p.ticker}</td>
+                                <td className="px-3 py-2 font-mono">${parseFloat(p.strike).toFixed(2)}</td>
+                                <td className="px-3 py-2">{p.expiry}</td>
+                                <td className="px-3 py-2 font-mono text-gray-500">{p.option_code}</td>
+                                <td className="px-3 py-2 text-right font-mono font-semibold">${parseFloat(p.price).toFixed(2)}</td>
+                                <td className="px-3 py-2 text-right font-mono">{p.iv != null ? p.iv.toFixed(1) + '%' : '--'}</td>
+                                <td className="px-3 py-2 text-right font-mono">{p.delta != null ? p.delta.toFixed(3) : '--'}</td>
+                                <td className="px-3 py-2 text-right font-mono">{p.stock_price != null ? '$' + p.stock_price.toFixed(2) : '--'}</td>
+                                <td className="px-3 py-2 text-right font-mono">{p.distance_to_strike != null ? p.distance_to_strike.toFixed(2) + '%' : '--'}</td>
+                                <td className="px-3 py-2 text-right text-gray-500 whitespace-nowrap">{p.cached_at ? new Date(p.cached_at).toLocaleString() : new Date().toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          )}
 
           {/* ─── Risk Metrics Strip ────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -261,13 +353,18 @@ export function PositionDetailPage() {
                     : '--'} icon={<TrendingDown className="w-4 h-4"/>} highlight={position.current_price != null && position.cost_basis != null && position.current_price < position.cost_basis}/>
               </>) : (<>
                 <RiskMetric label="Current Price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'} icon={<DollarSign className="w-4 h-4"/>}/>
-                <RiskMetric label="Dist. to Strike" value={position.distance_to_strike != null ? formatPercent(position.distance_to_strike) : '--'} icon={<TrendingDown className="w-4 h-4"/>} highlight={position.distance_to_strike != null && position.distance_to_strike < 5}/>
+                <RiskMetric label="Unrealized P&L" value={position.unrealized_pnl != null ? formatCurrency(position.unrealized_pnl) : '--'} icon={<TrendingDown className="w-4 h-4"/>} highlight={position.unrealized_pnl != null && position.unrealized_pnl < 0}/>
                 <RiskMetric label="Collateral" value={formatCurrency(position.collateral)} icon={<Shield className="w-4 h-4"/>}/>
                 <RiskMetric label="Break-Even" value={formatCurrency(position.break_even)} icon={<Target className="w-4 h-4"/>}/>
                 <RiskMetric label="Max Profit" value={formatCurrency(position.max_profit)} icon={<DollarSign className="w-4 h-4"/>}/>
                 <RiskMetric label="Return on Coll." value={position.collateral > 0 ? formatPercent((position.max_profit / position.collateral) * 100) : '--'} icon={<Percent className="w-4 h-4"/>} highlight={position.collateral > 0 && (position.max_profit / position.collateral) * 100 > 3}/>
               </>)}
           </div>
+          {position.last_price_update && (
+            <p className="text-xs text-gray-400 -mt-1">
+              Prices updated: {new Date(position.last_price_update).toLocaleString()}
+            </p>
+          )}
 
           {/* ─── Position Details Card ─────────────────── */}
           <Card className="rounded-none border-2 border-[#0D2654]/15">
@@ -299,7 +396,8 @@ export function PositionDetailPage() {
                     <DetailRow label="Break-Even" value={formatCurrency(position.break_even)}/>
                     <DetailRow label="Max Profit" value={formatCurrency(position.max_profit)}/>
                     <DetailRow label="Current Price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'}/>
-                    <DetailRow label="Distance to Strike" value={position.distance_to_strike != null ? formatPercent(position.distance_to_strike) : '--'}/>
+                    <DetailRow label="Unrealized P&L" value={position.unrealized_pnl != null ? formatCurrency(position.unrealized_pnl) : '--'}/>
+                    <DetailRow label="Last Price Update" value={position.last_price_update ? new Date(position.last_price_update).toLocaleString() : '--'}/>
                     <DetailRow label="Created" value={formatDate(position.created_at)}/>
                   </>)}
               </div>
@@ -462,7 +560,7 @@ export function PositionDetailPage() {
               <p className="text-sm text-gray-600">
                 Are you sure you want to delete{' '}
                 <span className="font-semibold text-[#0D2654]">
-                  {position.ticker} ${position.strike_price.toFixed(2)}P
+                  {position.ticker} ${parseFloat(position.strike_price).toFixed(2)}P
                 </span>
                 ? This action cannot be undone.
               </p>

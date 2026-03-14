@@ -8,8 +8,59 @@ import { AppError } from '../middleware/errorHandler.js';
 import { logAudit } from '../services/auditLogger.js';
 import { calculateCollateral, calculateBreakEven, calculateMaxProfit, calculateStockCollateral, calculateStockBreakEven } from '../services/pnlEngine.js';
 import { notifyAllInvestors } from '../services/notificationEngine.js';
+import { refreshAllPrices } from '../services/priceService.js';
 import { insertAndFetch, updateAndFetch } from '../utils/dbHelpers.js';
 const router = Router();
+
+// Helper: compute unrealized P&L and distance_to_strike for a position
+// stockPriceMap is optional — if provided, uses it for distance_to_strike
+function addComputedFields(pos, stockPriceMap) {
+    const p = { ...pos };
+    if (p.current_price != null) {
+        if (p.position_type === 'stock' && p.shares) {
+            p.unrealized_pnl = Math.round(((parseFloat(p.current_price) - parseFloat(p.cost_basis)) * p.shares) * 100) / 100;
+        } else if (p.position_type === 'option' && p.contracts > 0) {
+            p.unrealized_pnl = Math.round((parseFloat(p.premium_received) - (parseFloat(p.current_price) * p.contracts * 100)) * 100) / 100;
+        } else {
+            p.unrealized_pnl = null;
+        }
+    } else {
+        p.unrealized_pnl = null;
+    }
+
+    // Compute distance_to_strike from cached stock price
+    if (stockPriceMap && p.position_type === 'option') {
+        const symbol = p.ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase();
+        const stockPrice = stockPriceMap.get(symbol);
+        if (stockPrice && stockPrice > 0) {
+            const strike = parseFloat(p.strike_price);
+            p.distance_to_strike = Math.round(((stockPrice - strike) / stockPrice) * 100 * 100) / 100;
+            p.stock_price = stockPrice;
+        }
+    }
+
+    return p;
+}
+
+// Helper: load stock prices from market_data_cache for a list of positions
+async function loadStockPrices(positions) {
+    const symbols = [...new Set(positions.map(p =>
+        p.ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase()
+    ).filter(s => s))];
+
+    if (symbols.length === 0) return new Map();
+
+    const cached = await db('market_data_cache')
+        .whereIn('ticker', symbols)
+        .select('ticker', 'current_price');
+
+    const map = new Map();
+    for (const row of cached) {
+        map.set(row.ticker, parseFloat(row.current_price));
+    }
+    return map;
+}
+
 // Validation schemas
 const createPositionSchema = z.object({
     ticker: z.string().min(1, 'Ticker is required'),
@@ -73,10 +124,12 @@ router.get('/', authenticate, async (req, res, next) => {
         }
         const [{ count }] = await countQuery.count('* as count');
         const total = parseInt(count, 10);
-        const positions = await query
+        const rawPositions = await query
             .orderBy('created_at', 'desc')
             .limit(limitNum)
             .offset(offset);
+        const stockPriceMap = await loadStockPrices(rawPositions);
+        const positions = rawPositions.map(p => addComputedFields(p, stockPriceMap));
         res.json({
             positions,
             pagination: {
@@ -91,6 +144,18 @@ router.get('/', authenticate, async (req, res, next) => {
         next(error);
     }
 });
+// POST /refresh-prices — Refresh market prices for all open positions (admin only)
+router.post('/refresh-prices', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const result = await refreshAllPrices();
+        res.json({
+            message: `Refreshed prices for ${result.prices.length} tickers, updated ${result.updated} positions`,
+            ...result,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
 // GET /:id — Get position detail with timeline
 router.get('/:id', authenticate, async (req, res, next) => {
     try {
@@ -99,7 +164,8 @@ router.get('/:id', authenticate, async (req, res, next) => {
         if (!position) {
             throw new AppError('Position not found', 404);
         }
-        res.json(position);
+        const stockPriceMap = await loadStockPrices([position]);
+        res.json(addComputedFields(position, stockPriceMap));
     }
     catch (error) {
         next(error);

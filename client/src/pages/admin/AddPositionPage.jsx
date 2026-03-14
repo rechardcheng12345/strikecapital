@@ -39,17 +39,19 @@ export function AddPositionPage() {
         },
     });
     function onSubmit(values) {
+        const strike = Math.round(values.strike_price * 100) / 100;
+        const premium = Math.round(values.premium_received * 100) / 100;
         const payload = {
             ticker: values.ticker.toUpperCase().trim(),
             position_type: positionType,
-            strike_price: parseFloat(values.strike_price),
-            premium_received: parseFloat(values.premium_received),
+            strike_price: strike,
+            premium_received: premium,
             contracts: positionType === 'stock' ? 0 : parseInt(values.contracts, 10),
             expiration_date: positionType === 'stock' ? undefined : values.expiration_date,
             notes: values.notes.trim() || undefined,
             ...(positionType === 'stock' && {
                 shares: parseInt(values.contracts, 10),
-                cost_basis: parseFloat(values.strike_price),
+                cost_basis: strike,
             }),
         };
         createMutation.mutate(payload);
@@ -123,11 +125,13 @@ export function AddPositionPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input label={isStock ? 'Cost Basis ($)' : 'Strike Price ($)'} type="number" step="0.01" min="0.01" placeholder="0.00" className="rounded-none" {...register('strike_price', {
         required: isStock ? 'Cost basis is required' : 'Strike price is required',
-        validate: (v) => parseFloat(v) > 0 || (isStock ? 'Cost basis must be greater than 0' : 'Strike price must be greater than 0'),
+        valueAsNumber: true,
+        validate: (v) => v > 0 || (isStock ? 'Cost basis must be greater than 0' : 'Strike price must be greater than 0'),
     })} error={errors.strike_price?.message}/>
                   <Input label="Premium Received ($)" type="number" step="0.01" min="0.01" placeholder="0.00" className="rounded-none" {...register('premium_received', {
         required: 'Premium is required',
-        validate: (v) => parseFloat(v) > 0 || 'Premium must be greater than 0',
+        valueAsNumber: true,
+        validate: (v) => v > 0 || 'Premium must be greater than 0',
     })} error={errors.premium_received?.message}/>
                 </div>
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { TrendingUp, Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { TrendingUp, Plus, ChevronLeft, ChevronRight, Trash2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { positionApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
@@ -28,7 +28,8 @@ const STATUS_BADGE_VARIANT = {
     RESOLVED: 'bg-gray-100 text-gray-800',
 };
 function formatCurrency(value) {
-    return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    return '$' + (num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function formatPercent(value) {
     if (value === undefined || value === null)
@@ -45,14 +46,30 @@ function formatDate(dateStr) {
 export function AdminPositionsPage() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const [activeTab, setActiveTab] = useState('ALL');
+    const [activeTab, setActiveTab] = useState('OPEN');
     const [page, setPage] = useState(1);
     const limit = 20;
     const [deleteTarget, setDeleteTarget] = useState(null);
     const statusParam = activeTab === 'ALL' ? undefined : activeTab;
     const { data, isLoading, isError, error, refetch } = useApiQuery({
-        queryKey: ['positions', page, limit, statusParam],
+        queryKey: ['positions', page, limit, statusParam ?? 'ALL'],
         queryFn: () => positionApi.list(page, limit, statusParam),
+    });
+    const refreshPricesMutation = useMutation({
+        mutationFn: () => positionApi.refreshPrices(),
+        onSuccess: (response) => {
+            if (response.error) {
+                toast.error(response.error);
+                return;
+            }
+            const { updated, prices, source } = response.data;
+            const sourceLabel = source === 'moomoo' ? 'Live API' : source === 'cache' ? 'Cached' : '';
+            toast.success(`Refreshed ${prices.length} ticker${prices.length !== 1 ? 's' : ''}, updated ${updated} position${updated !== 1 ? 's' : ''}${sourceLabel ? ` (${sourceLabel})` : ''}`);
+            queryClient.invalidateQueries({ queryKey: ['positions'] });
+        },
+        onError: () => {
+            toast.error('Failed to refresh prices');
+        },
     });
     const deleteMutation = useMutation({
         mutationFn: (id) => positionApi.delete(id),
@@ -82,12 +99,18 @@ export function AdminPositionsPage() {
           <TrendingUp className="w-6 h-6 text-[#F06010]"/>
           Positions
         </h1>
-        <Link to="/admin/positions/new">
-          <Button variant="primary" className="bg-[#F06010] hover:bg-[#d9560e] rounded-none">
-            <Plus className="w-4 h-4 mr-2"/>
-            Add Position
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="rounded-none" loading={refreshPricesMutation.isPending} onClick={() => refreshPricesMutation.mutate()}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`}/>
+            Refresh Prices
           </Button>
-        </Link>
+          <Link to="/admin/positions/new">
+            <Button variant="primary" className="bg-[#F06010] hover:bg-[#d9560e] rounded-none">
+              <Plus className="w-4 h-4 mr-2"/>
+              Add Position
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Filter Tabs */}
@@ -150,7 +173,8 @@ export function AdminPositionsPage() {
                   <th className="text-left px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Status</th>
                   <th className="text-right px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Collateral</th>
                   <th className="text-right px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Break-Even</th>
-                  <th className="text-right px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Dist. to Strike</th>
+                  <th className="text-right px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Cur. Price</th>
+                  <th className="text-right px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Unrealized P&L</th>
                   <th className="text-center px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Actions</th>
                 </tr>
               </thead>
@@ -173,10 +197,9 @@ export function AdminPositionsPage() {
                     </td>
                     <td className="px-4 py-3 text-right font-mono">{formatCurrency(pos.collateral)}</td>
                     <td className="px-4 py-3 text-right font-mono">{formatCurrency(pos.break_even)}</td>
-                    <td className="px-4 py-3 text-right font-mono">
-                      {pos.distance_to_strike !== undefined && pos.distance_to_strike !== null
-                    ? formatPercent(pos.distance_to_strike)
-                    : '--'}
+                    <td className="px-4 py-3 text-right font-mono">{pos.current_price != null ? formatCurrency(pos.current_price) : '--'}</td>
+                    <td className={`px-4 py-3 text-right font-mono font-semibold ${pos.unrealized_pnl != null ? (pos.unrealized_pnl >= 0 ? 'text-green-600' : 'text-red-600') : ''}`}>
+                      {pos.unrealized_pnl != null ? formatCurrency(pos.unrealized_pnl) : '--'}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button onClick={(e) => {

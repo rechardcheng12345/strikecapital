@@ -72,6 +72,8 @@ export function InvestorPositionsPage() {
                   <th className="text-left px-4 py-3 font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Expiration</th>
                   <th className="text-left px-4 py-3 font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Status</th>
                   <th className="text-right px-4 py-3 font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Collateral</th>
+                  <th className="text-right px-4 py-3 font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Cur. Price</th>
+                  <th className="text-right px-4 py-3 font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Unrealized P&L</th>
                 </tr>
               </thead>
               <tbody>
@@ -94,6 +96,10 @@ export function InvestorPositionsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">{formatCurrency(pos.collateral)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{pos.current_price != null ? formatCurrency(pos.current_price) : '--'}</td>
+                      <td className={`px-4 py-3 text-right font-mono font-semibold ${pos.unrealized_pnl != null ? (pos.unrealized_pnl >= 0 ? 'text-green-600' : 'text-red-600') : ''}`}>
+                        {pos.unrealized_pnl != null ? formatCurrency(pos.unrealized_pnl) : '--'}
+                      </td>
                     </tr>);
             })}
               </tbody>
