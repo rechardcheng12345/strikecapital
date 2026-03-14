@@ -38,13 +38,14 @@ router.get('/dashboard', async (req, res, next) => {
         const openPositions = await db('positions')
             .whereIn('status', ['OPEN', 'MONITORING'])
             .whereNotNull('current_price')
-            .select('premium_received', 'current_price', 'contracts', 'position_type', 'shares', 'cost_basis');
+            .select('premium_received', 'commission', 'platform_fee', 'current_price', 'contracts', 'position_type', 'shares', 'cost_basis');
         let totalUnrealizedPnl = 0;
         for (const pos of openPositions) {
             if (pos.position_type === 'stock' && pos.shares) {
                 totalUnrealizedPnl += (parseFloat(pos.current_price) - parseFloat(pos.cost_basis)) * pos.shares;
             } else if (pos.contracts > 0) {
-                totalUnrealizedPnl += parseFloat(pos.premium_received) - (parseFloat(pos.current_price) * pos.contracts * 100);
+                const fees = (parseFloat(pos.commission) || 0) + (parseFloat(pos.platform_fee) || 0);
+                totalUnrealizedPnl += parseFloat(pos.premium_received) - fees - (parseFloat(pos.current_price) * pos.contracts * 100);
             }
         }
 
@@ -103,7 +104,8 @@ router.get('/positions', async (req, res, next) => {
                 if (p.position_type === 'stock' && p.shares) {
                     p.unrealized_pnl = Math.round(((parseFloat(p.current_price) - parseFloat(p.cost_basis)) * p.shares) * 100) / 100;
                 } else if (p.contracts > 0) {
-                    p.unrealized_pnl = Math.round((parseFloat(p.premium_received) - (parseFloat(p.current_price) * p.contracts * 100)) * 100) / 100;
+                    const fees = (parseFloat(p.commission) || 0) + (parseFloat(p.platform_fee) || 0);
+                    p.unrealized_pnl = Math.round((parseFloat(p.premium_received) - fees - (parseFloat(p.current_price) * p.contracts * 100)) * 100) / 100;
                 } else {
                     p.unrealized_pnl = null;
                 }
@@ -146,7 +148,8 @@ router.get('/positions/:id', async (req, res, next) => {
             if (p.position_type === 'stock' && p.shares) {
                 p.unrealized_pnl = Math.round(((parseFloat(p.current_price) - parseFloat(p.cost_basis)) * p.shares) * 100) / 100;
             } else if (p.contracts > 0) {
-                p.unrealized_pnl = Math.round((parseFloat(p.premium_received) - (parseFloat(p.current_price) * p.contracts * 100)) * 100) / 100;
+                const fees = (parseFloat(p.commission) || 0) + (parseFloat(p.platform_fee) || 0);
+                p.unrealized_pnl = Math.round((parseFloat(p.premium_received) - fees - (parseFloat(p.current_price) * p.contracts * 100)) * 100) / 100;
             }
         }
         // Distance to strike from cached stock price

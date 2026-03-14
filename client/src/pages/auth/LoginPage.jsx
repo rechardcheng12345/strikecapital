@@ -33,9 +33,7 @@ export function LoginPage() {
       {/* Left brand panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#0D2654] flex-col justify-center items-center px-12">
         <div className="max-w-md text-center">
-          <div className="w-16 h-16 bg-[#F06010] rounded-lg flex items-center justify-center mx-auto mb-8">
-            <span className="text-white font-bold text-2xl">S</span>
-          </div>
+          <img src="/logo2.png" alt="StrikeCapital" className="w-16 h-16 rounded-lg mx-auto mb-8"/>
           <h1 className="text-4xl font-bold text-white mb-4 tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
             StrikeCapital
           </h1>
@@ -50,9 +48,7 @@ export function LoginPage() {
         <div className="max-w-md w-full mx-auto">
           {/* Mobile logo */}
           <div className="lg:hidden flex justify-center mb-8">
-            <div className="w-12 h-12 bg-[#F06010] rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">S</span>
-            </div>
+            <img src="/logo2.png" alt="StrikeCapital" className="w-12 h-12 rounded-lg"/>
           </div>
 
           <h2 className="text-2xl font-bold text-gray-900 mb-8" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>

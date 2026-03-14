@@ -21,6 +21,8 @@ export function AddPositionPage() {
             premium_received: '',
             contracts: '',
             expiration_date: '',
+            commission: '',
+            platform_fee: '',
             notes: '',
         },
     });
@@ -41,11 +43,15 @@ export function AddPositionPage() {
     function onSubmit(values) {
         const strike = Math.round(values.strike_price * 100) / 100;
         const premium = Math.round(values.premium_received * 100) / 100;
+        const commission = parseFloat(values.commission) || 0;
+        const platformFee = parseFloat(values.platform_fee) || 0;
         const payload = {
             ticker: values.ticker.toUpperCase().trim(),
             position_type: positionType,
             strike_price: strike,
             premium_received: premium,
+            commission,
+            platform_fee: platformFee,
             contracts: positionType === 'stock' ? 0 : parseInt(values.contracts, 10),
             expiration_date: positionType === 'stock' ? undefined : values.expiration_date,
             notes: values.notes.trim() || undefined,
@@ -60,18 +66,22 @@ export function AddPositionPage() {
     const watchStrike = parseFloat(watch('strike_price')) || 0;
     const watchPremium = parseFloat(watch('premium_received')) || 0;
     const watchContracts = parseInt(watch('contracts'), 10) || 0;
+    const watchCommission = parseFloat(watch('commission')) || 0;
+    const watchPlatformFee = parseFloat(watch('platform_fee')) || 0;
+    const totalFees = watchCommission + watchPlatformFee;
     const isStock = positionType === 'stock';
     const collateral = isStock
         ? watchStrike * watchContracts
         : watchStrike * watchContracts * 100;
+    const netPremium = watchPremium - totalFees;
     const breakEven = watchContracts > 0 && watchStrike > 0
         ? isStock
-            ? watchStrike - (watchPremium / watchContracts)
-            : watchStrike - (watchPremium / (watchContracts * 100))
+            ? watchStrike - (netPremium / watchContracts)
+            : watchStrike - (netPremium / (watchContracts * 100))
         : 0;
-    const maxProfit = watchPremium;
+    const maxProfit = netPremium;
     const returnOnCollateral = collateral > 0
-        ? (watchPremium / collateral) * 100
+        ? (netPremium / collateral) * 100
         : 0;
     const hasCalcValues = watchStrike > 0 && watchContracts > 0;
     return (<div>
@@ -133,6 +143,16 @@ export function AddPositionPage() {
         valueAsNumber: true,
         validate: (v) => v > 0 || 'Premium must be greater than 0',
     })} error={errors.premium_received?.message}/>
+                </div>
+
+                {/* Commission & Platform Fee row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input label="Commission ($)" type="number" step="0.01" min="0" placeholder="0.00" className="rounded-none" {...register('commission', {
+        valueAsNumber: true,
+    })} error={errors.commission?.message}/>
+                  <Input label="Platform Fee ($)" type="number" step="0.01" min="0" placeholder="0.00" className="rounded-none" {...register('platform_fee', {
+        valueAsNumber: true,
+    })} error={errors.platform_fee?.message}/>
                 </div>
 
                 {/* Contracts/Shares & Expiration row */}
@@ -221,6 +241,26 @@ export function AddPositionPage() {
                     </div>
                   </div>
 
+                  {/* Net Premium (after fees) */}
+                  {totalFees > 0 && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-yellow-500 flex items-center justify-center rounded-none flex-shrink-0">
+                      <DollarSign className="w-5 h-5 text-white"/>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Net Premium (after fees)
+                      </p>
+                      <p className="text-xl font-bold text-[#0D2654] font-mono">
+                        {formatCurrency(netPremium)}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {formatCurrency(watchPremium)} - {formatCurrency(totalFees)} fees
+                      </p>
+                    </div>
+                  </div>
+                  )}
+
                   {/* Max Profit */}
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 bg-green-600 flex items-center justify-center rounded-none flex-shrink-0">
@@ -234,7 +274,7 @@ export function AddPositionPage() {
                         {isStock ? 'Unlimited' : formatCurrency(maxProfit)}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {isStock ? 'Stock can appreciate indefinitely' : 'Total premium received'}
+                        {isStock ? 'Stock can appreciate indefinitely' : totalFees > 0 ? 'Premium minus fees' : 'Total premium received'}
                       </p>
                     </div>
                   </div>

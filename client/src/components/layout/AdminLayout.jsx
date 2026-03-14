@@ -38,9 +38,7 @@ export function AdminLayout() {
       {/* Brand */}
       <div className="px-4 py-5 border-b border-white/10">
         <Link to="/admin" className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-[#F06010] rounded flex items-center justify-center">
-            <span className="text-white font-bold text-sm">S</span>
-          </div>
+          <img src="/logo2.png" alt="StrikeCapital" className="w-8 h-8 rounded"/>
           <span className="text-white font-bold text-lg tracking-tight">StrikeCapital</span>
         </Link>
       </div>
@@ -83,7 +81,10 @@ export function AdminLayout() {
         <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 rounded hover:bg-white/10 transition-colors">
           <Menu className="w-6 h-6 text-white"/>
         </button>
-        <span className="text-white font-bold">StrikeCapital</span>
+        <div className="flex items-center space-x-2">
+          <img src="/logo2.png" alt="StrikeCapital" className="w-6 h-6 rounded"/>
+          <span className="text-white font-bold">StrikeCapital</span>
+        </div>
         <div className="w-8"/>
       </div>
 

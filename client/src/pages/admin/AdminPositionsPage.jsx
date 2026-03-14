@@ -14,7 +14,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 const STATUS_TABS = [
     { key: 'ALL', label: 'All' },
-    { key: 'OPEN', label: 'Open' },
+    { key: 'OPEN', label: 'Opened' },
     { key: 'MONITORING', label: 'Monitoring' },
     { key: 'ROLLING', label: 'Rolling' },
     { key: 'EXPIRY', label: 'Expiry' },

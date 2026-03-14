@@ -94,10 +94,13 @@ export function PositionDetailPage() {
     const [resolveOpen, setResolveOpen] = useState(false);
     const [rollOpen, setRollOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [editOpen, setEditOpen] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [actionError, setActionError] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
     const [refreshLog, setRefreshLog] = useState(null);
+    // Edit form
+    const [editForm, setEditForm] = useState({});
     // Resolve form
     const [resolveForm, setResolveForm] = useState({
         resolution_type: 'expired_worthless',
@@ -179,6 +182,34 @@ export function PositionDetailPage() {
         queryClient.invalidateQueries({ queryKey: ['positions'] });
         navigate('/admin/positions');
     };
+    const initEditForm = () => {
+        if (position) {
+            setEditForm({
+                strike_price: parseFloat(position.strike_price),
+                premium_received: parseFloat(position.premium_received),
+                commission: parseFloat(position.commission) || 0,
+                platform_fee: parseFloat(position.platform_fee) || 0,
+                contracts: position.position_type === 'stock' ? position.shares : position.contracts,
+                expiration_date: position.expiration_date ? position.expiration_date.split('T')[0] : '',
+                notes: position.notes || '',
+            });
+        }
+        setActionError(null);
+        setEditOpen(true);
+    };
+    const handleEdit = async () => {
+        setActionLoading(true);
+        setActionError(null);
+        const res = await positionApi.update(positionId, editForm);
+        setActionLoading(false);
+        if (res.error) {
+            setActionError(res.error);
+            return;
+        }
+        setEditOpen(false);
+        queryClient.invalidateQueries({ queryKey: ['position', positionId] });
+        refetch();
+    };
     const handleRefreshPrices = async () => {
         setRefreshing(true);
         setRefreshLog(null);
@@ -254,7 +285,7 @@ export function PositionDetailPage() {
                   <RefreshCw className="w-4 h-4 mr-1.5"/>
                   Roll
                 </Button>)}
-              <Button variant="outline" size="sm" onClick={() => navigate(`/admin/positions/${positionId}/edit`)}>
+              <Button variant="outline" size="sm" onClick={initEditForm}>
                 <Edit3 className="w-4 h-4 mr-1.5"/>
                 Edit
               </Button>
@@ -389,6 +420,10 @@ export function PositionDetailPage() {
                   </>) : (<>
                     <DetailRow label="Strike Price" value={formatCurrency(position.strike_price)}/>
                     <DetailRow label="Premium Received" value={formatCurrency(position.premium_received)}/>
+                    {(parseFloat(position.commission) > 0 || parseFloat(position.platform_fee) > 0) && (<>
+                    <DetailRow label="Commission" value={formatCurrency(position.commission)}/>
+                    <DetailRow label="Platform Fee" value={formatCurrency(position.platform_fee)}/>
+                    </>)}
                     <DetailRow label="Contracts" value={position.contracts}/>
                     <DetailRow label="Expiration" value={formatDate(position.expiration_date)}/>
                     <DetailRow label="Status" value={POSITION_STATUS[position.status]?.label ?? position.status}/>
@@ -570,6 +605,41 @@ export function PositionDetailPage() {
                 </Button>
                 <Button variant="danger" size="sm" loading={actionLoading} onClick={handleDelete}>
                   Delete
+                </Button>
+              </div>
+            </div>
+          </Modal>
+
+          {/* Edit Modal */}
+          <Modal isOpen={editOpen} onClose={() => setEditOpen(false)} title="Edit Position" size="lg">
+            <div className="space-y-4">
+              {actionError && (<div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-none p-3">
+                  {actionError}
+                </div>)}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label={position.position_type === 'stock' ? 'Cost Basis ($)' : 'Strike Price ($)'} type="number" step="0.01" value={editForm.strike_price ?? ''} onChange={(e) => setEditForm(f => ({ ...f, strike_price: parseFloat(e.target.value) || 0 }))} className="rounded-none"/>
+                <Input label="Premium Received ($)" type="number" step="0.01" value={editForm.premium_received ?? ''} onChange={(e) => setEditForm(f => ({ ...f, premium_received: parseFloat(e.target.value) || 0 }))} className="rounded-none"/>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Commission ($)" type="number" step="0.01" min="0" value={editForm.commission ?? ''} onChange={(e) => setEditForm(f => ({ ...f, commission: parseFloat(e.target.value) || 0 }))} className="rounded-none"/>
+                <Input label="Platform Fee ($)" type="number" step="0.01" min="0" value={editForm.platform_fee ?? ''} onChange={(e) => setEditForm(f => ({ ...f, platform_fee: parseFloat(e.target.value) || 0 }))} className="rounded-none"/>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label={position.position_type === 'stock' ? 'Shares' : 'Contracts'} type="number" step="1" min="1" value={editForm.contracts ?? ''} onChange={(e) => setEditForm(f => ({ ...f, contracts: parseInt(e.target.value, 10) || 0 }))} className="rounded-none"/>
+                {position.position_type !== 'stock' && (
+                  <Input label="Expiration Date" type="date" value={editForm.expiration_date ?? ''} onChange={(e) => setEditForm(f => ({ ...f, expiration_date: e.target.value }))} className="rounded-none"/>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea className="block w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-[#F06010] focus:border-[#F06010] sm:text-sm min-h-[60px] resize-y" value={editForm.notes ?? ''} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))}/>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="secondary" size="sm" onClick={() => setEditOpen(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" size="sm" className="bg-[#F06010] hover:bg-[#d9560e]" loading={actionLoading} onClick={handleEdit}>
+                  Save Changes
                 </Button>
               </div>
             </div>

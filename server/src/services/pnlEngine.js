@@ -1,12 +1,13 @@
 export function calculateCollateral(strikePrice, contracts) {
     return strikePrice * contracts * 100;
 }
-export function calculateBreakEven(strikePrice, premiumReceived, contracts) {
-    const premiumPerShare = premiumReceived / (contracts * 100);
+export function calculateBreakEven(strikePrice, premiumReceived, contracts, commission = 0, platformFee = 0) {
+    const netPremium = premiumReceived - commission - platformFee;
+    const premiumPerShare = netPremium / (contracts * 100);
     return strikePrice - premiumPerShare;
 }
-export function calculateMaxProfit(premiumReceived) {
-    return premiumReceived;
+export function calculateMaxProfit(premiumReceived, commission = 0, platformFee = 0) {
+    return premiumReceived - commission - platformFee;
 }
 export function calculateDistanceToStrike(currentPrice, strikePrice) {
     if (currentPrice === 0)

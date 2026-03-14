@@ -1,4 +1,4 @@
-import { Wallet, RefreshCw, DollarSign, TrendingUp, TrendingDown, Shield, AlertTriangle, } from 'lucide-react';
+import { Wallet, RefreshCw, DollarSign, TrendingUp, TrendingDown, Shield } from 'lucide-react';
 import { adminApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { Skeleton, ErrorAlert } from '../../components/ui';
@@ -186,26 +186,6 @@ export function AccountFundsPage() {
                             </div>
                         </FundCard>
 
-                        {/* Day Trading */}
-                        <FundCard title="Day Trading (PDT)" icon={<AlertTriangle className="w-4 h-4" />}>
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                                <FundItem label="Is PDT" value={funds.isPdt ? 'Yes' : 'No'} valueColor={funds.isPdt ? 'text-red-600' : 'text-green-600'} />
-                                <FundItem label="PDT Sequence" value={funds.pdtSeq ?? '--'} />
-                                <FundItem label="Beginning DTBP" value={formatCurrency(funds.beginningDTBP)} />
-                                <FundItem label="Remaining DTBP" value={formatCurrency(funds.remainingDTBP)} />
-                                <FundItem label="DT Call Amount" value={formatCurrency(funds.dtCallAmount)} />
-                                <FundItem label="DT Status" value={funds.dtStatus ?? '--'} />
-                            </div>
-                        </FundCard>
-
-                        {/* Risk */}
-                        <FundCard title="Risk Status" icon={<Shield className="w-4 h-4" />}>
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                                <FundItem label="Risk Level" value={funds.riskLevel ?? '--'} />
-                                <FundItem label="Risk Status" value={funds.riskStatus ?? '--'} />
-                                <FundItem label="Currency" value={funds.currency ?? '--'} />
-                            </div>
-                        </FundCard>
                     </div>
 
                 </div>

@@ -20,7 +20,8 @@ function addComputedFields(pos, stockPriceMap) {
         if (p.position_type === 'stock' && p.shares) {
             p.unrealized_pnl = Math.round(((parseFloat(p.current_price) - parseFloat(p.cost_basis)) * p.shares) * 100) / 100;
         } else if (p.position_type === 'option' && p.contracts > 0) {
-            p.unrealized_pnl = Math.round((parseFloat(p.premium_received) - (parseFloat(p.current_price) * p.contracts * 100)) * 100) / 100;
+            const fees = (parseFloat(p.commission) || 0) + (parseFloat(p.platform_fee) || 0);
+            p.unrealized_pnl = Math.round((parseFloat(p.premium_received) - fees - (parseFloat(p.current_price) * p.contracts * 100)) * 100) / 100;
         } else {
             p.unrealized_pnl = null;
         }
@@ -75,6 +76,8 @@ const createPositionSchema = z.object({
     shares: z.number().int().min(1).optional(),
     cost_basis: z.number().positive().optional(),
     assigned_from_id: z.number().int().optional(),
+    commission: z.number().min(0).optional().default(0),
+    platform_fee: z.number().min(0).optional().default(0),
 });
 const updatePositionSchema = z.object({
     ticker: z.string().min(1).optional(),
@@ -87,6 +90,8 @@ const updatePositionSchema = z.object({
     notes: z.string().optional(),
     status: z.string().optional(),
     current_price: z.number().optional(),
+    commission: z.number().min(0).optional(),
+    platform_fee: z.number().min(0).optional(),
 });
 const resolvePositionSchema = z.object({
     resolution_type: z.enum(['expired_worthless', 'assigned', 'bought_to_close', 'rolled', 'sold']),
@@ -100,6 +105,8 @@ const rollPositionSchema = z.object({
     contracts: z.number().int().min(1).optional(),
     expiration_date: z.string().min(1),
     notes: z.string().optional(),
+    commission: z.number().min(0).optional().default(0),
+    platform_fee: z.number().min(0).optional().default(0),
 });
 // GET / — List positions (paginated)
 router.get('/', authenticate, async (req, res, next) => {
@@ -174,7 +181,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
 // POST / — Create position (admin only)
 router.post('/', authenticate, requireAdmin, validate(createPositionSchema), async (req, res, next) => {
     try {
-        const { ticker, position_type, strike_price, premium_received, contracts, expiration_date, open_date, implied_volatility, notes, shares, cost_basis, assigned_from_id, } = req.body;
+        const { ticker, position_type, strike_price, premium_received, contracts, expiration_date, open_date, implied_volatility, notes, shares, cost_basis, assigned_from_id, commission = 0, platform_fee = 0, } = req.body;
         let collateral, break_even, max_profit;
         if (position_type === 'stock') {
             const stockShares = shares || (contracts * 100);
@@ -187,6 +194,8 @@ router.post('/', authenticate, requireAdmin, validate(createPositionSchema), asy
                 position_type: 'stock',
                 strike_price: stockCostBasis,
                 premium_received: premium_received || 0,
+                commission,
+                platform_fee,
                 contracts: 0,
                 shares: stockShares,
                 cost_basis: stockCostBasis,
@@ -213,13 +222,15 @@ router.post('/', authenticate, requireAdmin, validate(createPositionSchema), asy
         }
         // Default: option position
         collateral = calculateCollateral(strike_price, contracts);
-        break_even = calculateBreakEven(strike_price, premium_received, contracts);
-        max_profit = calculateMaxProfit(premium_received);
+        break_even = calculateBreakEven(strike_price, premium_received, contracts, commission, platform_fee);
+        max_profit = calculateMaxProfit(premium_received, commission, platform_fee);
         const position = await insertAndFetch('positions', {
             ticker: ticker.toUpperCase(),
             position_type: 'option',
             strike_price,
             premium_received,
+            commission,
+            platform_fee,
             contracts,
             expiration_date,
             open_date: open_date || new Date().toISOString().split('T')[0],
@@ -259,10 +270,12 @@ router.put('/:id', authenticate, requireAdmin, validate(updatePositionSchema), a
         const strike = updates.strike_price ?? existing.strike_price;
         const premium = updates.premium_received ?? existing.premium_received;
         const contracts = updates.contracts ?? existing.contracts;
-        if (updates.strike_price || updates.premium_received || updates.contracts) {
+        const comm = updates.commission ?? existing.commission ?? 0;
+        const fee = updates.platform_fee ?? existing.platform_fee ?? 0;
+        if (updates.strike_price || updates.premium_received || updates.contracts || updates.commission != null || updates.platform_fee != null) {
             updates.collateral = calculateCollateral(strike, contracts);
-            updates.break_even = calculateBreakEven(strike, premium, contracts);
-            updates.max_profit = calculateMaxProfit(premium);
+            updates.break_even = calculateBreakEven(strike, premium, contracts, comm, fee);
+            updates.max_profit = calculateMaxProfit(premium, comm, fee);
         }
         const updated = await updateAndFetch('positions', { id }, updates);
         await logAudit({
@@ -386,7 +399,7 @@ router.post('/:id/resolve', authenticate, requireAdmin, validate(resolvePosition
 router.post('/:id/roll', authenticate, requireAdmin, validate(rollPositionSchema), async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { ticker, strike_price, premium_received, contracts: newContracts, expiration_date, notes } = req.body;
+        const { ticker, strike_price, premium_received, contracts: newContracts, expiration_date, notes, commission = 0, platform_fee = 0 } = req.body;
         const oldPosition = await db('positions').where({ id }).first();
         if (!oldPosition) {
             throw new AppError('Position not found', 404);
@@ -399,13 +412,15 @@ router.post('/:id/roll', authenticate, requireAdmin, validate(rollPositionSchema
         }
         const contracts = newContracts ?? oldPosition.contracts;
         const collateral = calculateCollateral(strike_price, contracts);
-        const break_even = calculateBreakEven(strike_price, premium_received, contracts);
-        const max_profit = calculateMaxProfit(premium_received);
+        const break_even = calculateBreakEven(strike_price, premium_received, contracts, commission, platform_fee);
+        const max_profit = calculateMaxProfit(premium_received, commission, platform_fee);
         // Create new position
         const newPosition = await insertAndFetch('positions', {
             ticker: (ticker || oldPosition.ticker).toUpperCase(),
             strike_price,
             premium_received,
+            commission,
+            platform_fee,
             contracts,
             expiration_date,
             open_date: new Date().toISOString().split('T')[0],
