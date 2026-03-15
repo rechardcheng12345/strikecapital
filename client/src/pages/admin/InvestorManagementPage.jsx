@@ -134,6 +134,7 @@ function InvestorFormModal({ isOpen, onClose, investor, fundCapital }) {
     confirm_password: '',
     allocation_amount: investor?.invested_amount ? parseFloat(investor.invested_amount) : 0,
     role: investor?.role || 'investor',
+    is_active: investor?.is_active !== undefined ? !!investor.is_active : true,
   });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
@@ -165,6 +166,7 @@ function InvestorFormModal({ isOpen, onClose, investor, fundCapital }) {
           phone: form.phone || undefined,
           invested_amount: form.allocation_amount || 0,
           role: form.role,
+          is_active: form.is_active,
         });
         if (res.error) {
           setFormError(res.error);
@@ -273,6 +275,36 @@ function InvestorFormModal({ isOpen, onClose, investor, fundCapital }) {
               placeholder="Re-enter password" className="rounded-none"
             />
           </>
+        )}
+
+        {isEdit && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, is_active: true }))}
+                className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${
+                  form.is_active
+                    ? 'border-green-600 bg-green-600 text-white'
+                    : 'border-gray-300 text-gray-500 hover:border-gray-400'
+                }`}
+              >
+                Active
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, is_active: false }))}
+                className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${
+                  !form.is_active
+                    ? 'border-red-600 bg-red-600 text-white'
+                    : 'border-gray-300 text-gray-500 hover:border-gray-400'
+                }`}
+              >
+                Inactive
+              </button>
+            </div>
+          </div>
         )}
 
         <div>

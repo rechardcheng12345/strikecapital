@@ -343,6 +343,23 @@ router.put('/investors/:id', validate(updateInvestorSchema), async (req, res, ne
             userUpdates.updated_at = new Date();
             await db('users').where({ id: user.id }).update(userUpdates);
         }
+        // If reactivating user, also reactivate their allocation
+        if (is_active === true) {
+            const inactiveAllocation = await db('investor_allocations').where({ user_id: user.id, is_active: false }).first();
+            if (inactiveAllocation) {
+                await db('investor_allocations').where({ id: inactiveAllocation.id }).update({
+                    is_active: true,
+                    updated_at: new Date(),
+                });
+            }
+        }
+        // If deactivating user, also deactivate their allocation
+        if (is_active === false) {
+            await db('investor_allocations').where({ user_id: user.id, is_active: true }).update({
+                is_active: false,
+                updated_at: new Date(),
+            });
+        }
         if (invested_amount !== undefined) {
             const allocation_pct = await calcAllocationPct(invested_amount);
             const existing = await db('investor_allocations').where({ user_id: user.id, is_active: true }).first();
