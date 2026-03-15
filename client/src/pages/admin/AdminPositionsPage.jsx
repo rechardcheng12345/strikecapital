@@ -160,53 +160,52 @@ export function AdminPositionsPage() {
 
       {/* Positions Table */}
       {!isLoading && !isError && positions.length > 0 && (<Card className="rounded-none overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div>
+            <table className="w-full text-xs">
               <thead>
                 <tr className="bg-[#0D2654] text-white">
-                  <th className="text-left px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Ticker</th>
-                  <th className="text-left px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Type</th>
-                  <th className="text-right px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Strike</th>
-                  <th className="text-right px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Premium</th>
-                  <th className="text-right px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Contracts</th>
-                  <th className="text-left px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Expiration</th>
-                  <th className="text-left px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Status</th>
-                  <th className="text-right px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Collateral</th>
-                  <th className="text-right px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Break-Even</th>
-                  <th className="text-right px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Cur. Price</th>
-                  <th className="text-right px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Unrealized P&L</th>
-                  <th className="text-center px-4 py-3 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Actions</th>
+                  <th className="text-left px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Ticker</th>
+                  <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Strike</th>
+                  <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Premium</th>
+                  <th className="text-center px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Qty</th>
+                  <th className="text-left px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Expiry</th>
+                  <th className="text-left px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Status</th>
+                  <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Collateral</th>
+                  <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>B/E</th>
+                  <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Cur.</th>
+                  <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Unreal. P&L</th>
+                  <th className="text-center px-1 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {positions.map((pos) => (<tr key={pos.id} onClick={() => navigate(`/admin/positions/${pos.id}`)} className="hover:bg-[#F5F3EF] cursor-pointer transition-colors">
-                    <td className="px-4 py-3 font-semibold text-[#0D2654]">{pos.ticker}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-none text-xs font-medium ${pos.position_type === 'stock' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                    <td className="px-2 py-2.5 font-semibold text-[#0D2654] whitespace-nowrap">
+                      {pos.ticker}
+                      <span className={`ml-1 inline-flex items-center px-1 py-0.5 rounded-none text-[10px] font-medium ${pos.position_type === 'stock' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
                         {pos.position_type === 'stock' ? 'Stock' : 'Put'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono">{formatCurrency(pos.strike_price)}</td>
-                    <td className="px-4 py-3 text-right font-mono">{formatCurrency(pos.premium_received)}</td>
-                    <td className="px-4 py-3 text-right">{pos.position_type === 'stock' ? (pos.shares || '--') : pos.contracts}</td>
-                    <td className="px-4 py-3">{pos.position_type === 'stock' ? '--' : (pos.expiration_date ? formatDate(pos.expiration_date) : '--')}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-none text-xs font-medium ${STATUS_BADGE_VARIANT[pos.status] || 'bg-gray-100 text-gray-800'}`}>
+                    <td className="px-2 py-2.5 text-right font-mono">{formatCurrency(pos.strike_price)}</td>
+                    <td className="px-2 py-2.5 text-right font-mono">{formatCurrency(pos.premium_received)}</td>
+                    <td className="px-2 py-2.5 text-center">{pos.position_type === 'stock' ? (pos.shares || '--') : pos.contracts}</td>
+                    <td className="px-2 py-2.5 whitespace-nowrap">{pos.position_type === 'stock' ? '--' : (pos.expiration_date ? formatDate(pos.expiration_date) : '--')}</td>
+                    <td className="px-2 py-2.5">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-none text-[10px] font-medium ${STATUS_BADGE_VARIANT[pos.status] || 'bg-gray-100 text-gray-800'}`}>
                         {POSITION_STATUS[pos.status]?.label || pos.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono">{formatCurrency(pos.collateral)}</td>
-                    <td className="px-4 py-3 text-right font-mono">{formatCurrency(pos.break_even)}</td>
-                    <td className="px-4 py-3 text-right font-mono">{pos.current_price != null ? formatCurrency(pos.current_price) : '--'}</td>
-                    <td className={`px-4 py-3 text-right font-mono font-semibold ${pos.unrealized_pnl != null ? (pos.unrealized_pnl >= 0 ? 'text-green-600' : 'text-red-600') : ''}`}>
+                    <td className="px-2 py-2.5 text-right font-mono">{formatCurrency(pos.collateral)}</td>
+                    <td className="px-2 py-2.5 text-right font-mono">{formatCurrency(pos.break_even)}</td>
+                    <td className="px-2 py-2.5 text-right font-mono">{pos.current_price != null ? formatCurrency(pos.current_price) : '--'}</td>
+                    <td className={`px-2 py-2.5 text-right font-mono font-semibold ${pos.unrealized_pnl != null ? (pos.unrealized_pnl >= 0 ? 'text-green-600' : 'text-red-600') : ''}`}>
                       {pos.unrealized_pnl != null ? formatCurrency(pos.unrealized_pnl) : '--'}
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-1 py-2.5 text-center">
                       <button onClick={(e) => {
                     e.stopPropagation();
                     setDeleteTarget(pos);
-                }} className="text-gray-400 hover:text-red-600 transition-colors p-1" title="Delete position">
-                        <Trash2 className="w-4 h-4"/>
+                }} className="text-gray-400 hover:text-red-600 transition-colors p-0.5" title="Delete position">
+                        <Trash2 className="w-3.5 h-3.5"/>
                       </button>
                     </td>
                   </tr>))}

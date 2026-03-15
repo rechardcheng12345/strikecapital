@@ -9,5 +9,15 @@ export function ProtectedRoute({ children, requireAdmin = false }) {
     if (requireAdmin && user?.role !== 'admin') {
         return <Navigate to="/" replace/>;
     }
+    // Redirect admins from investor routes to admin routes
+    if (!requireAdmin && user?.role === 'admin') {
+        const path = location.pathname;
+        if (path === '/') {
+            return <Navigate to="/admin" replace/>;
+        }
+        if (path.startsWith('/positions')) {
+            return <Navigate to={`/admin${path}`} replace/>;
+        }
+    }
     return <>{children}</>;
 }
