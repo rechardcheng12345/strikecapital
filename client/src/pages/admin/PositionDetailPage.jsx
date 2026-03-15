@@ -330,8 +330,8 @@ export function PositionDetailPage() {
                       )}
                     </p>
                     {refreshLog.prices?.length > 0 && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
+                      <div className="overflow-x-auto -mx-4 sm:mx-0">
+                        <table className="w-full text-xs min-w-[600px]">
                           <thead>
                             <tr className="bg-gray-50 text-left">
                               <th className="px-3 py-2 font-semibold">Ticker</th>
@@ -372,7 +372,7 @@ export function PositionDetailPage() {
           )}
 
           {/* ─── Risk Metrics Strip ────────────────────── */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {position.position_type === 'stock' ? (<>
                 <RiskMetric label="Shares" value={position.shares?.toLocaleString() || '--'} icon={<DollarSign className="w-4 h-4"/>}/>
                 <RiskMetric label="Cost Basis" value={formatCurrency(position.cost_basis)} icon={<Target className="w-4 h-4"/>}/>
@@ -406,7 +406,7 @@ export function PositionDetailPage() {
               </h2>
             </CardHeader>
             <CardBody>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-4">
                 <DetailRow label="Ticker" value={position.ticker}/>
                 <DetailRow label="Type" value={POSITION_TYPE[position.position_type]?.label || 'Option'}/>
                 {position.position_type === 'stock' ? (<>
@@ -557,7 +557,7 @@ export function PositionDetailPage() {
 
               <Input label="Ticker" value={rollForm.ticker} onChange={(e) => setRollForm((f) => ({ ...f, ticker: e.target.value.toUpperCase() }))}/>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="New Strike Price ($)" type="number" step="0.01" value={rollForm.strike_price || ''} onChange={(e) => setRollForm((f) => ({ ...f, strike_price: parseFloat(e.target.value) || 0 }))}/>
                 <Input label="Premium Received ($)" type="number" step="0.01" value={rollForm.premium_received || ''} onChange={(e) => setRollForm((f) => ({
                 ...f,
@@ -565,7 +565,7 @@ export function PositionDetailPage() {
             }))}/>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Contracts" type="number" min={1} value={rollForm.contracts} onChange={(e) => setRollForm((f) => ({ ...f, contracts: parseInt(e.target.value) || 1 }))}/>
                 <Input label="Expiration Date" type="date" value={rollForm.expiration_date} onChange={(e) => setRollForm((f) => ({ ...f, expiration_date: e.target.value }))}/>
               </div>

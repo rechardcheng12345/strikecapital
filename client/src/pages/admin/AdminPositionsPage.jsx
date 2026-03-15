@@ -94,12 +94,12 @@ export function AdminPositionsPage() {
     }
     return (<div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
           <TrendingUp className="w-6 h-6 text-[#F06010]"/>
           Positions
         </h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Button variant="outline" className="rounded-none" loading={refreshPricesMutation.isPending} onClick={() => refreshPricesMutation.mutate()}>
             <RefreshCw className={`w-4 h-4 mr-2 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`}/>
             Refresh Prices
@@ -114,7 +114,7 @@ export function AdminPositionsPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-gray-200">
+      <div className="flex gap-1 mb-6 border-b border-gray-200 overflow-x-auto">
         {STATUS_TABS.map((tab) => (<button key={tab.key} onClick={() => handleTabChange(tab.key)} className={`px-4 py-2 text-sm font-medium transition-colors rounded-none ${activeTab === tab.key
                 ? 'text-[#F06010] border-b-2 border-[#F06010]'
                 : 'text-gray-500 hover:text-gray-700'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
@@ -160,8 +160,8 @@ export function AdminPositionsPage() {
 
       {/* Positions Table */}
       {!isLoading && !isError && positions.length > 0 && (<Card className="rounded-none overflow-hidden">
-          <div>
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs min-w-[700px]">
               <thead>
                 <tr className="bg-[#0D2654] text-white">
                   <th className="text-left px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Ticker</th>
@@ -215,8 +215,8 @@ export function AdminPositionsPage() {
         </Card>)}
 
       {/* Pagination */}
-      {pagination && pagination.pages > 1 && (<div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-gray-600">
+      {pagination && pagination.pages > 1 && (<div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-4">
+          <p className="text-xs sm:text-sm text-gray-600">
             Showing {((pagination.page - 1) * pagination.limit) + 1}
             {' '}-{' '}
             {Math.min(pagination.page * pagination.limit, pagination.total)}

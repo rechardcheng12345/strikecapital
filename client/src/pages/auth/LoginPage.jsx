@@ -44,7 +44,7 @@ export function LoginPage() {
       </div>
 
       {/* Right login form */}
-      <div className="w-full lg:w-1/2 bg-[#F5F3EF] flex flex-col justify-center py-12 px-6 sm:px-12">
+      <div className="w-full lg:w-1/2 bg-[#F5F3EF] flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-8 lg:px-12">
         <div className="max-w-md w-full mx-auto">
           {/* Mobile logo */}
           <div className="lg:hidden flex justify-center mb-8">

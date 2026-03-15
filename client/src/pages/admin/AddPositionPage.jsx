@@ -192,7 +192,7 @@ export function AddPositionPage() {
 
         {/* Live Calculation Preview */}
         <div className="lg:col-span-1">
-          <Card className="rounded-none sticky top-6">
+          <Card className="rounded-none lg:sticky lg:top-6">
             <CardHeader className="bg-[#F5F3EF]">
               <h2 className="text-lg font-semibold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                 <Calculator className="w-5 h-5 text-[#F06010]"/>

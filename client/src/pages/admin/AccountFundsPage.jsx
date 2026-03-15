@@ -133,8 +133,8 @@ export function AccountFundsPage() {
                     </div>
 
                     {/* Hero metrics */}
-                    <div className="rounded-none border-2 border-[#F06010] bg-white p-6">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                    <div className="rounded-none border-2 border-[#F06010] bg-white p-4 sm:p-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                             <HeroMetric label="Total Assets" value={formatCurrency(funds.totalAssets)} />
                             <HeroMetric label="Cash" value={formatCurrency(funds.cash)} />
                             <HeroMetric label="Market Value" value={formatCurrency(funds.marketVal)} />
@@ -145,7 +145,7 @@ export function AccountFundsPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Cash & Withdrawals */}
                         <FundCard title="Cash & Withdrawals" icon={<DollarSign className="w-4 h-4" />}>
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
                                 <FundItem label="Cash" value={formatCurrency(funds.cash)} />
                                 <FundItem label="Frozen Cash" value={formatCurrency(funds.frozenCash)} />
                                 <FundItem label="Available Withdrawal" value={formatCurrency(funds.avlWithdrawalCash)} />
@@ -158,7 +158,7 @@ export function AccountFundsPage() {
 
                         {/* Buying Power & Margins */}
                         <FundCard title="Buying Power & Margins" icon={<Shield className="w-4 h-4" />}>
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
                                 <FundItem label="Buying Power (Long)" value={formatCurrency(funds.power)} />
                                 <FundItem label="Buying Power (Short)" value={formatCurrency(funds.maxPowerShort)} />
                                 <FundItem label="Initial Margin" value={formatCurrency(funds.initialMargin)} />
@@ -169,7 +169,7 @@ export function AccountFundsPage() {
 
                         {/* P&L */}
                         <FundCard title="Profit & Loss" icon={<TrendingUp className="w-4 h-4" />}>
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
                                 <FundItem label="Unrealized P&L" value={formatCurrency(funds.unrealizedPL)} valueColor={plColor(funds.unrealizedPL)} />
                                 <FundItem label="Realized P&L" value={formatCurrency(funds.realizedPL)} valueColor={plColor(funds.realizedPL)} />
                             </div>
@@ -177,7 +177,7 @@ export function AccountFundsPage() {
 
                         {/* Market Value Breakdown */}
                         <FundCard title="Market Value Breakdown" icon={<TrendingDown className="w-4 h-4" />}>
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
                                 <FundItem label="Long Market Value" value={formatCurrency(funds.longMv)} />
                                 <FundItem label="Short Market Value" value={formatCurrency(funds.shortMv)} />
                                 <FundItem label="Securities Assets" value={formatCurrency(funds.securitiesAssets)} />

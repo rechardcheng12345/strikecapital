@@ -105,7 +105,7 @@ export function InvestorLayout() {
       </Transition>
 
       {/* Main content */}
-      <main className="flex-1 md:ml-64 mt-14 md:mt-0 p-4 md:p-6 lg:p-8 max-w-full overflow-x-hidden">
+      <main className="flex-1 md:ml-64 mt-14 md:mt-0 p-3 sm:p-4 md:p-6 lg:p-8 max-w-full overflow-x-hidden">
         <Outlet />
       </main>
     </div>);
