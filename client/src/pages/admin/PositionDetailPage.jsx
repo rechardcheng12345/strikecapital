@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Calendar, DollarSign, TrendingDown, Shield, Target, Percent, Edit3, Trash2, CheckCircle2, RefreshCw, Info, ExternalLink, } from 'lucide-react';
 import { positionApi, investorApi, } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
-import { POSITION_STATUS, RESOLUTION_TYPE, POSITION_TYPE } from '../../lib/constants';
+import { POSITION_STATUS, RESOLUTION_TYPE, POSITION_TYPE, formatDateTime } from '../../lib/constants';
 import { Button, Input, Card, CardHeader, CardBody, Badge, Modal, ErrorAlert, Skeleton, } from '../../components/ui';
 // ─── Helpers ───────────────────────────────────────────
 function formatCurrency(value) {
@@ -358,7 +358,7 @@ export function PositionDetailPage() {
                                 <td className="px-3 py-2 text-right font-mono">{p.delta != null ? p.delta.toFixed(3) : '--'}</td>
                                 <td className="px-3 py-2 text-right font-mono">{p.stock_price != null ? '$' + p.stock_price.toFixed(2) : '--'}</td>
                                 <td className="px-3 py-2 text-right font-mono">{p.distance_to_strike != null ? p.distance_to_strike.toFixed(2) + '%' : '--'}</td>
-                                <td className="px-3 py-2 text-right text-gray-500 whitespace-nowrap">{p.cached_at ? new Date(p.cached_at).toLocaleString() : new Date().toLocaleString()}</td>
+                                <td className="px-3 py-2 text-right text-gray-500 whitespace-nowrap">{p.cached_at ? formatDateTime(p.cached_at) : formatDateTime(new Date().toISOString())}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -393,7 +393,7 @@ export function PositionDetailPage() {
           </div>
           {position.last_price_update && (
             <p className="text-xs text-gray-400 -mt-1">
-              Prices updated: {new Date(position.last_price_update).toLocaleString()}
+              Prices updated: {formatDateTime(position.last_price_update)}
             </p>
           )}
 
@@ -432,7 +432,7 @@ export function PositionDetailPage() {
                     <DetailRow label="Max Profit" value={formatCurrency(position.max_profit)}/>
                     <DetailRow label="Current Price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'}/>
                     <DetailRow label="Unrealized P&L" value={position.unrealized_pnl != null ? formatCurrency(position.unrealized_pnl) : '--'}/>
-                    <DetailRow label="Last Price Update" value={position.last_price_update ? new Date(position.last_price_update).toLocaleString() : '--'}/>
+                    <DetailRow label="Last Price Update" value={formatDateTime(position.last_price_update)}/>
                     <DetailRow label="Created" value={formatDate(position.created_at)}/>
                   </>)}
               </div>

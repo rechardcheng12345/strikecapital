@@ -17,6 +17,11 @@ export const POSITION_TYPE = {
     option: { label: 'Cash-Secured Put', shortLabel: 'Option', color: 'bg-blue-100 text-blue-800' },
     stock: { label: 'Stock Position', shortLabel: 'Stock', color: 'bg-purple-100 text-purple-800' },
 };
+export const TIMEZONE = 'Asia/Singapore';
+export function formatDateTime(dateStr) {
+    if (!dateStr) return '--';
+    return new Date(dateStr).toLocaleString('en-MY', { timeZone: TIMEZONE });
+}
 export const NOTIFICATION_TYPE = {
     position_opened: { label: 'Position Opened', color: 'bg-green-50 text-green-700' },
     position_resolved: { label: 'Position Resolved', color: 'bg-blue-50 text-blue-700' },

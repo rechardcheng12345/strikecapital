@@ -1,6 +1,7 @@
 import { Wallet, RefreshCw, DollarSign, TrendingUp, TrendingDown, Shield } from 'lucide-react';
 import { adminApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
+import { formatDateTime } from '../../lib/constants';
 import { Skeleton, ErrorAlert } from '../../components/ui';
 
 function formatCurrency(value) {
@@ -119,7 +120,7 @@ export function AccountFundsPage() {
                     {/* Fetched timestamp & source */}
                     <div className="flex items-center gap-3 text-xs text-gray-400">
                         {funds.fetchedAt && (
-                            <span>Data fetched: {new Date(funds.fetchedAt).toLocaleString()}</span>
+                            <span>Data fetched: {formatDateTime(funds.fetchedAt)}</span>
                         )}
                         {funds.source && (
                             <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider border ${

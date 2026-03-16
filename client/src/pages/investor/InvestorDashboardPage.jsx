@@ -1,6 +1,7 @@
 import { LayoutDashboard, DollarSign, TrendingUp, Activity, Bell, PieChart, } from 'lucide-react';
 import { investorApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
+import { formatDateTime } from '../../lib/constants';
 import { Skeleton, ErrorAlert } from '../../components/ui';
 function formatCurrency(value) {
     return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -64,7 +65,7 @@ export function InvestorDashboardPage() {
           </>) : dashboard ? (<>
             <MetricCard title="My Allocation" value={formatCurrency(dashboard.allocation.allocation_amount)} icon={<DollarSign className="w-5 h-5"/>} subtitle={formatPercent(dashboard.allocation.allocation_pct) + ' of fund'} accent/>
             <MetricCard title="Realized P&L Share" value={formatCurrency(dashboard.total_pnl_share)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="My share" valueColor={pnlColor}/>
-            <MetricCard title="Unrealized P&L Share" value={formatCurrency(dashboard.unrealized_pnl_share ?? 0)} icon={<DollarSign className="w-5 h-5"/>} subtitle={dashboard.last_price_update ? `Updated ${new Date(dashboard.last_price_update).toLocaleString()}` : 'No price data'} valueColor={unrealizedPnlColor}/>
+            <MetricCard title="Unrealized P&L Share" value={formatCurrency(dashboard.unrealized_pnl_share ?? 0)} icon={<DollarSign className="w-5 h-5"/>} subtitle={dashboard.last_price_update ? `Updated ${formatDateTime(dashboard.last_price_update)}` : 'No price data'} valueColor={unrealizedPnlColor}/>
             <MetricCard title="Win Rate" value={formatPercent(dashboard.win_rate)} icon={<PieChart className="w-5 h-5"/>} subtitle="Resolved"/>
             <MetricCard title="Active Positions" value={dashboard.active_positions.toLocaleString()} icon={<Activity className="w-5 h-5"/>} subtitle="Current"/>
             <MetricCard title="Unread Notifications" value={dashboard.unread_notifications.toLocaleString()} icon={<Bell className="w-5 h-5"/>} subtitle="New" accent={dashboard.unread_notifications > 0}/>

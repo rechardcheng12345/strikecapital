@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { LayoutDashboard, TrendingUp, DollarSign, Users, Clock, BarChart3, Activity, Bell, PieChart, } from 'lucide-react';
 import { adminApi, investorApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
+import { formatDateTime } from '../../lib/constants';
 import { Skeleton } from '../../components/ui';
 import { ErrorAlert } from '../../components/ui';
 function formatCurrency(value) {
@@ -105,7 +106,7 @@ export function AdminDashboardPage() {
               <MetricCard title="Total Positions" value={stats.total_positions.toLocaleString()} icon={<BarChart3 className="w-5 h-5"/>} subtitle="All time"/>
               <MetricCard title="Open Positions" value={stats.open_positions.toLocaleString()} icon={<Activity className="w-5 h-5"/>} subtitle="Active" accent/>
               <MetricCard title="Total Premium Received" value={formatCurrency(stats.total_premium)} icon={<DollarSign className="w-5 h-5"/>} subtitle="Income"/>
-              <MetricCard title="Unrealized P&L" value={formatCurrency(stats.total_unrealized_pnl)} icon={<TrendingUp className="w-5 h-5"/>} subtitle={stats.last_price_update ? `Updated ${new Date(stats.last_price_update).toLocaleString()}` : 'No price data'} accent={stats.total_unrealized_pnl < 0}/>
+              <MetricCard title="Unrealized P&L" value={formatCurrency(stats.total_unrealized_pnl)} icon={<TrendingUp className="w-5 h-5"/>} subtitle={stats.last_price_update ? `Updated ${formatDateTime(stats.last_price_update)}` : 'No price data'} accent={stats.total_unrealized_pnl < 0}/>
               <MetricCard title="Capital Utilization" value={formatPercent(stats.capital_utilization)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="Deployed" progressBar={{ value: stats.capital_utilization }}/>
               <MetricCard title="Total Investors" value={stats.total_investors.toLocaleString()} icon={<Users className="w-5 h-5"/>} subtitle="Accounts"/>
               <MetricCard title="Expiring Soon" value={stats.positions_expiring_soon.toLocaleString()} icon={<Clock className="w-5 h-5"/>} subtitle="Next 7 days" accent={stats.positions_expiring_soon > 0}/>
@@ -129,7 +130,7 @@ export function AdminDashboardPage() {
             </>) : investorDashboard ? (<>
               <MetricCard title="My Allocation" value={formatCurrency(investorDashboard.allocation.allocation_amount)} icon={<DollarSign className="w-5 h-5"/>} subtitle={formatPercent(investorDashboard.allocation.allocation_pct) + ' of fund'} accent/>
               <MetricCard title="Realized P&L Share" value={formatCurrency(investorDashboard.total_pnl_share)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="My share" valueColor={pnlColor}/>
-              <MetricCard title="Unrealized P&L Share" value={formatCurrency(investorDashboard.unrealized_pnl_share ?? 0)} icon={<DollarSign className="w-5 h-5"/>} subtitle={investorDashboard.last_price_update ? `Updated ${new Date(investorDashboard.last_price_update).toLocaleString()}` : 'No price data'} valueColor={unrealizedPnlColor}/>
+              <MetricCard title="Unrealized P&L Share" value={formatCurrency(investorDashboard.unrealized_pnl_share ?? 0)} icon={<DollarSign className="w-5 h-5"/>} subtitle={investorDashboard.last_price_update ? `Updated ${formatDateTime(investorDashboard.last_price_update)}` : 'No price data'} valueColor={unrealizedPnlColor}/>
               <MetricCard title="Win Rate" value={formatPercent(investorDashboard.win_rate)} icon={<PieChart className="w-5 h-5"/>} subtitle="Resolved"/>
               <MetricCard title="Active Positions" value={investorDashboard.active_positions.toLocaleString()} icon={<Activity className="w-5 h-5"/>} subtitle="Current"/>
               <MetricCard title="Unread Notifications" value={investorDashboard.unread_notifications.toLocaleString()} icon={<Bell className="w-5 h-5"/>} subtitle="New" accent={investorDashboard.unread_notifications > 0}/>

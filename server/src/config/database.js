@@ -8,6 +8,7 @@ const knexConfig = {
         database: env.dbName,
         user:     env.dbUser,
         password: env.dbPassword,
+        timezone: '+00:00',
     },
     pool: {
         min: 2,
