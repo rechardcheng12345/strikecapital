@@ -13,6 +13,9 @@ const knexConfig = {
     pool: {
         min: 2,
         max: 10,
+        afterCreate: (conn, done) => {
+            conn.query("SET time_zone = '+00:00'", (err) => done(err, conn));
+        },
     },
 };
 export const db = knex(knexConfig);
