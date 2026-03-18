@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutDashboard, TrendingUp, DollarSign, Users, Clock, BarChart3, Activity, Bell, PieChart, } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, DollarSign, Users, Clock, BarChart3, Activity, Bell, PieChart, Sparkles } from 'lucide-react';
 import { adminApi, investorApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { formatDateTime } from '../../lib/constants';
@@ -61,12 +61,16 @@ export function AdminDashboardPage() {
     const { data: stats, isLoading, isError, error, refetch, } = useApiQuery({
         queryKey: ['admin', 'dashboard', 'stats'],
         queryFn: () => adminApi.getDashboardStats(),
+        refetchOnMount: 'always',
+        staleTime: 0,
     });
 
     const { data: investorDashboard, isLoading: investorLoading, isError: investorIsError, error: investorError, refetch: investorRefetch, } = useApiQuery({
         queryKey: ['investor', 'dashboard'],
         queryFn: () => investorApi.getDashboard(),
         enabled: view === 'investor',
+        refetchOnMount: 'always',
+        staleTime: 0,
     });
 
     const pnlColor = investorDashboard && investorDashboard.total_pnl_share >= 0 ? 'text-green-600' : 'text-red-600';
@@ -110,6 +114,15 @@ export function AdminDashboardPage() {
               <MetricCard title="Capital Utilization" value={formatPercent(stats.capital_utilization)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="Deployed" progressBar={{ value: stats.capital_utilization }}/>
               <MetricCard title="Total Investors" value={stats.total_investors.toLocaleString()} icon={<Users className="w-5 h-5"/>} subtitle="Accounts"/>
               <MetricCard title="Expiring Soon" value={stats.positions_expiring_soon.toLocaleString()} icon={<Clock className="w-5 h-5"/>} subtitle="Next 7 days" accent={stats.positions_expiring_soon > 0}/>
+              {stats.additional_earnings !== null && stats.additional_earnings !== undefined && (
+                <MetricCard
+                  title="Additional Earnings"
+                  value={formatCurrency(stats.additional_earnings)}
+                  icon={<Sparkles className="w-5 h-5"/>}
+                  subtitle="Interest & other income"
+                  valueColor={stats.additional_earnings >= 0 ? 'text-green-600' : 'text-red-600'}
+                />
+              )}
             </>) : null}
         </div>
       </>)}

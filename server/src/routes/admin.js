@@ -77,6 +77,29 @@ router.get('/dashboard/stats', async (req, res, next) => {
             .limit(1)
             .select('last_price_update');
 
+        // Account balance and additional earnings (interest/other income)
+        const cachedFunds = await db('account_funds_cache').orderBy('fetched_at', 'desc').first();
+        const account_balance = cachedFunds ? (parseFloat(cachedFunds.total_assets) || null) : null;
+        const cached_market_val = cachedFunds ? (parseFloat(cachedFunds.market_val) || 0) : 0;
+
+        // Open premium collected (net of fees) from option positions
+        const openOptionFeePositions = await db('positions')
+            .whereIn('status', ['OPEN', 'MONITORING'])
+            .where('position_type', 'option')
+            .select('premium_received', 'commission', 'platform_fee', 'contracts');
+        let open_premium_collected = 0;
+        for (const pos of openOptionFeePositions) {
+            if (pos.contracts > 0) {
+                const fees = (parseFloat(pos.commission) || 0) + (parseFloat(pos.platform_fee) || 0);
+                open_premium_collected += parseFloat(pos.premium_received) - fees;
+            }
+        }
+
+        const gross_fund_value = account_balance !== null ? account_balance - cached_market_val : null;
+        const additional_earnings = (gross_fund_value !== null && totalCapital > 0)
+            ? Math.round((gross_fund_value - totalCapital - open_premium_collected - total_realized_pnl) * 100) / 100
+            : null;
+
         res.json({
             total_positions,
             open_positions,
@@ -88,6 +111,9 @@ router.get('/dashboard/stats', async (req, res, next) => {
             capital_utilization: Math.round(capital_utilization * 100) / 100,
             positions_expiring_soon,
             last_price_update: latestUpdate?.last_price_update || null,
+            total_capital: Math.round(totalCapital * 100) / 100,
+            account_balance,
+            additional_earnings,
         });
     }
     catch (error) {
@@ -698,6 +724,50 @@ router.get('/export/positions', async (req, res, next) => {
 });
 
 // ─── Moomoo Account Funds ────────────────────────────────────
+// marketVal: Moomoo's market value of open positions (negative for short puts/calls)
+async function getEarningsEnrichment(totalAssets, marketVal = 0) {
+    const fundSettings = await db('fund_settings').first();
+    const totalCapital = parseFloat(fundSettings?.total_fund_capital || '0');
+
+    const [pnlSum] = await db('pnl_records').sum('pnl_amount as total');
+    const dbRealizedPnl = parseFloat(pnlSum?.total || '0');
+
+    // Net premium collected from open option positions (after fees)
+    const openOptionPositions = await db('positions')
+        .whereIn('status', ['OPEN', 'MONITORING'])
+        .where('position_type', 'option')
+        .select('premium_received', 'commission', 'platform_fee', 'contracts');
+    let openPremiumCollected = 0;
+    for (const pos of openOptionPositions) {
+        if (pos.contracts > 0) {
+            const fees = (parseFloat(pos.commission) || 0) + (parseFloat(pos.platform_fee) || 0);
+            openPremiumCollected += parseFloat(pos.premium_received) - fees;
+        }
+    }
+
+    // For cash-secured puts, Moomoo's marketVal is negative (current obligation on short options).
+    // Gross Fund Value = Total Assets - Market Value (strips out options obligation from balance).
+    // Additional Earnings = Gross Fund Value - Fund Capital - Premium Collected - Realized P&L
+    const mv = parseFloat(marketVal) || 0;
+    const grossFundValue = totalAssets - mv;
+    const additionalEarnings = (totalCapital > 0 && totalAssets > 0)
+        ? Math.round((grossFundValue - totalCapital - openPremiumCollected - dbRealizedPnl) * 100) / 100
+        : null;
+
+    // dbUnrealizedPnl = openPremiumCollected + marketVal (net unrealized = premium - cost to close)
+    const dbUnrealizedPnl = Math.round((openPremiumCollected + mv) * 100) / 100;
+
+    return {
+        totalCapital: Math.round(totalCapital * 100) / 100,
+        dbRealizedPnl: Math.round(dbRealizedPnl * 100) / 100,
+        dbUnrealizedPnl,
+        openPremiumCollected: Math.round(openPremiumCollected * 100) / 100,
+        marketVal: Math.round(mv * 100) / 100,
+        grossFundValue: Math.round(grossFundValue * 100) / 100,
+        additionalEarnings,
+    };
+}
+
 function fundsToDbRow(funds) {
     return {
         acc_id: funds.accID || '',
@@ -792,14 +862,17 @@ router.get('/moomoo/funds', async (req, res, next) => {
             } catch (err) {
                 console.warn('[Admin] Failed to cache account funds:', err.message);
             }
-            return res.json({ ...funds, source: 'live' });
+            const enrichment = await getEarningsEnrichment(funds.totalAssets ?? 0, funds.marketVal ?? 0);
+            return res.json({ ...funds, source: 'live', ...enrichment });
         }
 
         // Fallback: read from DB cache
         const cached = await db('account_funds_cache').orderBy('fetched_at', 'desc').first();
         if (cached) {
             console.log('[Admin] Returning cached account funds');
-            return res.json(dbRowToFunds(cached));
+            const fundsData = dbRowToFunds(cached);
+            const enrichment = await getEarningsEnrichment(fundsData.totalAssets ?? 0, fundsData.marketVal ?? 0);
+            return res.json({ ...fundsData, ...enrichment });
         }
 
         throw new AppError('Could not fetch account funds. Moomoo OpenD unavailable and no cached data.', 503);

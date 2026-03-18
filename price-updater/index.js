@@ -54,8 +54,17 @@ const config = {
 // ─── Database ──────────────────────────────────────────
 const db = knex({
     client: 'mysql2',
-    connection: config.db,
-    pool: { min: 1, max: 5 },
+    connection: {
+        ...config.db,
+        timezone: '+00:00',
+    },
+    pool: {
+        min: 1,
+        max: 5,
+        afterCreate: (conn, done) => {
+            conn.query("SET time_zone = '+00:00'", (err) => done(err, conn));
+        },
+    },
 });
 
 // ─── Moomoo TCP Client ─────────────────────────────────

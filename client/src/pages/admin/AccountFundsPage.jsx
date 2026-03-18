@@ -1,4 +1,4 @@
-import { Wallet, RefreshCw, DollarSign, TrendingUp, TrendingDown, Shield } from 'lucide-react';
+import { Wallet, RefreshCw, DollarSign, TrendingUp, TrendingDown, Shield, Sparkles } from 'lucide-react';
 import { adminApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { formatDateTime } from '../../lib/constants';
@@ -142,6 +142,81 @@ export function AccountFundsPage() {
                             <HeroMetric label="Buying Power" value={formatCurrency(funds.power)} />
                         </div>
                     </div>
+
+                    {/* Earnings Analysis */}
+                    {funds.additionalEarnings !== null && funds.additionalEarnings !== undefined && (
+                        <div className="rounded-none border-2 border-[#F06010] bg-white">
+                            <div className="px-5 py-3 border-b-2 border-[#F06010]/20 flex items-center gap-2 bg-[#F06010]/5">
+                                <div className="p-1.5 rounded-none bg-[#F06010]/10 text-[#F06010]">
+                                    <Sparkles className="w-4 h-4" />
+                                </div>
+                                <h3 className="text-sm font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                                    Earnings Analysis
+                                </h3>
+                                <span className="ml-auto text-[10px] text-gray-400 uppercase tracking-wider hidden sm:block">
+                                    (Total Assets − Mkt Value) − Capital − Premium − Realized P&L
+                                </span>
+                            </div>
+                            <div className="p-5 space-y-4">
+                                {/* Main row */}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+                                    <div className="text-center">
+                                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Gross Fund Value</p>
+                                        <p className="text-xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                                            {formatCurrency(funds.grossFundValue ?? funds.totalAssets)}
+                                        </p>
+                                        <p className="text-[10px] text-gray-400 mt-0.5">
+                                            {formatCurrency(funds.totalAssets)} − ({formatCurrency(funds.marketVal ?? 0)})
+                                        </p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Fund Capital</p>
+                                        <p className="text-xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                                            {formatCurrency(funds.totalCapital)}
+                                        </p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Options Income</p>
+                                        <p className={`text-xl font-bold ${plColor((funds.openPremiumCollected ?? 0) + (funds.dbRealizedPnl ?? 0))}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                                            {formatCurrency((funds.openPremiumCollected ?? 0) + (funds.dbRealizedPnl ?? 0))}
+                                        </p>
+                                        <p className="text-[10px] text-gray-400 mt-0.5">
+                                            {formatCurrency(funds.openPremiumCollected ?? 0)} premium + {formatCurrency(funds.dbRealizedPnl ?? 0)} realized
+                                        </p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Additional Earnings</p>
+                                        <p className={`text-xl font-bold ${plColor(funds.additionalEarnings)}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                                            {formatCurrency(funds.additionalEarnings)}
+                                        </p>
+                                        <p className="text-[10px] text-gray-400 mt-0.5">Interest & other income</p>
+                                    </div>
+                                </div>
+                                {/* Market value detail row */}
+                                <div className="border-t border-gray-100 pt-3 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center">
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Total Assets</p>
+                                        <p className="text-sm font-semibold text-[#0D2654]">{formatCurrency(funds.totalAssets)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Options Mkt Value</p>
+                                        <p className={`text-sm font-semibold ${plColor(funds.marketVal ?? 0)}`}>{formatCurrency(funds.marketVal ?? 0)}</p>
+                                        <p className="text-[10px] text-gray-400">current obligation</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Open Premium (net)</p>
+                                        <p className="text-sm font-semibold text-green-600">{formatCurrency(funds.openPremiumCollected ?? 0)}</p>
+                                        <p className="text-[10px] text-gray-400">collected, after fees</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Unrealized P&L</p>
+                                        <p className={`text-sm font-semibold ${plColor(funds.dbUnrealizedPnl ?? 0)}`}>{formatCurrency(funds.dbUnrealizedPnl ?? 0)}</p>
+                                        <p className="text-[10px] text-gray-400">premium + mkt value</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Cash & Withdrawals */}
