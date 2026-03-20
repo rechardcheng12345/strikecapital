@@ -576,7 +576,7 @@ async function refreshPrices() {
 
     // 5. Get option chains and match contracts
     const optionSecurities = [];
-    const optionMap = new Map();
+    const optionMap = new Map(); // code -> { ticker, strike_price, expiration_date, positionIds: [] }
 
     for (const [, group] of groups) {
         const chain = await getOptionChain(group.ticker, group.expiry);
@@ -584,13 +584,19 @@ async function refreshPrices() {
             const strike = parseFloat(pos.strike_price);
             const match = chain.find(opt => Math.abs(opt.strikePrice - strike) < 0.01);
             if (match) {
-                optionSecurities.push({ market: match.market, code: match.code });
                 const posExpiry = toLocalDateStr(pos.expiration_date);
-                optionMap.set(match.code, {
-                    ticker: pos.ticker,
-                    strike_price: strike,
-                    expiration_date: posExpiry,
-                });
+                if (!optionMap.has(match.code)) {
+                    // First position mapped to this option code — add to fetch list
+                    optionSecurities.push({ market: match.market, code: match.code });
+                    optionMap.set(match.code, {
+                        ticker: pos.ticker,
+                        strike_price: strike,
+                        expiration_date: posExpiry,
+                        positionIds: [],
+                    });
+                }
+                // Always push this position's ID so update targets it directly
+                optionMap.get(match.code).positionIds.push(pos.id);
             } else {
                 log(`No matching option for ${pos.ticker} $${strike} Put exp ${group.expiry}`, 'WARN');
             }
@@ -643,7 +649,7 @@ async function refreshPrices() {
             log(`Cache update failed for ${cacheKey}: ${err.message}`, 'WARN');
         }
 
-        // 8. Update matching positions
+        // 8. Update matching positions by ID (avoids ticker+strike+expiry string matching issues)
         const updateData = {
             current_price: optionPrice,
             last_price_update: now,
@@ -651,10 +657,8 @@ async function refreshPrices() {
         if (iv != null) updateData.implied_volatility = iv;
 
         const count = await db('positions')
+            .whereIn('id', posInfo.positionIds)
             .whereIn('status', ['OPEN', 'MONITORING'])
-            .where('ticker', posInfo.ticker)
-            .where('strike_price', posInfo.strike_price)
-            .where('expiration_date', posInfo.expiration_date)
             .update(updateData);
 
         updated += count;
