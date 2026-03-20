@@ -179,7 +179,7 @@ async function updateFromQuotes(quotes, stockPriceMap) {
             console.warn(`[PriceService] Cache update failed for ${cacheKey}:`, err.message);
         }
 
-        // Update matching positions
+        // Update matching positions by ID (avoids ticker+strike+expiry string matching issues)
         const updateData = {
             current_price: quote.option_price,
             last_price_update: now,
@@ -188,11 +188,14 @@ async function updateFromQuotes(quotes, stockPriceMap) {
             updateData.implied_volatility = quote.implied_volatility;
         }
 
+        const ids = quote.positionIds && quote.positionIds.length > 0
+            ? quote.positionIds
+            : null;
+        if (!ids) continue;
+
         const count = await db('positions')
+            .whereIn('id', ids)
             .whereIn('status', ['OPEN', 'MONITORING'])
-            .where('ticker', quote.ticker)
-            .where('strike_price', quote.strike_price)
-            .where('expiration_date', quote.expiration_date)
             .update(updateData);
 
         // Compute distance to strike
@@ -231,16 +234,19 @@ async function updateFromCache(positions, stockPriceMap) {
         const symbol = baseSymbol(pos.ticker);
         const stockPrice = stockPriceMap.get(symbol) ?? null;
 
-        // Try fuzzy match first, then exact
+        // Look up cache by exact option code first, then try prefix up to strike
+        // e.g. "NVDA260326P160000" → exact, then "NVDA260326P" prefix (includes strike variations)
         let cached = await db('market_data_cache')
-            .where('ticker', 'like', `${optionCode.slice(0, -10)}%`)
-            .where('source', 'moomoo')
-            .orderBy('fetched_at', 'desc')
+            .where('ticker', optionCode)
             .first();
 
         if (!cached) {
+            // Prefix = symbol + date + 'P' — matches same expiry, any strike variant
+            const prefix = optionCode.replace(/P\d+$/, 'P');
             cached = await db('market_data_cache')
-                .where('ticker', optionCode)
+                .where('ticker', 'like', `${prefix}%`)
+                .where('source', 'moomoo')
+                .orderBy('fetched_at', 'desc')
                 .first();
         }
 

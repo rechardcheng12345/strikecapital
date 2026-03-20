@@ -334,7 +334,7 @@ export async function getOptionQuotes(positions) {
 
         // For each group, get the option chain and find matching contracts
         const optionSecurities = [];
-        const optionMap = new Map();
+        const optionMap = new Map(); // code -> { ticker, strike_price, expiration_date, positionIds: [] }
 
         for (const [, group] of groups) {
             const chain = await getOptionChain(group.ticker, group.expiry);
@@ -342,13 +342,17 @@ export async function getOptionQuotes(positions) {
                 const strike = parseFloat(pos.strike_price);
                 const match = chain.find(opt => Math.abs(opt.strikePrice - strike) < 0.01);
                 if (match) {
-                    optionSecurities.push({ market: match.market, code: match.code });
                     const posExpiry = toLocalDateStr(pos.expiration_date);
-                    optionMap.set(match.code, {
-                        ticker: pos.ticker, // original ticker from DB
-                        strike_price: strike,
-                        expiration_date: posExpiry,
-                    });
+                    if (!optionMap.has(match.code)) {
+                        optionSecurities.push({ market: match.market, code: match.code });
+                        optionMap.set(match.code, {
+                            ticker: pos.ticker,
+                            strike_price: strike,
+                            expiration_date: posExpiry,
+                            positionIds: [],
+                        });
+                    }
+                    optionMap.get(match.code).positionIds.push(pos.id);
                 } else {
                     console.warn(`[Moomoo] No matching option for ${pos.ticker} $${strike} Put exp ${group.expiry}`);
                 }
@@ -370,6 +374,7 @@ export async function getOptionQuotes(positions) {
                 ticker: posInfo.ticker,
                 strike_price: posInfo.strike_price,
                 expiration_date: posInfo.expiration_date,
+                positionIds: posInfo.positionIds,
                 option_code: code,
                 option_price: snap.basic?.curPrice ?? 0,
                 prev_close: snap.basic?.lastClosePrice ?? 0,
