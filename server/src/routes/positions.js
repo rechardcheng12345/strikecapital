@@ -121,6 +121,10 @@ router.get('/', authenticate, async (req, res, next) => {
         if (status) {
             query = query.where('status', status);
             countQuery = countQuery.where('status', status);
+        } else {
+            // "All" tab excludes MONITORING — those are watch-only, not real positions
+            query = query.whereNot('status', 'MONITORING');
+            countQuery = countQuery.whereNot('status', 'MONITORING');
         }
         if (ticker) {
             query = query.where('ticker', ticker.toUpperCase());
@@ -153,16 +157,12 @@ router.get('/', authenticate, async (req, res, next) => {
     }
 });
 // POST /refresh-prices — Refresh market prices for all open positions (admin only)
-router.post('/refresh-prices', authenticate, requireAdmin, async (req, res, next) => {
-    try {
-        const result = await refreshAllPrices();
-        res.json({
-            message: `Refreshed prices for ${result.prices.length} tickers, updated ${result.updated} positions`,
-            ...result,
-        });
-    } catch (error) {
-        next(error);
-    }
+router.post('/refresh-prices', authenticate, requireAdmin, async (req, res) => {
+    const result = await refreshAllPrices();
+    res.json({
+        message: `Refreshed prices for ${result.prices.length} tickers, updated ${result.updated} positions`,
+        ...result,
+    });
 });
 // GET /:id — Get position detail with timeline
 router.get('/:id', authenticate, async (req, res, next) => {

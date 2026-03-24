@@ -81,50 +81,61 @@ async function refreshStockPrices(symbols) {
  * Each external call is wrapped in try-catch so a single failure never causes a 500.
  */
 export async function refreshAllPrices() {
-    // Single DB call upfront — includes current_price so the cache fallback needs no second query
-    const positions = await db('positions')
-        .whereIn('status', ['OPEN', 'MONITORING'])
-        .where('position_type', 'option')
-        .whereNotNull('expiration_date')
-        .select('id', 'ticker', 'strike_price', 'expiration_date',
-                'current_price', 'last_price_update', 'implied_volatility', 'delta');
-
-    if (positions.length === 0) {
-        return { updated: 0, prices: [], source: 'none', stockPrices: {} };
-    }
-
-    const symbols = [...new Set(positions.map(p => baseSymbol(p.ticker)))];
-
-    // Stock prices (Yahoo Finance) — failure is non-fatal
-    let stockPriceMap = new Map();
     try {
-        stockPriceMap = await refreshStockPrices(symbols);
-    } catch (err) {
-        console.warn('[PriceService] Stock price refresh failed:', err.message);
-    }
-
-    // Option prices (Moomoo OpenD) — failure is non-fatal, falls back to existing DB prices
-    let quotes = [];
-    try {
-        quotes = await getOptionQuotes(positions);
-    } catch (err) {
-        console.warn('[PriceService] Moomoo unavailable:', err.message);
-    }
-
-    let result;
-    if (quotes.length > 0) {
+        // Single DB call upfront — includes current_price so the cache fallback needs no second query
+        let positions;
         try {
-            result = { ...(await updateFromQuotes(quotes, stockPriceMap)), source: 'moomoo' };
+            positions = await db('positions')
+                .whereIn('status', ['OPEN', 'MONITORING'])
+                .where('position_type', 'option')
+                .whereNotNull('expiration_date')
+                .select('id', 'ticker', 'strike_price', 'expiration_date',
+                        'current_price', 'last_price_update', 'implied_volatility', 'delta');
         } catch (err) {
-            console.warn('[PriceService] updateFromQuotes failed, falling back:', err.message);
+            console.warn('[PriceService] Failed to load positions from DB:', err.message);
+            return { updated: 0, prices: [], source: 'error', stockPrices: {} };
+        }
+
+        if (positions.length === 0) {
+            return { updated: 0, prices: [], source: 'none', stockPrices: {} };
+        }
+
+        const symbols = [...new Set(positions.map(p => baseSymbol(p.ticker)))];
+
+        // Stock prices (Yahoo Finance) — failure is non-fatal
+        let stockPriceMap = new Map();
+        try {
+            stockPriceMap = await refreshStockPrices(symbols);
+        } catch (err) {
+            console.warn('[PriceService] Stock price refresh failed:', err.message);
+        }
+
+        // Option prices (Moomoo OpenD) — failure is non-fatal, falls back to existing DB prices
+        let quotes = [];
+        try {
+            quotes = await getOptionQuotes(positions);
+        } catch (err) {
+            console.warn('[PriceService] Moomoo unavailable:', err.message);
+        }
+
+        let result;
+        if (quotes.length > 0) {
+            try {
+                result = { ...(await updateFromQuotes(quotes, stockPriceMap)), source: 'moomoo' };
+            } catch (err) {
+                console.warn('[PriceService] updateFromQuotes failed, falling back:', err.message);
+                result = { ...buildCacheResult(positions, stockPriceMap), source: 'cache' };
+            }
+        } else {
             result = { ...buildCacheResult(positions, stockPriceMap), source: 'cache' };
         }
-    } else {
-        result = { ...buildCacheResult(positions, stockPriceMap), source: 'cache' };
-    }
 
-    result.stockPrices = Object.fromEntries(stockPriceMap);
-    return result;
+        result.stockPrices = Object.fromEntries(stockPriceMap);
+        return result;
+    } catch (err) {
+        console.error('[PriceService] Unexpected error in refreshAllPrices:', err.message);
+        return { updated: 0, prices: [], source: 'error', stockPrices: {} };
+    }
 }
 
 // ─── Update from live Moomoo quotes ────────────────────────
