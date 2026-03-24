@@ -166,14 +166,14 @@ export function AdminPositionsPage() {
                 <tr className="bg-[#0D2654] text-white">
                   <th className="text-left px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Ticker</th>
                   <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Strike</th>
-                  <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Premium</th>
+                  <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{activeTab === 'MONITORING' ? 'Target' : 'Premium'}</th>
                   <th className="text-center px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Qty</th>
                   <th className="text-left px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Expiry</th>
                   <th className="text-left px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Status</th>
                   <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Collateral</th>
                   <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>B/E</th>
                   <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Cur.</th>
-                  <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Unreal. P&L</th>
+                  <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{activeTab === 'MONITORING' ? 'vs Target' : 'Unreal. P&L'}</th>
                   <th className="text-center px-1 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}></th>
                 </tr>
               </thead>

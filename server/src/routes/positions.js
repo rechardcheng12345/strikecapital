@@ -78,6 +78,7 @@ const createPositionSchema = z.object({
     assigned_from_id: z.number().int().optional(),
     commission: z.number().min(0).optional().default(0),
     platform_fee: z.number().min(0).optional().default(0),
+    status: z.enum(['OPEN', 'MONITORING']).optional().default('OPEN'),
 });
 const updatePositionSchema = z.object({
     ticker: z.string().min(1).optional(),
@@ -181,7 +182,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
 // POST / — Create position (admin only)
 router.post('/', authenticate, requireAdmin, validate(createPositionSchema), async (req, res, next) => {
     try {
-        const { ticker, position_type, strike_price, premium_received, contracts, expiration_date, open_date, implied_volatility, notes, shares, cost_basis, assigned_from_id, commission = 0, platform_fee = 0, } = req.body;
+        const { ticker, position_type, strike_price, premium_received, contracts, expiration_date, open_date, implied_volatility, notes, shares, cost_basis, assigned_from_id, commission = 0, platform_fee = 0, status = 'OPEN', } = req.body;
         let collateral, break_even, max_profit;
         if (position_type === 'stock') {
             const stockShares = shares || (contracts * 100);
@@ -205,7 +206,7 @@ router.post('/', authenticate, requireAdmin, validate(createPositionSchema), asy
                 collateral,
                 break_even,
                 max_profit,
-                status: 'OPEN',
+                status,
                 created_by: req.user.id,
                 assigned_from_id: assigned_from_id || null,
             });
@@ -239,7 +240,7 @@ router.post('/', authenticate, requireAdmin, validate(createPositionSchema), asy
             collateral,
             break_even,
             max_profit,
-            status: 'OPEN',
+            status,
             created_by: req.user.id,
         });
         await logAudit({
@@ -301,8 +302,8 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res, next) => {
         if (!position) {
             throw new AppError('Position not found', 404);
         }
-        if (position.status !== 'OPEN') {
-            throw new AppError('Only OPEN positions can be deleted', 400);
+        if (!['OPEN', 'MONITORING'].includes(position.status)) {
+            throw new AppError('Only OPEN or MONITORING positions can be deleted', 400);
         }
         await db('positions').where({ id }).del();
         await logAudit({

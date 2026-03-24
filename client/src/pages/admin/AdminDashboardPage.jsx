@@ -107,8 +107,7 @@ export function AdminDashboardPage() {
               <MetricCardSkeleton />
               <MetricCardSkeleton />
             </>) : stats ? (<>
-              <MetricCard title="Total Positions" value={stats.total_positions.toLocaleString()} icon={<BarChart3 className="w-5 h-5"/>} subtitle="All time"/>
-              <MetricCard title="Open Positions" value={stats.open_positions.toLocaleString()} icon={<Activity className="w-5 h-5"/>} subtitle="Active" accent/>
+              <MetricCard title="Open Positions" value={stats.total_positions.toLocaleString()} icon={<BarChart3 className="w-5 h-5"/>} subtitle="Active (excl. monitoring)" accent/>
               <MetricCard title="Total Premium Received" value={formatCurrency(stats.total_premium)} icon={<DollarSign className="w-5 h-5"/>} subtitle="Income"/>
               <MetricCard title="Unrealized P&L" value={formatCurrency(stats.total_unrealized_pnl)} icon={<TrendingUp className="w-5 h-5"/>} subtitle={stats.last_price_update ? `Updated ${formatDateTime(stats.last_price_update)}` : 'No price data'} accent={stats.total_unrealized_pnl < 0}/>
               <MetricCard title="Capital Utilization" value={formatPercent(stats.capital_utilization)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="Deployed" progressBar={{ value: stats.capital_utilization }}/>

@@ -61,7 +61,7 @@ router.get('/capacity', authenticate, async (req, res, next) => {
         const settings = await db('fund_settings').first();
         const totalCapital = parseFloat(settings?.total_fund_capital || '0');
         const result = await db('positions')
-            .whereIn('status', ['OPEN', 'MONITORING'])
+            .where('status', 'OPEN')
             .sum('collateral as total')
             .first();
         const utilized = parseFloat(result?.total || '0');

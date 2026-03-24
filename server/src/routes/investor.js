@@ -15,7 +15,7 @@ router.get('/dashboard', async (req, res, next) => {
         const allocationPct = parseFloat(allocation?.allocation_pct || '0') / 100;
         // Active positions count
         const [activeResult] = await db('positions')
-            .whereIn('status', ['OPEN', 'MONITORING'])
+            .where('status', 'OPEN')
             .count('* as count');
         // Total P&L (investor's share)
         const [pnlResult] = await db('pnl_records').sum('pnl_amount as total');
@@ -36,7 +36,7 @@ router.get('/dashboard', async (req, res, next) => {
 
         // Unrealized P&L from open positions with current_price
         const openPositions = await db('positions')
-            .whereIn('status', ['OPEN', 'MONITORING'])
+            .where('status', 'OPEN')
             .whereNotNull('current_price')
             .select('premium_received', 'commission', 'platform_fee', 'current_price', 'contracts', 'position_type', 'shares', 'cost_basis');
         let totalUnrealizedPnl = 0;

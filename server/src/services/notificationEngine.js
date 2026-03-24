@@ -44,7 +44,7 @@ export async function checkExpiryAlerts() {
             targetDate.setDate(targetDate.getDate() + threshold.days);
             const dateStr = targetDate.toISOString().split('T')[0];
             const expiringPositions = await db('positions')
-                .whereIn('status', ['OPEN', 'MONITORING'])
+                .where('status', 'OPEN')
                 .where('expiration_date', dateStr)
                 .select('id', 'ticker', 'strike_price', 'expiration_date');
             for (const pos of expiringPositions) {

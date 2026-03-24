@@ -17,20 +17,16 @@ router.use(authenticate, requireAdmin);
 // ─── Dashboard ───────────────────────────────────────────────
 router.get('/dashboard/stats', async (req, res, next) => {
     try {
-        // Total positions count
-        const [totalPosResult] = await db('positions').count('* as count');
+        // Total positions count (OPEN only — excludes MONITORING/RESOLVED)
+        const [totalPosResult] = await db('positions').where('status', 'OPEN').count('* as count');
         const total_positions = parseInt(totalPosResult?.count || '0');
-        // Open positions (OPEN + MONITORING)
-        const [openPosResult] = await db('positions')
-            .whereIn('status', ['OPEN', 'MONITORING'])
-            .count('* as count');
-        const open_positions = parseInt(openPosResult?.count || '0');
-        // Total premium received from all positions
-        const [premiumResult] = await db('positions').sum('premium_received as total');
+        const open_positions = total_positions;
+        // Total premium received from OPEN positions only
+        const [premiumResult] = await db('positions').where('status', 'OPEN').sum('premium_received as total');
         const total_premium = parseFloat(premiumResult?.total || '0');
-        // Total collateral from OPEN/MONITORING positions
+        // Total collateral from OPEN positions only
         const [collateralResult] = await db('positions')
-            .whereIn('status', ['OPEN', 'MONITORING'])
+            .where('status', 'OPEN')
             .sum('collateral as total');
         const total_collateral = parseFloat(collateralResult?.total || '0');
         // Total active investors (includes admin with allocation)
@@ -49,7 +45,7 @@ router.get('/dashboard/stats', async (req, res, next) => {
         const now = new Date();
         const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
         const [expiringResult] = await db('positions')
-            .whereIn('status', ['OPEN', 'MONITORING'])
+            .where('status', 'OPEN')
             .where('expiration_date', '>=', now.toISOString().split('T')[0])
             .where('expiration_date', '<=', sevenDaysFromNow.toISOString().split('T')[0])
             .count('* as count');
@@ -57,7 +53,7 @@ router.get('/dashboard/stats', async (req, res, next) => {
 
         // Unrealized P&L from open option positions with current_price
         const openOptionPositions = await db('positions')
-            .whereIn('status', ['OPEN', 'MONITORING'])
+            .where('status', 'OPEN')
             .whereNotNull('current_price')
             .select('premium_received', 'commission', 'platform_fee', 'current_price', 'contracts', 'position_type', 'shares', 'cost_basis');
         let total_unrealized_pnl = 0;
@@ -84,7 +80,7 @@ router.get('/dashboard/stats', async (req, res, next) => {
 
         // Open premium collected (net of fees) from option positions
         const openOptionFeePositions = await db('positions')
-            .whereIn('status', ['OPEN', 'MONITORING'])
+            .where('status', 'OPEN')
             .where('position_type', 'option')
             .select('premium_received', 'commission', 'platform_fee', 'contracts');
         let open_premium_collected = 0;
@@ -140,7 +136,7 @@ router.get('/dashboard/investor-view', async (req, res, next) => {
 
         // Active positions count
         const [activeResult] = await db('positions')
-            .whereIn('status', ['OPEN', 'MONITORING'])
+            .where('status', 'OPEN')
             .count('* as count');
 
         // Total realized P&L
@@ -159,7 +155,7 @@ router.get('/dashboard/investor-view', async (req, res, next) => {
 
         // Unrealized P&L from open positions
         const openPositions = await db('positions')
-            .whereIn('status', ['OPEN', 'MONITORING'])
+            .where('status', 'OPEN')
             .whereNotNull('current_price')
             .select('premium_received', 'commission', 'platform_fee', 'current_price', 'contracts', 'position_type', 'shares', 'cost_basis');
         let totalUnrealizedPnl = 0;
@@ -732,9 +728,9 @@ async function getEarningsEnrichment(totalAssets, marketVal = 0) {
     const [pnlSum] = await db('pnl_records').sum('pnl_amount as total');
     const dbRealizedPnl = parseFloat(pnlSum?.total || '0');
 
-    // Net premium collected from open option positions (after fees)
+    // Net premium collected from open option positions (after fees) — OPEN only
     const openOptionPositions = await db('positions')
-        .whereIn('status', ['OPEN', 'MONITORING'])
+        .where('status', 'OPEN')
         .where('position_type', 'option')
         .select('premium_received', 'commission', 'platform_fee', 'contracts');
     let openPremiumCollected = 0;

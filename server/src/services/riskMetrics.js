@@ -2,7 +2,7 @@ import { db } from '../config/database.js';
 export async function getCapitalUtilization() {
     const settings = await db('fund_settings').first();
     const totalCollateral = await db('positions')
-        .whereIn('status', ['OPEN', 'MONITORING'])
+        .where('status', 'OPEN')
         .sum('collateral as total')
         .first();
     const utilized = parseFloat(totalCollateral?.total || '0');
@@ -17,7 +17,7 @@ export async function getCapitalUtilization() {
 }
 export async function getTickerConcentration() {
     const positions = await db('positions')
-        .whereIn('status', ['OPEN', 'MONITORING'])
+        .where('status', 'OPEN')
         .select('ticker')
         .sum('collateral as total_collateral')
         .groupBy('ticker')
@@ -31,7 +31,7 @@ export async function getTickerConcentration() {
 }
 export async function getDistanceToStrikeDistribution() {
     const positions = await db('positions')
-        .whereIn('status', ['OPEN', 'MONITORING'])
+        .where('status', 'OPEN')
         .whereNotNull('current_price')
         .select('id', 'ticker', 'strike_price', 'current_price');
     return positions.map((p) => {

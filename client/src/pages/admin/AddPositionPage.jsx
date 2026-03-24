@@ -14,6 +14,7 @@ function formatCurrency(value) {
 export function AddPositionPage() {
     const navigate = useNavigate();
     const [positionType, setPositionType] = useState('option');
+    const [positionStatus, setPositionStatus] = useState('OPEN');
     const { register, handleSubmit, watch, formState: { errors }, } = useForm({
         defaultValues: {
             ticker: '',
@@ -48,6 +49,7 @@ export function AddPositionPage() {
         const payload = {
             ticker: values.ticker.toUpperCase().trim(),
             position_type: positionType,
+            status: positionStatus,
             strike_price: strike,
             premium_received: premium,
             commission,
@@ -110,7 +112,7 @@ export function AddPositionPage() {
             <CardBody>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                 {/* Position Type Toggle */}
-                <div className="flex gap-2 mb-6">
+                <div className="flex gap-2 mb-2">
                   <button type="button" onClick={() => setPositionType('option')} className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${positionType === 'option'
             ? 'border-[#0D2654] bg-[#0D2654] text-white'
             : 'border-[#0D2654]/20 text-[#0D2654] hover:border-[#0D2654]/40'}`}>
@@ -120,6 +122,20 @@ export function AddPositionPage() {
             ? 'border-[#0D2654] bg-[#0D2654] text-white'
             : 'border-[#0D2654]/20 text-[#0D2654] hover:border-[#0D2654]/40'}`}>
                     Stock Position
+                  </button>
+                </div>
+
+                {/* Status Toggle */}
+                <div className="flex gap-2 mb-6">
+                  <button type="button" onClick={() => setPositionStatus('OPEN')} className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${positionStatus === 'OPEN'
+            ? 'border-green-600 bg-green-600 text-white'
+            : 'border-green-200 text-green-700 hover:border-green-400'}`}>
+                    Open
+                  </button>
+                  <button type="button" onClick={() => setPositionStatus('MONITORING')} className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${positionStatus === 'MONITORING'
+            ? 'border-yellow-500 bg-yellow-500 text-white'
+            : 'border-yellow-200 text-yellow-700 hover:border-yellow-400'}`}>
+                    Monitoring
                   </button>
                 </div>
 

@@ -1,31 +1,12 @@
 import { db } from '../config/database.js';
 import { getOptionQuotes } from './moomooService.js';
 
-/**
- * Build a Moomoo-style option code from position data.
- * e.g. ticker="NVDA PUT", strike=160, expiry="2026-03-27" => "NVDA260327P160000"
- */
-function buildOptionCode(ticker, strikePrice, expirationDate) {
-    const symbol = ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase();
-    const strike = parseFloat(strikePrice);
-    const dateStr = typeof expirationDate === 'object'
-        ? `${expirationDate.getFullYear().toString().slice(2)}${String(expirationDate.getMonth() + 1).padStart(2, '0')}${String(expirationDate.getDate()).padStart(2, '0')}`
-        : expirationDate.split('T')[0].replace(/^20(\d{2})-(\d{2})-(\d{2})$/, '$1$2$3');
-    const strikeInt = Math.round(strike * 1000);
-    return `${symbol}${dateStr}P${strikeInt}`;
-}
-
 function baseSymbol(ticker) {
     return ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase();
 }
 
-// ─── Yahoo Finance ─────────────────────────────────────
+// ─── Yahoo Finance ──────────────────────────────────────────
 
-/**
- * Fetch current stock price from Yahoo Finance (free, no API key).
- * @param {string} symbol - e.g. "NVDA"
- * @returns {{ price: number, previousClose: number } | null}
- */
 async function fetchYahooPrice(symbol) {
     try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
@@ -47,24 +28,15 @@ async function fetchYahooPrice(symbol) {
     }
 }
 
-/**
- * Fetch stock prices for all unique tickers from Yahoo Finance,
- * update market_data_cache, and return a map of symbol -> price.
- * Falls back to cached prices in DB if Yahoo fails.
- * @returns {Map<string, number>} symbol -> stock price
- */
 async function refreshStockPrices(symbols) {
     const stockPrices = new Map();
     const now = new Date();
 
     for (const symbol of symbols) {
-        // Try Yahoo Finance first
         const quote = await fetchYahooPrice(symbol);
 
         if (quote) {
             stockPrices.set(symbol, quote.price);
-
-            // Upsert cache
             const cacheData = {
                 current_price: quote.price,
                 previous_close: quote.previousClose,
@@ -84,16 +56,17 @@ async function refreshStockPrices(symbols) {
             } catch (err) {
                 console.warn(`[PriceService] Cache update failed for stock ${symbol}:`, err.message);
             }
-
             console.log(`[PriceService] ${symbol} stock: $${quote.price.toFixed(2)} (Yahoo)`);
         } else {
-            // Fallback: read from cache
-            const cached = await db('market_data_cache')
-                .where('ticker', symbol)
-                .first();
-            if (cached) {
-                stockPrices.set(symbol, parseFloat(cached.current_price));
-                console.log(`[PriceService] ${symbol} stock: $${parseFloat(cached.current_price).toFixed(2)} (cached)`);
+            // Fallback: read from cache — wrapped so a DB error doesn't abort the whole refresh
+            try {
+                const cached = await db('market_data_cache').where('ticker', symbol).first();
+                if (cached) {
+                    stockPrices.set(symbol, parseFloat(cached.current_price));
+                    console.log(`[PriceService] ${symbol} stock: $${parseFloat(cached.current_price).toFixed(2)} (cached)`);
+                }
+            } catch (err) {
+                console.warn(`[PriceService] Cache read failed for stock ${symbol}:`, err.message);
             }
         }
     }
@@ -101,50 +74,61 @@ async function refreshStockPrices(symbols) {
     return stockPrices;
 }
 
-// ─── Main Refresh ──────────────────────────────────────
+// ─── Main Refresh ───────────────────────────────────────────
 
 /**
  * Refresh option prices + stock prices for all open/monitoring option positions.
- * Option prices: Moomoo API → fallback DB cache
- * Stock prices: Yahoo Finance → fallback DB cache
- * @returns {{ updated: number, prices: Array, source: string, stockPrices: Object }}
+ * Each external call is wrapped in try-catch so a single failure never causes a 500.
  */
 export async function refreshAllPrices() {
-    // 1. Get active option positions with expiration dates
+    // Single DB call upfront — includes current_price so the cache fallback needs no second query
     const positions = await db('positions')
         .whereIn('status', ['OPEN', 'MONITORING'])
         .where('position_type', 'option')
         .whereNotNull('expiration_date')
-        .select('id', 'ticker', 'strike_price', 'expiration_date');
+        .select('id', 'ticker', 'strike_price', 'expiration_date',
+                'current_price', 'last_price_update', 'implied_volatility', 'delta');
 
     if (positions.length === 0) {
         return { updated: 0, prices: [], source: 'none', stockPrices: {} };
     }
 
-    // 2. Get unique base symbols and fetch stock prices
     const symbols = [...new Set(positions.map(p => baseSymbol(p.ticker)))];
-    const stockPriceMap = await refreshStockPrices(symbols);
 
-    // 3. Try Moomoo API for option prices
-    const quotes = await getOptionQuotes(positions);
+    // Stock prices (Yahoo Finance) — failure is non-fatal
+    let stockPriceMap = new Map();
+    try {
+        stockPriceMap = await refreshStockPrices(symbols);
+    } catch (err) {
+        console.warn('[PriceService] Stock price refresh failed:', err.message);
+    }
+
+    // Option prices (Moomoo OpenD) — failure is non-fatal, falls back to existing DB prices
+    let quotes = [];
+    try {
+        quotes = await getOptionQuotes(positions);
+    } catch (err) {
+        console.warn('[PriceService] Moomoo unavailable:', err.message);
+    }
 
     let result;
     if (quotes.length > 0) {
-        result = { ...(await updateFromQuotes(quotes, stockPriceMap)), source: 'moomoo' };
+        try {
+            result = { ...(await updateFromQuotes(quotes, stockPriceMap)), source: 'moomoo' };
+        } catch (err) {
+            console.warn('[PriceService] updateFromQuotes failed, falling back:', err.message);
+            result = { ...buildCacheResult(positions, stockPriceMap), source: 'cache' };
+        }
     } else {
-        // Fallback: read cached option prices
-        console.log('[PriceService] Moomoo unavailable, falling back to cached option prices');
-        result = { ...(await updateFromCache(positions, stockPriceMap)), source: 'cache' };
+        result = { ...buildCacheResult(positions, stockPriceMap), source: 'cache' };
     }
 
-    // Convert stockPriceMap to plain object for JSON response
     result.stockPrices = Object.fromEntries(stockPriceMap);
     return result;
 }
 
-/**
- * Update positions from live Moomoo quotes + stock prices.
- */
+// ─── Update from live Moomoo quotes ────────────────────────
+
 async function updateFromQuotes(quotes, stockPriceMap) {
     const now = new Date();
     let updated = 0;
@@ -167,7 +151,6 @@ async function updateFromQuotes(quotes, stockPriceMap) {
             source: 'moomoo',
         };
 
-        // Upsert market_data_cache for option
         try {
             const existing = await db('market_data_cache').where('ticker', cacheKey).first();
             if (existing) {
@@ -179,32 +162,28 @@ async function updateFromQuotes(quotes, stockPriceMap) {
             console.warn(`[PriceService] Cache update failed for ${cacheKey}:`, err.message);
         }
 
-        // Update matching positions by ID (avoids ticker+strike+expiry string matching issues)
-        const updateData = {
-            current_price: quote.option_price,
-            last_price_update: now,
-        };
-        if (quote.implied_volatility != null) {
-            updateData.implied_volatility = quote.implied_volatility;
-        }
-
-        const ids = quote.positionIds && quote.positionIds.length > 0
-            ? quote.positionIds
-            : null;
+        // Update by position ID — avoids ticker+strike+expiry string matching issues
+        const ids = quote.positionIds?.length > 0 ? quote.positionIds : null;
         if (!ids) continue;
 
-        const count = await db('positions')
-            .whereIn('id', ids)
-            .whereIn('status', ['OPEN', 'MONITORING'])
-            .update(updateData);
+        const updateData = { current_price: quote.option_price, last_price_update: now };
+        if (quote.implied_volatility != null) updateData.implied_volatility = quote.implied_volatility;
 
-        // Compute distance to strike
+        try {
+            const count = await db('positions')
+                .whereIn('id', ids)
+                .whereIn('status', ['OPEN', 'MONITORING'])
+                .update(updateData);
+            updated += count;
+        } catch (err) {
+            console.warn(`[PriceService] Position update failed for ids ${ids}:`, err.message);
+        }
+
         const strike = parseFloat(quote.strike_price);
         const distToStrike = stockPrice && stockPrice > 0
             ? Math.round(((stockPrice - strike) / stockPrice) * 100 * 100) / 100
             : null;
 
-        updated += count;
         prices.push({
             ticker: quote.ticker,
             strike: quote.strike_price,
@@ -222,68 +201,36 @@ async function updateFromQuotes(quotes, stockPriceMap) {
     return { updated, prices };
 }
 
-/**
- * Fallback: update positions from market_data_cache table.
- */
-async function updateFromCache(positions, stockPriceMap) {
-    let updated = 0;
+// ─── Cache fallback — uses positions already fetched, zero DB calls ─────────
+
+function buildCacheResult(positions, stockPriceMap) {
     const prices = [];
 
     for (const pos of positions) {
-        const optionCode = buildOptionCode(pos.ticker, pos.strike_price, pos.expiration_date);
+        if (pos.current_price == null) continue;
+
         const symbol = baseSymbol(pos.ticker);
         const stockPrice = stockPriceMap.get(symbol) ?? null;
-
-        // Look up cache by exact option code first, then try prefix up to strike
-        // e.g. "NVDA260326P160000" → exact, then "NVDA260326P" prefix (includes strike variations)
-        let cached = await db('market_data_cache')
-            .where('ticker', optionCode)
-            .first();
-
-        if (!cached) {
-            // Prefix = symbol + date + 'P' — matches same expiry, any strike variant
-            const prefix = optionCode.replace(/P\d+$/, 'P');
-            cached = await db('market_data_cache')
-                .where('ticker', 'like', `${prefix}%`)
-                .where('source', 'moomoo')
-                .orderBy('fetched_at', 'desc')
-                .first();
-        }
-
-        if (!cached) continue;
-
-        const updateData = {
-            current_price: cached.current_price,
-            last_price_update: cached.fetched_at,
-        };
-
-        const count = await db('positions')
-            .where('id', pos.id)
-            .whereIn('status', ['OPEN', 'MONITORING'])
-            .update(updateData);
-
         const strike = parseFloat(pos.strike_price);
         const distToStrike = stockPrice && stockPrice > 0
             ? Math.round(((stockPrice - strike) / stockPrice) * 100 * 100) / 100
             : null;
 
-        updated += count;
         prices.push({
             ticker: pos.ticker,
-            strike: parseFloat(pos.strike_price),
+            strike,
             expiry: typeof pos.expiration_date === 'object'
                 ? pos.expiration_date.toISOString().split('T')[0]
                 : String(pos.expiration_date).split('T')[0],
-            option_code: cached.ticker,
-            price: parseFloat(cached.current_price),
-            iv: cached.implied_volatility ? parseFloat(cached.implied_volatility) : null,
-            delta: cached.delta ? parseFloat(cached.delta) : null,
+            price: parseFloat(pos.current_price),
+            iv: pos.implied_volatility ? parseFloat(pos.implied_volatility) : null,
+            delta: pos.delta ? parseFloat(pos.delta) : null,
             stock_price: stockPrice,
             distance_to_strike: distToStrike,
-            cached_at: cached.fetched_at,
+            cached_at: pos.last_price_update,
         });
     }
 
-    console.log(`[PriceService] Updated ${updated} positions from cache (${prices.length} cached prices found)`);
-    return { updated, prices };
+    console.log(`[PriceService] Moomoo unavailable — returning existing prices for ${prices.length} position(s)`);
+    return { updated: 0, prices };
 }
