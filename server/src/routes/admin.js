@@ -497,8 +497,8 @@ router.get('/pnl', async (req, res, next) => {
             created_by: r.created_by,
         }));
         const total_realized_pnl = records.reduce((sum, r) => sum + parseFloat(r.pnl_amount), 0);
-        // Fetch positions for the period
-        let posQuery = db('positions');
+        // Fetch positions for the period (exclude MONITORING — watch-only, not real positions)
+        let posQuery = db('positions').whereNot('status', 'MONITORING');
         if (startDate)
             posQuery = posQuery.where('created_at', '>=', startDate);
         const positions = await posQuery.orderBy('created_at', 'desc');
