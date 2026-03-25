@@ -110,6 +110,9 @@ export function AdminDashboardPage() {
               <MetricCard title="Open Positions" value={stats.total_positions.toLocaleString()} icon={<BarChart3 className="w-5 h-5"/>} subtitle="Active (excl. monitoring)" accent/>
               <MetricCard title="Total Premium Received" value={formatCurrency(stats.total_premium)} icon={<DollarSign className="w-5 h-5"/>} subtitle="Income"/>
               <MetricCard title="Unrealized P&L" value={formatCurrency(stats.total_unrealized_pnl)} icon={<TrendingUp className="w-5 h-5"/>} subtitle={stats.last_price_update ? `Updated ${formatDateTime(stats.last_price_update)}` : 'No price data'} accent={stats.total_unrealized_pnl < 0}/>
+              {stats.total_return_pct !== null && stats.total_return_pct !== undefined && (
+                <MetricCard title="Total Return" value={formatPercent(stats.total_return_pct)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="Realized + Unrealized / Capital" valueColor={stats.total_return_pct >= 0 ? 'text-green-600' : 'text-red-600'}/>
+              )}
               <MetricCard title="Capital Utilization" value={formatPercent(stats.capital_utilization)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="Deployed" progressBar={{ value: stats.capital_utilization }}/>
               <MetricCard title="Total Investors" value={stats.total_investors.toLocaleString()} icon={<Users className="w-5 h-5"/>} subtitle="Accounts"/>
               <MetricCard title="Expiring Soon" value={stats.positions_expiring_soon.toLocaleString()} icon={<Clock className="w-5 h-5"/>} subtitle="Next 7 days" accent={stats.positions_expiring_soon > 0}/>

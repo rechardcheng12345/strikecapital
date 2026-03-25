@@ -56,13 +56,21 @@ router.get('/dashboard', async (req, res, next) => {
             .limit(1)
             .select('last_price_update');
 
+        const allocationAmount = parseFloat(allocation?.invested_amount || '0');
+        const realizedShare = Math.round(totalPnl * allocationPct * 100) / 100;
+        const unrealizedShare = Math.round(totalUnrealizedPnl * allocationPct * 100) / 100;
+        const total_return_pct = allocationAmount > 0
+            ? Math.round(((realizedShare + unrealizedShare) / allocationAmount) * 10000) / 100
+            : null;
+
         res.json({
             allocation: {
-                allocation_amount: parseFloat(allocation?.invested_amount || '0'),
+                allocation_amount: allocationAmount,
                 allocation_pct: parseFloat(allocation?.allocation_pct || '0'),
             },
-            total_pnl_share: Math.round(totalPnl * allocationPct * 100) / 100,
-            unrealized_pnl_share: Math.round(totalUnrealizedPnl * allocationPct * 100) / 100,
+            total_pnl_share: realizedShare,
+            unrealized_pnl_share: unrealizedShare,
+            total_return_pct,
             active_positions: parseInt(activeResult?.count || '0'),
             win_rate: winRate,
             unread_notifications: parseInt(unreadResult?.count || '0'),

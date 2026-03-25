@@ -66,6 +66,9 @@ export function InvestorDashboardPage() {
             <MetricCard title="My Allocation" value={formatCurrency(dashboard.allocation.allocation_amount)} icon={<DollarSign className="w-5 h-5"/>} subtitle={formatPercent(dashboard.allocation.allocation_pct) + ' of fund'} accent/>
             <MetricCard title="Realized P&L Share" value={formatCurrency(dashboard.total_pnl_share)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="My share" valueColor={pnlColor}/>
             <MetricCard title="Unrealized P&L Share" value={formatCurrency(dashboard.unrealized_pnl_share ?? 0)} icon={<DollarSign className="w-5 h-5"/>} subtitle={dashboard.last_price_update ? `Updated ${formatDateTime(dashboard.last_price_update)}` : 'No price data'} valueColor={unrealizedPnlColor}/>
+            {dashboard.total_return_pct !== null && dashboard.total_return_pct !== undefined && (
+              <MetricCard title="Total Return" value={formatPercent(dashboard.total_return_pct)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="On my allocation" valueColor={dashboard.total_return_pct >= 0 ? 'text-green-600' : 'text-red-600'}/>
+            )}
             <MetricCard title="Win Rate" value={formatPercent(dashboard.win_rate)} icon={<PieChart className="w-5 h-5"/>} subtitle="Resolved"/>
             <MetricCard title="Active Positions" value={dashboard.active_positions.toLocaleString()} icon={<Activity className="w-5 h-5"/>} subtitle="Current"/>
             <MetricCard title="Unread Notifications" value={dashboard.unread_notifications.toLocaleString()} icon={<Bell className="w-5 h-5"/>} subtitle="New" accent={dashboard.unread_notifications > 0}/>

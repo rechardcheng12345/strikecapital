@@ -96,6 +96,10 @@ router.get('/dashboard/stats', async (req, res, next) => {
             ? Math.round((gross_fund_value - totalCapital - open_premium_collected - total_realized_pnl) * 100) / 100
             : null;
 
+        const total_return_pct = totalCapital > 0
+            ? Math.round(((total_realized_pnl + total_unrealized_pnl) / totalCapital) * 10000) / 100
+            : null;
+
         res.json({
             total_positions,
             open_positions,
@@ -104,6 +108,7 @@ router.get('/dashboard/stats', async (req, res, next) => {
             total_investors,
             total_realized_pnl: Math.round(total_realized_pnl * 100) / 100,
             total_unrealized_pnl: Math.round(total_unrealized_pnl * 100) / 100,
+            total_return_pct,
             capital_utilization: Math.round(capital_utilization * 100) / 100,
             positions_expiring_soon,
             last_price_update: latestUpdate?.last_price_update || null,

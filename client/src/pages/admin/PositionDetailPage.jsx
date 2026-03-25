@@ -272,10 +272,13 @@ export function PositionDetailPage() {
           {isAdmin && position.status !== 'RESOLVED' && (<div className="flex flex-wrap gap-2">
               <Button variant="primary" size="sm" onClick={() => {
                     setActionError(null);
-                    setResolveForm(f => ({
-                        ...f,
+                    const fees = (parseFloat(position.commission) || 0) + (parseFloat(position.platform_fee) || 0);
+                    const netPremium = Math.round((parseFloat(position.premium_received) - fees) * 100) / 100;
+                    setResolveForm({
                         resolution_type: position.position_type === 'stock' ? 'sold' : 'expired_worthless',
-                    }));
+                        realized_pnl: position.position_type === 'option' ? netPremium : undefined,
+                        notes: '',
+                    });
                     setResolveOpen(true);
                 }}>
                 <CheckCircle2 className="w-4 h-4 mr-1.5"/>
@@ -531,6 +534,15 @@ export function PositionDetailPage() {
                 ...f,
                 realized_pnl: e.target.value ? parseFloat(e.target.value) : undefined,
             }))} placeholder="e.g. 450.00"/>
+              {position.position_type === 'option' && (() => {
+                const fees = (parseFloat(position.commission) || 0) + (parseFloat(position.platform_fee) || 0);
+                const net = parseFloat(position.premium_received) - fees;
+                return fees > 0 ? (
+                  <p className="text-xs text-gray-400 -mt-1">
+                    Auto-filled: {formatCurrency(position.premium_received)} premium − {formatCurrency(fees)} fees = <span className="font-semibold text-gray-600">{formatCurrency(net)}</span>
+                  </p>
+                ) : null;
+              })()}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
