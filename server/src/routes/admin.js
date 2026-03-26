@@ -11,6 +11,7 @@ import { getCapitalUtilization, getTickerConcentration, getDistanceToStrikeDistr
 import { notifyAllInvestors } from '../services/notificationEngine.js';
 import { insertAndFetch, updateAndFetch } from '../utils/dbHelpers.js';
 import { getAccountFunds, getAccList } from '../services/moomooService.js';
+import { scanPutOptions, fetchStockPrices } from '../services/scannerService.js';
 const router = Router();
 // All admin routes require authentication + admin role
 router.use(authenticate, requireAdmin);
@@ -886,6 +887,55 @@ router.get('/moomoo/accounts', async (req, res, next) => {
     try {
         const accounts = await getAccList();
         res.json({ accounts });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ─── Option Scanner ──────────────────────────────────────────
+router.get('/scanner/watchlist', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const tickers = await db('scanner_watchlist').orderBy('ticker');
+        res.json({ tickers });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.post('/scanner/watchlist', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const ticker = (req.body.ticker || '').toUpperCase().trim();
+        if (!ticker) throw new AppError('Ticker is required', 400);
+        const existing = await db('scanner_watchlist').where({ ticker }).first();
+        if (existing) throw new AppError('Ticker already in watchlist', 409);
+        const [id] = await db('scanner_watchlist').insert({ ticker, created_by: req.user.id });
+        res.status(201).json({ id, ticker });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.delete('/scanner/watchlist/:ticker', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const ticker = req.params.ticker.toUpperCase();
+        const deleted = await db('scanner_watchlist').where({ ticker }).delete();
+        if (!deleted) throw new AppError('Ticker not found', 404);
+        res.json({ message: 'Removed' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.post('/scanner/scan', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const { minDays = 12, maxDays = 20, minDiscount = 10, maxDiscount = 20 } = req.body || {};
+        const watchlist = await db('scanner_watchlist').orderBy('ticker');
+        const tickers = watchlist.map(w => w.ticker);
+        if (tickers.length === 0) return res.json({ results: [], message: 'Watchlist is empty' });
+
+        const stockPrices = await fetchStockPrices(tickers);
+        const { results, error } = await scanPutOptions(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount);
+        res.json({ results, stock_prices: stockPrices, error: error || null });
     } catch (error) {
         next(error);
     }

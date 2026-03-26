@@ -87,7 +87,7 @@ function sendRequest(protoID, bodyBuf, timeoutMs = 15000) {
     });
 }
 
-async function ensureConnected() {
+export async function ensureConnected() {
     if (connected && socket) return true;
     if (connectPromise) return connectPromise;
 
@@ -174,7 +174,7 @@ function baseSymbol(ticker) {
  * Get valid option expiry dates for a ticker, cached per session.
  */
 const expiryCache = new Map();
-async function getValidExpiryDates(ticker) {
+export async function getValidExpiryDates(ticker) {
     ticker = baseSymbol(ticker);
     if (expiryCache.has(ticker)) return expiryCache.get(ticker);
 
@@ -225,7 +225,7 @@ function findClosestExpiry(validDates, targetDate) {
  * @param {string} expiryDate - e.g. "2026-03-21" (YYYY-MM-DD)
  * @returns {Array<{code: string, market: number, strikePrice: number}>}
  */
-async function getOptionChain(ticker, expiryDate) {
+export async function getOptionChain(ticker, expiryDate) {
     const ChainReq = protoRoot.lookupType('Qot_GetOptionChain.Request');
     const body = ChainReq.encode(ChainReq.create({
         c2s: {
@@ -265,7 +265,7 @@ async function getOptionChain(ticker, expiryDate) {
  * @param {Array<{market: number, code: string}>} securityList
  * @returns {Array} snapshot results
  */
-async function getSnapshots(securityList) {
+export async function getSnapshots(securityList) {
     // API limits to 400 per request, batch if needed
     const results = [];
     for (let i = 0; i < securityList.length; i += 400) {

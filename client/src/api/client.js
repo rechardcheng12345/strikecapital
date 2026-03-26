@@ -166,6 +166,12 @@ export const adminApi = {
     },
 };
 // ─── Investor API (read-only) ─────────────────────────
+export const scannerApi = {
+    getWatchlist: () => api.get('/admin/scanner/watchlist'),
+    addTicker: (ticker) => api.post('/admin/scanner/watchlist', { ticker }),
+    removeTicker: (ticker) => api.delete(`/admin/scanner/watchlist/${ticker}`),
+    scan: (params) => api.post('/admin/scanner/scan', params),
+};
 export const investorApi = {
     getDashboard: () => api.get('/investor/dashboard'),
     getPositions: (page = 1, limit = 20, status) => api.get(`/investor/positions?page=${page}&limit=${limit}${status ? `&status=${status}` : ''}`),

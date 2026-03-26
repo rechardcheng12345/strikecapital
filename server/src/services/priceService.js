@@ -7,7 +7,7 @@ function baseSymbol(ticker) {
 
 // ─── Yahoo Finance ──────────────────────────────────────────
 
-async function fetchYahooPrice(symbol) {
+export async function fetchYahooPrice(symbol) {
     try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
         const resp = await fetch(url, {

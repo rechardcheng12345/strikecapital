@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Transition } from '@headlessui/react';
-import { LayoutDashboard, TrendingUp, Users, BarChart3, ShieldAlert, ScrollText, Megaphone, Settings, Menu, X, LogOut, Wallet, } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Users, BarChart3, ShieldAlert, ScrollText, Megaphone, Settings, Menu, X, LogOut, Wallet, ScanLine, } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 const adminNavItems = [
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -10,6 +10,7 @@ const adminNavItems = [
     { path: '/admin/pnl', icon: BarChart3, label: 'P&L Analytics' },
     { path: '/admin/risk', icon: ShieldAlert, label: 'Risk Dashboard' },
     { path: '/admin/funds', icon: Wallet, label: 'Account Funds' },
+    { path: '/admin/scanner', icon: ScanLine, label: 'Option Scanner' },
     { path: '/admin/audit', icon: ScrollText, label: 'Audit Trail' },
     { path: '/admin/announcements', icon: Megaphone, label: 'Announcements' },
     { path: '/admin/settings', icon: Settings, label: 'Settings' },
