@@ -33,4 +33,7 @@ export const env = {
     moomooSecurityFirm: parseInt(process.env.MOOMOO_SECURITY_FIRM || '3'),  // 3=FutuSG
     moomooTrdMarket: parseInt(process.env.MOOMOO_TRD_MARKET || '2'),        // 2=US
     moomooCurrency: parseInt(process.env.MOOMOO_CURRENCY || '2'),           // 2=USD
+    // Scanner proxy (optional — when set, scanner calls this HTTP URL instead of local OpenD)
+    scannerProxyUrl: process.env.SCANNER_PROXY_URL || null,
+    scannerProxySecret: process.env.SCANNER_PROXY_SECRET || '',
 };

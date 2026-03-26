@@ -12,6 +12,7 @@ import { notifyAllInvestors } from '../services/notificationEngine.js';
 import { insertAndFetch, updateAndFetch } from '../utils/dbHelpers.js';
 import { getAccountFunds, getAccList } from '../services/moomooService.js';
 import { scanPutOptions, fetchStockPrices } from '../services/scannerService.js';
+import { env } from '../config/env.js';
 const router = Router();
 // All admin routes require authentication + admin role
 router.use(authenticate, requireAdmin);
@@ -860,8 +861,21 @@ function dbRowToFunds(row) {
 
 router.get('/moomoo/funds', async (req, res, next) => {
     try {
-        // Try live API first
-        const funds = await getAccountFunds();
+        // Try live API — via remote proxy if configured, otherwise direct TCP
+        let funds = null;
+        if (env.scannerProxyUrl) {
+            try {
+                const resp = await fetch(`${env.scannerProxyUrl}/funds`, {
+                    headers: { ...(env.scannerProxySecret ? { 'x-proxy-secret': env.scannerProxySecret } : {}) },
+                    signal: AbortSignal.timeout(15000),
+                });
+                if (resp.ok) funds = await resp.json();
+            } catch (err) {
+                console.warn('[Admin] Proxy /funds failed:', err.message);
+            }
+        } else {
+            funds = await getAccountFunds();
+        }
         if (funds) {
             // Save to DB
             const dbRow = fundsToDbRow(funds);

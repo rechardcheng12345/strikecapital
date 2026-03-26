@@ -1,8 +1,40 @@
 import { db } from '../config/database.js';
 import { getOptionQuotes } from './moomooService.js';
+import { env } from '../config/env.js';
 
 function baseSymbol(ticker) {
     return ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase();
+}
+
+// ─── Scanner Proxy (remote Moomoo) ──────────────────────────
+
+async function callProxyForQuotes(positions) {
+    try {
+        const payload = positions.map(p => ({
+            id: p.id,
+            ticker: p.ticker,
+            strike_price: p.strike_price,
+            expiration_date: p.expiration_date,
+        }));
+        const resp = await fetch(`${env.scannerProxyUrl}/quotes`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(env.scannerProxySecret ? { 'x-proxy-secret': env.scannerProxySecret } : {}),
+            },
+            body: JSON.stringify({ positions: payload }),
+            signal: AbortSignal.timeout(60000),
+        });
+        if (!resp.ok) {
+            console.warn(`[PriceService] Proxy /quotes error: ${resp.status}`);
+            return [];
+        }
+        const data = await resp.json();
+        return data.quotes || [];
+    } catch (err) {
+        console.warn('[PriceService] Proxy /quotes unreachable:', err.message);
+        return [];
+    }
 }
 
 // ─── Yahoo Finance ──────────────────────────────────────────
@@ -90,7 +122,7 @@ export async function refreshAllPrices() {
                 .where('position_type', 'option')
                 .whereNotNull('expiration_date')
                 .select('id', 'ticker', 'strike_price', 'expiration_date',
-                        'current_price', 'last_price_update', 'implied_volatility', 'delta');
+                        'current_price', 'last_price_update', 'implied_volatility');
         } catch (err) {
             console.warn('[PriceService] Failed to load positions from DB:', err.message);
             return { updated: 0, prices: [], source: 'error', stockPrices: {} };
@@ -111,9 +143,12 @@ export async function refreshAllPrices() {
         }
 
         // Option prices (Moomoo OpenD) — failure is non-fatal, falls back to existing DB prices
+        // If scannerProxyUrl is configured, delegate to the remote proxy instead of local TCP
         let quotes = [];
         try {
-            quotes = await getOptionQuotes(positions);
+            quotes = env.scannerProxyUrl
+                ? await callProxyForQuotes(positions)
+                : await getOptionQuotes(positions);
         } catch (err) {
             console.warn('[PriceService] Moomoo unavailable:', err.message);
         }

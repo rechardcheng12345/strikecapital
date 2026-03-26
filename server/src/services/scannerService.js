@@ -1,5 +1,24 @@
 import { ensureConnected, getValidExpiryDates, getOptionChain, getSnapshots } from './moomooService.js';
 import { fetchYahooPrice } from './priceService.js';
+import { env } from '../config/env.js';
+
+async function callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount) {
+    try {
+        const resp = await fetch(`${env.scannerProxyUrl}/scan`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(env.scannerProxySecret ? { 'x-proxy-secret': env.scannerProxySecret } : {}),
+            },
+            body: JSON.stringify({ tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount }),
+            signal: AbortSignal.timeout(60000),
+        });
+        if (!resp.ok) return { results: [], error: `Proxy error: ${resp.status}`, debug: {} };
+        return await resp.json();
+    } catch (err) {
+        return { results: [], error: `Proxy unreachable: ${err.message}`, debug: {} };
+    }
+}
 
 /**
  * Fetch stock prices for a list of tickers via Yahoo Finance.
@@ -24,6 +43,10 @@ export async function fetchStockPrices(tickers) {
  * @param {number}  maxDiscount  - max % below current price (default 20)
  */
 export async function scanPutOptions(tickers, stockPrices, minDays = 12, maxDays = 20, minDiscount = 10, maxDiscount = 20) {
+    if (env.scannerProxyUrl) {
+        console.log('[Scanner] using remote proxy:', env.scannerProxyUrl);
+        return callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount);
+    }
     console.log('[Scanner] scanPutOptions called, tickers:', tickers, 'stockPrices:', stockPrices);
     const isConnected = await ensureConnected();
     console.log('[Scanner] isConnected:', isConnected);

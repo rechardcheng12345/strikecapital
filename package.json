@@ -24,7 +24,8 @@
     "db:migrate:make": "knex migrate:make --knexfile server/knexfile.js",
     "db:rollback": "knex migrate:rollback --knexfile server/knexfile.js",
     "db:seed": "knex seed:run --knexfile server/knexfile.js",
-    "db:seed:make": "knex seed:make --knexfile server/knexfile.js"
+    "db:seed:make": "knex seed:make --knexfile server/knexfile.js",
+    "scanner-proxy": "node server/scanner-proxy.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
