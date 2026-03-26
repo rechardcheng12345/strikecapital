@@ -109,6 +109,7 @@ export function AdminDashboardPage() {
             </>) : stats ? (<>
               <MetricCard title="Open Positions" value={stats.total_positions.toLocaleString()} icon={<BarChart3 className="w-5 h-5"/>} subtitle="Active (excl. monitoring)" accent/>
               <MetricCard title="Total Premium Received" value={formatCurrency(stats.total_premium)} icon={<DollarSign className="w-5 h-5"/>} subtitle="Income"/>
+              <MetricCard title="Total Realized P&L" value={formatCurrency(stats.total_realized_pnl)} icon={<DollarSign className="w-5 h-5"/>} subtitle="Net of fees" valueColor={stats.total_realized_pnl >= 0 ? 'text-green-600' : 'text-red-600'}/>
               <MetricCard title="Unrealized P&L" value={formatCurrency(stats.total_unrealized_pnl)} icon={<TrendingUp className="w-5 h-5"/>} subtitle={stats.last_price_update ? `Updated ${formatDateTime(stats.last_price_update)}` : 'No price data'} accent={stats.total_unrealized_pnl < 0}/>
               {stats.total_return_pct !== null && stats.total_return_pct !== undefined && (
                 <MetricCard title="Total Return" value={formatPercent(stats.total_return_pct)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="Realized + Unrealized / Capital" valueColor={stats.total_return_pct >= 0 ? 'text-green-600' : 'text-red-600'}/>
@@ -146,6 +147,9 @@ export function AdminDashboardPage() {
               <MetricCard title="My Allocation" value={formatCurrency(investorDashboard.allocation.allocation_amount)} icon={<DollarSign className="w-5 h-5"/>} subtitle={formatPercent(investorDashboard.allocation.allocation_pct) + ' of fund'} accent/>
               <MetricCard title="Realized P&L Share" value={formatCurrency(investorDashboard.total_pnl_share)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="My share" valueColor={pnlColor}/>
               <MetricCard title="Unrealized P&L Share" value={formatCurrency(investorDashboard.unrealized_pnl_share ?? 0)} icon={<DollarSign className="w-5 h-5"/>} subtitle={investorDashboard.last_price_update ? `Updated ${formatDateTime(investorDashboard.last_price_update)}` : 'No price data'} valueColor={unrealizedPnlColor}/>
+              {investorDashboard.total_return_pct !== null && investorDashboard.total_return_pct !== undefined && (
+                <MetricCard title="Total Return" value={formatPercent(investorDashboard.total_return_pct)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="On my allocation" valueColor={investorDashboard.total_return_pct >= 0 ? 'text-green-600' : 'text-red-600'}/>
+              )}
               <MetricCard title="Win Rate" value={formatPercent(investorDashboard.win_rate)} icon={<PieChart className="w-5 h-5"/>} subtitle="Resolved"/>
               <MetricCard title="Active Positions" value={investorDashboard.active_positions.toLocaleString()} icon={<Activity className="w-5 h-5"/>} subtitle="Current"/>
               <MetricCard title="Unread Notifications" value={investorDashboard.unread_notifications.toLocaleString()} icon={<Bell className="w-5 h-5"/>} subtitle="New" accent={investorDashboard.unread_notifications > 0}/>
