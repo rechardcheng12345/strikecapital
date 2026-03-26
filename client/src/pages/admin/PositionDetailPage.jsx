@@ -272,11 +272,9 @@ export function PositionDetailPage() {
           {isAdmin && position.status !== 'RESOLVED' && (<div className="flex flex-wrap gap-2">
               <Button variant="primary" size="sm" onClick={() => {
                     setActionError(null);
-                    const fees = (parseFloat(position.commission) || 0) + (parseFloat(position.platform_fee) || 0);
-                    const netPremium = Math.round((parseFloat(position.premium_received) - fees) * 100) / 100;
                     setResolveForm({
                         resolution_type: position.position_type === 'stock' ? 'sold' : 'expired_worthless',
-                        realized_pnl: position.position_type === 'option' ? netPremium : undefined,
+                        realized_pnl: position.position_type === 'option' ? Math.round(parseFloat(position.premium_received) * 100) / 100 : undefined,
                         notes: '',
                     });
                     setResolveOpen(true);
@@ -539,7 +537,7 @@ export function PositionDetailPage() {
                 const net = parseFloat(position.premium_received) - fees;
                 return fees > 0 ? (
                   <p className="text-xs text-gray-400 -mt-1">
-                    Auto-filled: {formatCurrency(position.premium_received)} premium − {formatCurrency(fees)} fees = <span className="font-semibold text-gray-600">{formatCurrency(net)}</span>
+                    Enter gross premium. Fees ({formatCurrency(fees)}) are deducted automatically → net <span className="font-semibold text-gray-600">{formatCurrency(net)}</span>
                   </p>
                 ) : null;
               })()}

@@ -81,7 +81,9 @@ export function OptionScannerPage() {
         setScanResults(null);
         setScanError(null);
         try {
-            const data = await scannerApi.scan(params);
+            const response = await scannerApi.scan(params);
+            const data = response.data || {};
+            console.log('[Scanner] full response:', JSON.stringify(data, null, 2));
             setScanResults(data);
             if (data.error) setScanError(data.error);
         } catch (err) {
@@ -100,7 +102,7 @@ export function OptionScannerPage() {
                 status: 'MONITORING',
                 strike_price: row.strike,
                 expiration_date: row.expiry,
-                premium_received: row.premium,
+                premium_received: Math.round(row.premium * 100 * 100) / 100,
                 contracts: 1,
                 commission: 0,
                 platform_fee: 0,
@@ -264,9 +266,14 @@ export function OptionScannerPage() {
                     </div>
 
                     {results.length === 0 ? (
-                        <div className="text-center py-12 text-gray-400">
-                            <Search className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                            <p className="text-sm">No options matched your criteria.</p>
+                        <div className="py-8 px-5">
+                            <p className="text-sm text-gray-500 text-center mb-4">No options matched your criteria.</p>
+                            <div className="text-xs border border-gray-200 bg-gray-50 p-3 max-w-3xl mx-auto">
+                                <p className="font-semibold text-gray-600 mb-2">Debug Info</p>
+                                <pre className="overflow-x-auto text-[11px] leading-relaxed whitespace-pre-wrap text-gray-700">
+                                    {JSON.stringify(scanResults.debug ?? {}, null, 2)}
+                                </pre>
+                            </div>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -275,28 +282,25 @@ export function OptionScannerPage() {
                                     <tr className="bg-[#0D2654]/5 text-left">
                                         <th className="px-3 py-3 w-10"></th>
                                         {[
-                                            { key: 'ticker', label: 'Ticker', align: 'left' },
-                                            { key: 'stock_price', label: 'Stock $', align: 'right' },
-                                            { key: 'strike', label: 'Strike', align: 'right' },
-                                            { key: 'discount_pct', label: 'Disc%', align: 'right' },
-                                            { key: 'expiry', label: 'Expiry', align: 'left' },
-                                            { key: 'days_to_expiry', label: 'DTE', align: 'right' },
-                                            { key: 'premium', label: 'Premium', align: 'right' },
-                                            { key: 'iv', label: 'IV', align: 'right' },
-                                            { key: 'delta', label: 'Delta', align: 'right' },
-                                            { key: 'volume', label: 'Vol', align: 'right' },
+                                            { key: 'ticker', label: 'Ticker' },
+                                            { key: 'stock_price', label: 'Stock $' },
+                                            { key: 'strike', label: 'Strike' },
+                                            { key: 'discount_pct', label: 'Disc%' },
+                                            { key: 'expiry', label: 'Expiry' },
+                                            { key: 'days_to_expiry', label: 'DTE' },
+                                            { key: 'premium', label: 'Premium' },
+                                            { key: 'iv', label: 'IV' },
+                                            { key: 'delta', label: 'Delta' },
+                                            { key: 'volume', label: 'Vol' },
                                         ].map(col => (
                                             <th
                                                 key={col.key}
                                                 onClick={() => handleSort(col.key)}
-                                                className={`px-4 py-3 text-xs font-semibold text-[#0D2654] uppercase tracking-wider cursor-pointer select-none hover:bg-[#0D2654]/10 transition-colors ${col.align === 'right' ? 'text-right' : ''}`}
+                                                className="px-4 py-3 text-xs font-semibold text-[#0D2654] uppercase tracking-wider cursor-pointer select-none hover:bg-[#0D2654]/10 transition-colors text-left"
                                             >
-                                                <span className="inline-flex items-center gap-1 justify-end w-full">
-                                                    {col.align === 'right' && sortKey === col.key && (
-                                                        sortDir === 'asc' ? <ChevronUp className="w-3 h-3 text-[#F06010]" /> : <ChevronDown className="w-3 h-3 text-[#F06010]" />
-                                                    )}
+                                                <span className="inline-flex items-center gap-1">
                                                     {col.label}
-                                                    {col.align !== 'right' && sortKey === col.key && (
+                                                    {sortKey === col.key && (
                                                         sortDir === 'asc' ? <ChevronUp className="w-3 h-3 text-[#F06010]" /> : <ChevronDown className="w-3 h-3 text-[#F06010]" />
                                                     )}
                                                 </span>
@@ -327,17 +331,20 @@ export function OptionScannerPage() {
                                                 </button>
                                             </td>
                                             <td className="px-4 py-3 font-semibold text-[#0D2654]">{row.ticker}</td>
-                                            <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(row.stock_price)}</td>
-                                            <td className="px-4 py-3 text-right font-medium text-[#0D2654]">{formatCurrency(row.strike)}</td>
-                                            <td className="px-4 py-3 text-right">
+                                            <td className="px-4 py-3 text-gray-600">{formatCurrency(row.stock_price)}</td>
+                                            <td className="px-4 py-3 font-medium text-[#0D2654]">{formatCurrency(row.strike)}</td>
+                                            <td className="px-4 py-3">
                                                 <span className="text-orange-600 font-medium">{formatPct(row.discount_pct)}</span>
                                             </td>
                                             <td className="px-4 py-3 text-gray-600">{row.expiry}</td>
-                                            <td className="px-4 py-3 text-right text-gray-600">{row.days_to_expiry}d</td>
-                                            <td className="px-4 py-3 text-right font-medium text-green-700">{formatCurrency(row.premium)}</td>
-                                            <td className="px-4 py-3 text-right text-gray-600">{row.iv != null ? formatPct(row.iv * 100) : '—'}</td>
-                                            <td className="px-4 py-3 text-right text-gray-600">{row.delta != null ? formatNum(row.delta, 3) : '—'}</td>
-                                            <td className="px-4 py-3 text-right text-gray-600">{row.volume > 0 ? row.volume.toLocaleString() : '—'}</td>
+                                            <td className="px-4 py-3 text-gray-600">{row.days_to_expiry}d</td>
+                                            <td className="px-4 py-3 font-medium text-green-700">
+                                                {formatCurrency(row.premium * 100)}
+                                                <span className="text-gray-400 text-[10px] ml-1">(${row.premium}/sh)</span>
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-600">{row.iv != null ? formatPct(row.iv * 100) : '—'}</td>
+                                            <td className="px-4 py-3 text-gray-600">{row.delta != null ? formatNum(row.delta, 3) : '—'}</td>
+                                            <td className="px-4 py-3 text-gray-600">{row.volume > 0 ? row.volume.toLocaleString() : '—'}</td>
                                         </tr>
                                         );
                                     })}

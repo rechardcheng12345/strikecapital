@@ -17,8 +17,11 @@ router.get('/dashboard', async (req, res, next) => {
         const [activeResult] = await db('positions')
             .where('status', 'OPEN')
             .count('* as count');
-        // Total P&L (investor's share)
-        const [pnlResult] = await db('pnl_records').sum('pnl_amount as total');
+        // Total P&L (investor's share, net of commission + platform_fee)
+        const pnlResult = await db('pnl_records')
+            .join('positions', 'pnl_records.position_id', 'positions.id')
+            .select(db.raw('SUM(pnl_records.pnl_amount - COALESCE(positions.commission, 0) - COALESCE(positions.platform_fee, 0)) as total'))
+            .first();
         const totalPnl = parseFloat(pnlResult?.total || '0');
         // Win rate from resolved positions
         const [resolvedCount] = await db('positions').where('status', 'RESOLVED').count('* as count');
@@ -200,18 +203,24 @@ router.get('/pnl', async (req, res, next) => {
         if (startDate)
             pnlQuery = pnlQuery.where('pnl_records.record_date', '>=', startDate);
         const records = await pnlQuery
-            .select('pnl_records.*', 'positions.ticker', 'positions.strike_price')
+            .select('pnl_records.*', 'positions.ticker', 'positions.strike_price', 'positions.commission', 'positions.platform_fee')
             .orderBy('pnl_records.record_date', 'desc');
-        const totalRealized = records.reduce((sum, r) => sum + parseFloat(r.pnl_amount), 0);
+        const totalRealized = records.reduce((sum, r) => {
+            const fees = (parseFloat(r.commission) || 0) + (parseFloat(r.platform_fee) || 0);
+            return sum + parseFloat(r.pnl_amount) - fees;
+        }, 0);
         res.json({
             total_pnl_share: Math.round(totalRealized * allocationPct * 100) / 100,
             allocation_pct: parseFloat(allocation?.allocation_pct || '0'),
-            records: records.map((r) => ({
-                position_id: r.position_id,
-                ticker: r.ticker,
-                pnl_share: Math.round(parseFloat(r.pnl_amount) * allocationPct * 100) / 100,
-                record_date: r.record_date,
-            })),
+            records: records.map((r) => {
+                const fees = (parseFloat(r.commission) || 0) + (parseFloat(r.platform_fee) || 0);
+                return {
+                    position_id: r.position_id,
+                    ticker: r.ticker,
+                    pnl_share: Math.round((parseFloat(r.pnl_amount) - fees) * allocationPct * 100) / 100,
+                    record_date: r.record_date,
+                };
+            }),
         });
     }
     catch (error) {
@@ -236,7 +245,9 @@ router.get('/history', async (req, res, next) => {
             .where('status', 'RESOLVED')
             .whereIn('resolution_type', ['expired_worthless', 'rolled'])
             .count('* as count');
-        const [pnlSum] = await db('positions').where('status', 'RESOLVED').sum('realized_pnl as total');
+        const pnlSum = await db('positions').where('status', 'RESOLVED')
+            .select(db.raw('SUM(realized_pnl - COALESCE(commission, 0) - COALESCE(platform_fee, 0)) as total'))
+            .first();
         res.json({
             positions,
             stats: {

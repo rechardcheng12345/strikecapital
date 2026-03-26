@@ -35,8 +35,11 @@ router.get('/dashboard/stats', async (req, res, next) => {
             .where({ is_active: true })
             .countDistinct('user_id as count');
         const total_investors = parseInt(investorCount?.count || '0');
-        // Total realized P&L
-        const [pnlResult] = await db('pnl_records').sum('pnl_amount as total');
+        // Total realized P&L (net of commission + platform_fee)
+        const pnlResult = await db('pnl_records')
+            .join('positions', 'pnl_records.position_id', 'positions.id')
+            .select(db.raw('SUM(pnl_records.pnl_amount - COALESCE(positions.commission, 0) - COALESCE(positions.platform_fee, 0)) as total'))
+            .first();
         const total_realized_pnl = parseFloat(pnlResult?.total || '0');
         // Capital utilization
         const settings = await db('fund_settings').first();
@@ -488,21 +491,29 @@ router.get('/pnl', async (req, res, next) => {
         else if (period === 'ytd') {
             startDate = `${now.getFullYear()}-01-01`;
         }
-        let pnlQuery = db('pnl_records');
+        let pnlQuery = db('pnl_records').join('positions', 'pnl_records.position_id', 'positions.id');
         if (startDate)
-            pnlQuery = pnlQuery.where('record_date', '>=', startDate);
-        const records = await pnlQuery.orderBy('record_date', 'desc');
-        // Map DB field names to frontend field names
-        const mappedRecords = records.map((r) => ({
-            id: r.id,
-            position_id: r.position_id,
-            record_type: r.pnl_type,
-            amount: parseFloat(r.pnl_amount),
-            description: r.description,
-            record_date: r.record_date,
-            created_by: r.created_by,
-        }));
-        const total_realized_pnl = records.reduce((sum, r) => sum + parseFloat(r.pnl_amount), 0);
+            pnlQuery = pnlQuery.where('pnl_records.record_date', '>=', startDate);
+        const records = await pnlQuery
+            .select('pnl_records.*', 'positions.commission', 'positions.platform_fee')
+            .orderBy('pnl_records.record_date', 'desc');
+        // Map DB field names to frontend field names, net of fees
+        const mappedRecords = records.map((r) => {
+            const fees = (parseFloat(r.commission) || 0) + (parseFloat(r.platform_fee) || 0);
+            return {
+                id: r.id,
+                position_id: r.position_id,
+                record_type: r.pnl_type,
+                amount: Math.round((parseFloat(r.pnl_amount) - fees) * 100) / 100,
+                description: r.description,
+                record_date: r.record_date,
+                created_by: r.created_by,
+            };
+        });
+        const total_realized_pnl = records.reduce((sum, r) => {
+            const fees = (parseFloat(r.commission) || 0) + (parseFloat(r.platform_fee) || 0);
+            return sum + parseFloat(r.pnl_amount) - fees;
+        }, 0);
         // Fetch positions for the period (exclude MONITORING — watch-only, not real positions)
         let posQuery = db('positions').whereNot('status', 'MONITORING');
         if (startDate)
@@ -934,8 +945,8 @@ router.post('/scanner/scan', authenticate, requireAdmin, async (req, res, next) 
         if (tickers.length === 0) return res.json({ results: [], message: 'Watchlist is empty' });
 
         const stockPrices = await fetchStockPrices(tickers);
-        const { results, error } = await scanPutOptions(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount);
-        res.json({ results, stock_prices: stockPrices, error: error || null });
+        const { results, error, debug } = await scanPutOptions(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount);
+        res.json({ results, stock_prices: stockPrices, error: error || null, debug });
     } catch (error) {
         next(error);
     }

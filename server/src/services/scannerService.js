@@ -24,30 +24,55 @@ export async function fetchStockPrices(tickers) {
  * @param {number}  maxDiscount  - max % below current price (default 20)
  */
 export async function scanPutOptions(tickers, stockPrices, minDays = 12, maxDays = 20, minDiscount = 10, maxDiscount = 20) {
+    console.log('[Scanner] scanPutOptions called, tickers:', tickers, 'stockPrices:', stockPrices);
     const isConnected = await ensureConnected();
-    if (!isConnected) return { results: [], error: 'Moomoo OpenD not available' };
+    console.log('[Scanner] isConnected:', isConnected);
+    if (!isConnected) return { results: [], error: 'Moomoo OpenD not available', debug: {} };
 
     const today = new Date();
     const optionSecurities = [];
+    const debug = {};
 
+    console.log('[Scanner] entering loop, tickers count:', tickers.length);
     for (const ticker of tickers) {
         const stockPrice = stockPrices[ticker];
-        if (!stockPrice) continue;
+        console.log(`[Scanner] ticker=${ticker} stockPrice=${stockPrice}`);
+        debug[ticker] = { stockPrice: stockPrice ?? null };
+        if (!stockPrice) {
+            debug[ticker].skipped = 'no stock price';
+            continue;
+        }
 
         const minStrike = stockPrice * (1 - maxDiscount / 100);
         const maxStrike = stockPrice * (1 - minDiscount / 100);
+        debug[ticker].strikeRange = { min: Math.round(minStrike * 100) / 100, max: Math.round(maxStrike * 100) / 100 };
 
         let expiryDates = [];
-        try { expiryDates = await getValidExpiryDates(ticker); } catch { continue; }
+        console.log(`[Scanner] calling getValidExpiryDates for ${ticker}`);
+        try {
+            expiryDates = await getValidExpiryDates(ticker);
+            console.log(`[Scanner] ${ticker} expiry dates (${expiryDates.length}):`, expiryDates.slice(0, 5));
+        } catch (e) {
+            console.error(`[Scanner] getValidExpiryDates error for ${ticker}:`, e);
+            debug[ticker].expiryError = e?.message ?? String(e);
+            continue;
+        }
+        debug[ticker].allExpiries = expiryDates.slice(0, 10);
 
         const filteredExpiries = expiryDates.filter(d => {
             const days = Math.round((new Date(d) - today) / (1000 * 60 * 60 * 24));
             return days >= minDays && days <= maxDays;
         });
+        console.log(`[Scanner] ${ticker} filteredExpiries (${minDays}-${maxDays}d):`, filteredExpiries);
+        debug[ticker].filteredExpiries = filteredExpiries;
 
         for (const expiry of filteredExpiries) {
             let chain = [];
-            try { chain = await getOptionChain(ticker, expiry); } catch { continue; }
+            try { chain = await getOptionChain(ticker, expiry); } catch (e) {
+                debug[ticker][`chainError_${expiry}`] = e.message;
+                continue;
+            }
+            debug[ticker][`chain_${expiry}`] = { total: chain.length, strikeSample: chain.slice(0, 5).map(o => o.strikePrice) };
 
             for (const opt of chain) {
                 if (opt.strikePrice >= minStrike && opt.strikePrice <= maxStrike) {
@@ -64,9 +89,14 @@ export async function scanPutOptions(tickers, stockPrices, minDays = 12, maxDays
         }
     }
 
-    if (optionSecurities.length === 0) return { results: [] };
+    console.log('[Scanner] optionSecurities count:', optionSecurities.length, '| debug:', JSON.stringify(debug));
+    if (optionSecurities.length === 0) return { results: [], debug };
 
-    const snapshots = await getSnapshots(optionSecurities.map(o => ({ market: o.market, code: o.code })));
+    const secList = optionSecurities.map(o => ({ market: o.market, code: o.code }));
+    console.log('[Scanner] requesting snapshots for:', secList);
+    const snapshots = await getSnapshots(secList);
+    console.log('[Scanner] snapshots count:', snapshots.length, '| first snap keys:', snapshots[0] ? Object.keys(snapshots[0]) : []);
+    if (snapshots.length > 0) console.log('[Scanner] first snap basic:', JSON.stringify(snapshots[0].basic));
     const snapMap = new Map(snapshots.map(s => [s.basic?.security?.code, s]));
 
     const results = [];
@@ -93,5 +123,5 @@ export async function scanPutOptions(tickers, stockPrices, minDays = 12, maxDays
     }
 
     results.sort((a, b) => a.ticker.localeCompare(b.ticker) || a.expiry.localeCompare(b.expiry) || b.strike - a.strike);
-    return { results };
+    return { results, debug };
 }
