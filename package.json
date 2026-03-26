@@ -17,7 +17,7 @@
     "build:dev": "cd client && npm install --force && npm run build",
     "build:prod": "cd client && npm install --force && npm run build",
     "build-and-serve": "npm run build:prod && npm run server:prod",
-    "start": "node server/src/index.js",
+    "start": "cross-env NODE_ENV=production node server/src/index.js",
     "start:prod": "cross-env NODE_ENV=production node server/src/index.js",
     "install-all": "npm install && cd client && npm install",
     "db:migrate": "knex migrate:latest --knexfile server/knexfile.js",
@@ -57,6 +57,6 @@
     "nodemon": "^3.0.1"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "18.x"
   }
 }
