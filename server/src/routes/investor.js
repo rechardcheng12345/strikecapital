@@ -23,14 +23,16 @@ router.get('/dashboard', async (req, res, next) => {
             .select(db.raw('SUM(pnl_records.pnl_amount - COALESCE(positions.commission, 0) - COALESCE(positions.platform_fee, 0)) as total'))
             .first();
         const totalPnl = parseFloat(pnlResult?.total || '0');
-        // Win rate from resolved positions
+        // Win rate: resolved positions where net P&L > 0
         const [resolvedCount] = await db('positions').where('status', 'RESOLVED').count('* as count');
-        const [wonCount] = await db('positions')
-            .where('status', 'RESOLVED')
-            .whereIn('resolution_type', ['expired_worthless', 'rolled'])
-            .count('* as count');
+        const wonResult = await db('pnl_records')
+            .join('positions', 'pnl_records.position_id', 'positions.id')
+            .where('positions.status', 'RESOLVED')
+            .whereRaw('(pnl_records.pnl_amount - COALESCE(positions.commission, 0) - COALESCE(positions.platform_fee, 0)) > 0')
+            .countDistinct('positions.id as count')
+            .first();
         const resolved = parseInt(resolvedCount?.count || '0');
-        const won = parseInt(wonCount?.count || '0');
+        const won = parseInt(wonResult?.count || '0');
         const winRate = resolved > 0 ? Math.round((won / resolved) * 100) : 0;
         // Unread notifications
         const [unreadResult] = await db('notifications')
@@ -241,10 +243,12 @@ router.get('/history', async (req, res, next) => {
             .offset(offset);
         // Summary stats
         const resolved = parseInt(count);
-        const [wonCount] = await db('positions')
-            .where('status', 'RESOLVED')
-            .whereIn('resolution_type', ['expired_worthless', 'rolled'])
-            .count('* as count');
+        const wonCount = await db('pnl_records')
+            .join('positions', 'pnl_records.position_id', 'positions.id')
+            .where('positions.status', 'RESOLVED')
+            .whereRaw('(pnl_records.pnl_amount - COALESCE(positions.commission, 0) - COALESCE(positions.platform_fee, 0)) > 0')
+            .countDistinct('positions.id as count')
+            .first();
         const pnlSum = await db('positions').where('status', 'RESOLVED')
             .select(db.raw('SUM(realized_pnl - COALESCE(commission, 0) - COALESCE(platform_fee, 0)) as total'))
             .first();

@@ -10,31 +10,31 @@ function formatPercent(value) {
     return value.toFixed(1) + '%';
 }
 function MetricCard({ title, value, icon, subtitle, accent, valueColor }) {
-    return (<div className={`rounded-none border-2 p-5 transition-all duration-150 ${accent
+    return (<div className={`rounded-none border-2 p-3 transition-all duration-150 ${accent
             ? 'border-[#F06010] bg-white'
             : 'border-[#0D2654]/20 bg-white hover:border-[#0D2654]/40'}`}>
-      <div className="flex items-start justify-between mb-3">
-        <div className={`p-2 rounded-none ${accent ? 'bg-[#F06010]/10 text-[#F06010]' : 'bg-[#0D2654]/5 text-[#0D2654]'}`}>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className={`p-1.5 rounded-none ${accent ? 'bg-[#F06010]/10 text-[#F06010]' : 'bg-[#0D2654]/5 text-[#0D2654]'}`}>
           {icon}
         </div>
-        {subtitle && (<span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+        {subtitle && (<span className="text-xs font-medium text-gray-400 uppercase tracking-wider truncate ml-2 text-right">
             {subtitle}
           </span>)}
       </div>
-      <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-      <p className={`text-2xl font-bold ${valueColor || 'text-[#0D2654]'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+      <p className="text-xs font-medium text-gray-500 mb-0.5">{title}</p>
+      <p className={`text-xl font-bold ${valueColor || 'text-[#0D2654]'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
         {value}
       </p>
     </div>);
 }
 function MetricCardSkeleton() {
-    return (<div className="rounded-none border-2 border-gray-200 bg-white p-5 space-y-3">
-      <div className="flex items-start justify-between">
-        <Skeleton variant="rectangular" width={40} height={40} className="rounded-none"/>
+    return (<div className="rounded-none border-2 border-gray-200 bg-white p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <Skeleton variant="rectangular" width={32} height={32} className="rounded-none"/>
         <Skeleton variant="text" width={60} height={12}/>
       </div>
-      <Skeleton variant="text" width="60%" height={14}/>
-      <Skeleton variant="text" width="80%" height={28}/>
+      <Skeleton variant="text" width="60%" height={12}/>
+      <Skeleton variant="text" width="80%" height={24}/>
     </div>);
 }
 export function InvestorDashboardPage() {
@@ -54,7 +54,7 @@ export function InvestorDashboardPage() {
           <ErrorAlert message={error?.message || 'Failed to load dashboard.'} onRetry={() => refetch()}/>
         </div>)}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {isLoading ? (<>
             <MetricCardSkeleton />
             <MetricCardSkeleton />
