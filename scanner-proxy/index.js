@@ -288,7 +288,13 @@ async function getSnapshots(securityList) {
     return results;
 }
 
-async function scanPutOptions(tickers, stockPrices, minDays = 12, maxDays = 20, minDiscount = 10, maxDiscount = 20) {
+async function scanPutOptions(
+    tickers, stockPrices,
+    minDays = 14, maxDays = 28,
+    minDiscount = 10, maxDiscount = 20,
+    minDelta = 0, maxDelta = 1,
+    minReturn = 0, minOI = 0, minVolume = 0
+) {
     console.log('[Scanner] scanPutOptions called, tickers:', tickers);
 
     const isConnected = await ensureConnected();
@@ -360,6 +366,18 @@ async function scanPutOptions(tickers, stockPrices, minDays = 12, maxDays = 20, 
         if (!snap) continue;
         const daysToExpiry = Math.round((new Date(opt.expiry) - today) / (1000 * 60 * 60 * 24));
         const discountPct = Math.round(((opt.stockPrice - opt.strike) / opt.stockPrice) * 10000) / 100;
+        const premium = snap.basic?.curPrice ?? 0;
+        const delta = snap.optionExData?.delta ?? null;
+        const openInterest = snap.optionExData?.openInterest ?? null;
+        const volume = Number(snap.basic?.volume) || 0;
+        const returnPct = opt.strike > 0 ? Math.round((premium / opt.strike) * 10000) / 100 : 0;
+        const absDelta = delta != null ? Math.abs(delta) : 0;
+        const score = Math.round(
+            Math.min(returnPct / 1.5, 1) * 40 +
+            Math.min(discountPct / 15, 1) * 30 +
+            Math.max(0, 1 - Math.abs(absDelta - 0.25) / 0.15) * 20 +
+            Math.min((openInterest ?? 0) / 5000, 1) * 10
+        );
         results.push({
             ticker: opt.ticker,
             option_code: opt.code,
@@ -368,17 +386,28 @@ async function scanPutOptions(tickers, stockPrices, minDays = 12, maxDays = 20, 
             discount_pct: discountPct,
             expiry: opt.expiry,
             days_to_expiry: daysToExpiry,
-            premium: snap.basic?.curPrice ?? 0,
+            premium,
             iv: snap.optionExData?.impliedVolatility ?? null,
-            delta: snap.optionExData?.delta ?? null,
+            delta,
             theta: snap.optionExData?.theta ?? null,
-            open_interest: snap.optionExData?.openInterest ?? null,
-            volume: Number(snap.basic?.volume) || 0,
+            open_interest: openInterest,
+            volume,
+            return_pct: returnPct,
+            score,
         });
     }
 
-    results.sort((a, b) => a.ticker.localeCompare(b.ticker) || a.expiry.localeCompare(b.expiry) || b.strike - a.strike);
-    return { results, debug };
+    const filtered = results.filter(r => {
+        const abs = r.delta != null ? Math.abs(r.delta) : null;
+        if (abs != null && abs < minDelta) return false;
+        if (abs != null && abs > maxDelta) return false;
+        if (r.return_pct < minReturn) return false;
+        if (minOI > 0 && (r.open_interest == null || r.open_interest < minOI)) return false;
+        if (minVolume > 0 && r.volume < minVolume) return false;
+        return true;
+    });
+    filtered.sort((a, b) => b.score - a.score);
+    return { results: filtered, debug };
 }
 
 // ─── Option Quotes (for live price refresh) ──────────────────────────────────
@@ -625,11 +654,17 @@ app.get('/health', (req, res) => {
 
 app.post('/scan', async (req, res) => {
     try {
-        const { tickers, stockPrices, minDays = 12, maxDays = 20, minDiscount = 10, maxDiscount = 20 } = req.body || {};
+        const {
+            tickers, stockPrices,
+            minDays = 14, maxDays = 28,
+            minDiscount = 10, maxDiscount = 20,
+            minDelta = 0, maxDelta = 1,
+            minReturn = 0, minOI = 0, minVolume = 0,
+        } = req.body || {};
         if (!tickers || !stockPrices) {
             return res.status(400).json({ error: 'tickers and stockPrices are required' });
         }
-        const result = await scanPutOptions(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount);
+        const result = await scanPutOptions(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume);
         res.json(result);
     } catch (err) {
         console.error('[ScannerProxy] /scan error:', err.message);

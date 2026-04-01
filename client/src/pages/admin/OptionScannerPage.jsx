@@ -18,19 +18,36 @@ function formatNum(v, dec = 4) {
     if (v == null) return '—';
     return Number(v).toFixed(dec);
 }
+function scoreColor(score) {
+    if (score >= 70) return 'text-green-600 font-semibold';
+    if (score >= 50) return 'text-yellow-600 font-semibold';
+    return 'text-gray-400';
+}
+function deltaColor(delta) {
+    if (delta == null) return 'text-gray-500';
+    const abs = Math.abs(delta);
+    if (abs <= 0.25) return 'text-green-600';
+    if (abs <= 0.35) return 'text-yellow-600';
+    return 'text-red-600';
+}
 
 export function OptionScannerPage() {
     const queryClient = useQueryClient();
     const [newTicker, setNewTicker] = useState('');
     const [addingTicker, setAddingTicker] = useState(false);
 
-    const [params, setParams] = useState({ minDays: 12, maxDays: 20, minDiscount: 10, maxDiscount: 20 });
+    const [params, setParams] = useState({
+        minDays: 14, maxDays: 28,
+        minDiscount: 10, maxDiscount: 20,
+        minDelta: 0, maxDelta: 1,
+        minReturn: 0, minOI: 0,
+    });
     const [scanning, setScanning] = useState(false);
     const [scanResults, setScanResults] = useState(null);
     const [scanError, setScanError] = useState(null);
     const [addingPosition, setAddingPosition] = useState(null);
     const [addedPositions, setAddedPositions] = useState(new Set());
-    const [sortKey, setSortKey] = useState('premium');
+    const [sortKey, setSortKey] = useState('score');
     const [sortDir, setSortDir] = useState('desc');
 
     function handleSort(key) {
@@ -83,7 +100,6 @@ export function OptionScannerPage() {
         try {
             const response = await scannerApi.scan(params);
             const data = response.data || {};
-            console.log('[Scanner] full response:', JSON.stringify(data, null, 2));
             setScanResults(data);
             if (data.error) setScanError(data.error);
         } catch (err) {
@@ -123,6 +139,21 @@ export function OptionScannerPage() {
         if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
         return sortDir === 'asc' ? av - bv : bv - av;
     });
+
+    const columns = [
+        { key: 'score', label: 'Score' },
+        { key: 'ticker', label: 'Ticker' },
+        { key: 'stock_price', label: 'Stock $' },
+        { key: 'strike', label: 'Strike' },
+        { key: 'discount_pct', label: 'Disc%' },
+        { key: 'return_pct', label: 'Return%' },
+        { key: 'expiry', label: 'Expiry' },
+        { key: 'days_to_expiry', label: 'DTE' },
+        { key: 'premium', label: 'Premium' },
+        { key: 'iv', label: 'IV' },
+        { key: 'delta', label: 'Delta' },
+        { key: 'volume', label: 'Vol' },
+    ];
 
     return (
         <div>
@@ -222,6 +253,46 @@ export function OptionScannerPage() {
                                 className="w-full"
                             />
                         </div>
+                        <div>
+                            <label className="text-xs font-medium text-gray-500 block mb-1">Min Delta (abs)</label>
+                            <Input
+                                type="number"
+                                value={params.minDelta}
+                                onChange={e => setParams(p => ({ ...p, minDelta: parseFloat(e.target.value) || 0 }))}
+                                min={0} max={1} step={0.05}
+                                className="w-full"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-gray-500 block mb-1">Max Delta (abs)</label>
+                            <Input
+                                type="number"
+                                value={params.maxDelta}
+                                onChange={e => setParams(p => ({ ...p, maxDelta: parseFloat(e.target.value) || 1 }))}
+                                min={0} max={1} step={0.05}
+                                className="w-full"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-gray-500 block mb-1">Min Return %</label>
+                            <Input
+                                type="number"
+                                value={params.minReturn}
+                                onChange={e => setParams(p => ({ ...p, minReturn: parseFloat(e.target.value) || 0 }))}
+                                min={0} step={0.1}
+                                className="w-full"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-gray-500 block mb-1">Min Open Interest</label>
+                            <Input
+                                type="number"
+                                value={params.minOI}
+                                onChange={e => setParams(p => ({ ...p, minOI: parseInt(e.target.value) || 0 }))}
+                                min={0}
+                                className="w-full"
+                            />
+                        </div>
                     </div>
                     <button
                         onClick={handleScan}
@@ -281,18 +352,7 @@ export function OptionScannerPage() {
                                 <thead>
                                     <tr className="bg-[#0D2654]/5 text-left">
                                         <th className="px-3 py-3 w-10"></th>
-                                        {[
-                                            { key: 'ticker', label: 'Ticker' },
-                                            { key: 'stock_price', label: 'Stock $' },
-                                            { key: 'strike', label: 'Strike' },
-                                            { key: 'discount_pct', label: 'Disc%' },
-                                            { key: 'expiry', label: 'Expiry' },
-                                            { key: 'days_to_expiry', label: 'DTE' },
-                                            { key: 'premium', label: 'Premium' },
-                                            { key: 'iv', label: 'IV' },
-                                            { key: 'delta', label: 'Delta' },
-                                            { key: 'volume', label: 'Vol' },
-                                        ].map(col => (
+                                        {columns.map(col => (
                                             <th
                                                 key={col.key}
                                                 onClick={() => handleSort(col.key)}
@@ -330,11 +390,17 @@ export function OptionScannerPage() {
                                                     }
                                                 </button>
                                             </td>
+                                            <td className="px-4 py-3">
+                                                <span className={scoreColor(row.score)}>{row.score ?? '—'}</span>
+                                            </td>
                                             <td className="px-4 py-3 font-semibold text-[#0D2654]">{row.ticker}</td>
                                             <td className="px-4 py-3 text-gray-600">{formatCurrency(row.stock_price)}</td>
                                             <td className="px-4 py-3 font-medium text-[#0D2654]">{formatCurrency(row.strike)}</td>
                                             <td className="px-4 py-3">
                                                 <span className="text-orange-600 font-medium">{formatPct(row.discount_pct)}</span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="text-blue-600 font-medium">{row.return_pct != null ? row.return_pct.toFixed(2) + '%' : '—'}</span>
                                             </td>
                                             <td className="px-4 py-3 text-gray-600">{row.expiry}</td>
                                             <td className="px-4 py-3 text-gray-600">{row.days_to_expiry}d</td>
@@ -343,7 +409,9 @@ export function OptionScannerPage() {
                                                 <span className="text-gray-400 text-[10px] ml-1">(${row.premium}/sh)</span>
                                             </td>
                                             <td className="px-4 py-3 text-gray-600">{row.iv != null ? formatPct(row.iv * 100) : '—'}</td>
-                                            <td className="px-4 py-3 text-gray-600">{row.delta != null ? formatNum(row.delta, 3) : '—'}</td>
+                                            <td className="px-4 py-3">
+                                                <span className={deltaColor(row.delta)}>{row.delta != null ? formatNum(row.delta, 3) : '—'}</span>
+                                            </td>
                                             <td className="px-4 py-3 text-gray-600">{row.volume > 0 ? row.volume.toLocaleString() : '—'}</td>
                                         </tr>
                                         );

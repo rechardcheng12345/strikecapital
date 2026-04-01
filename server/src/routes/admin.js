@@ -955,13 +955,22 @@ router.delete('/scanner/watchlist/:ticker', authenticate, requireAdmin, async (r
 
 router.post('/scanner/scan', authenticate, requireAdmin, async (req, res, next) => {
     try {
-        const { minDays = 12, maxDays = 20, minDiscount = 10, maxDiscount = 20 } = req.body || {};
+        const {
+            minDays = 14, maxDays = 28,
+            minDiscount = 10, maxDiscount = 20,
+            minDelta = 0, maxDelta = 1,
+            minReturn = 0, minOI = 0, minVolume = 0,
+        } = req.body || {};
         const watchlist = await db('scanner_watchlist').orderBy('ticker');
         const tickers = watchlist.map(w => w.ticker);
         if (tickers.length === 0) return res.json({ results: [], message: 'Watchlist is empty' });
 
         const stockPrices = await fetchStockPrices(tickers);
-        const { results, error, debug } = await scanPutOptions(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount);
+        const { results, error, debug } = await scanPutOptions(
+            tickers, stockPrices,
+            minDays, maxDays, minDiscount, maxDiscount,
+            minDelta, maxDelta, minReturn, minOI, minVolume
+        );
         res.json({ results, stock_prices: stockPrices, error: error || null, debug });
     } catch (error) {
         next(error);
