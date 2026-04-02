@@ -1000,7 +1000,7 @@ router.post('/scanner/analyze', authenticate, requireAdmin, async (req, res, nex
         // Build a concise markdown table of results for the prompt
         const today = new Date().toISOString().split('T')[0];
         const rows = results.slice(0, 20).map(r =>
-            `| ${r.ticker} | $${r.strike} | ${r.expiry} | ${r.days_to_expiry}d | $${(r.premium * 100).toFixed(2)} | ${r.return_pct?.toFixed(2)}% | ${r.discount_pct?.toFixed(1)}% | ${r.delta?.toFixed(3) ?? '—'} | ${r.iv != null ? (r.iv * 100).toFixed(1) + '%' : '—'} | ${r.open_interest?.toLocaleString() ?? '—'} | ${r.score} |`
+            `| ${r.ticker} | $${r.strike} | ${r.expiry} | ${r.days_to_expiry}d | $${(r.premium * 100).toFixed(2)} | ${r.return_pct?.toFixed(2)}% | ${r.annual_return_pct?.toFixed(1)}% | ${r.discount_pct?.toFixed(1)}% | ${r.delta?.toFixed(3) ?? '—'} | ${r.iv != null ? (r.iv * 100).toFixed(1) + '%' : '—'} | ${r.open_interest?.toLocaleString() ?? '—'} | ${r.score} |`
         ).join('\n');
 
         const stockPriceLines = Object.entries(stock_prices).map(([t, p]) => `${t}: $${p}`).join(', ');
@@ -1038,8 +1038,8 @@ router.post('/scanner/analyze', authenticate, requireAdmin, async (req, res, nex
 ${levelsSection}
 
 **Scan Results (sorted by Score):**
-| Ticker | Strike | Expiry | DTE | Premium/contract | Return% | Disc% | Delta | IV | OI | Score |
-|--------|--------|--------|-----|-----------------|---------|-------|-------|-----|-----|-------|
+| Ticker | Strike | Expiry | DTE | Premium/contract | Return% | Ann% | Disc% | Delta | IV | OI | Score |
+|--------|--------|--------|-----|-----------------|---------|------|-------|-------|-----|-----|-------|
 ${rows}
 
 **Respond with ONLY valid JSON** (no markdown fences, no extra text) in this exact structure:

@@ -139,6 +139,7 @@ export async function scanPutOptions(
         const openInterest = snap.optionExData?.openInterest ?? null;
         const volume = Number(snap.basic?.volume) || 0;
         const returnPct = opt.strike > 0 ? Math.round((premium / opt.strike) * 10000) / 100 : 0;
+        const annualReturnPct = daysToExpiry > 0 ? Math.round(returnPct * (365 / daysToExpiry) * 100) / 100 : 0;
         const absDelta = delta != null ? Math.abs(delta) : 0;
         const score = Math.round(
             Math.min(returnPct / 1.5, 1) * 40 +
@@ -161,6 +162,7 @@ export async function scanPutOptions(
             open_interest: openInterest,
             volume,
             return_pct: returnPct,
+            annual_return_pct: annualReturnPct,
             score,
         });
     }

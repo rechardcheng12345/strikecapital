@@ -239,6 +239,7 @@ export function OptionScannerPage() {
         { key: 'strike', label: 'Strike' },
         { key: 'discount_pct', label: 'Disc%' },
         { key: 'return_pct', label: 'Return%' },
+        { key: 'annual_return_pct', label: 'Ann%' },
         { key: 'expiry', label: 'Expiry' },
         { key: 'days_to_expiry', label: 'DTE' },
         { key: 'premium', label: 'Premium' },
@@ -532,6 +533,9 @@ export function OptionScannerPage() {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className="text-blue-600 font-medium">{row.return_pct != null ? row.return_pct.toFixed(2) + '%' : '—'}</span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="text-purple-600 font-medium">{row.annual_return_pct != null ? row.annual_return_pct.toFixed(1) + '%' : '—'}</span>
                                             </td>
                                             <td className="px-4 py-3 text-gray-600">{row.expiry}</td>
                                             <td className="px-4 py-3 text-gray-600">{row.days_to_expiry}d</td>
