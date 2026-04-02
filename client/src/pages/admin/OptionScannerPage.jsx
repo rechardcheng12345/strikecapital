@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, X, ScanLine, AlertTriangle, ChevronDown, ChevronUp, PlusCircle, CheckCircle } from 'lucide-react';
+import { Search, Plus, X, ScanLine, AlertTriangle, ChevronDown, ChevronUp, PlusCircle, CheckCircle, Sparkles, BarChart3 } from 'lucide-react';
 import { scannerApi, positionApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useQueryClient } from '@tanstack/react-query';
@@ -31,6 +31,46 @@ function deltaColor(delta) {
     return 'text-red-600';
 }
 
+function LevelsPanel({ levels, strikes }) {
+    const l = levels;
+    const strikeMin = Math.min(...strikes);
+    const strikeMax = Math.max(...strikes);
+
+    function strikeContext() {
+        const allSupport = [...(l.swingSupport || [])];
+        if (l.ma50) allSupport.push(l.ma50);
+        if (l.ma200) allSupport.push(l.ma200);
+        const supportBelow = allSupport.filter(s => s < strikeMin).sort((a, b) => b - a);
+        const supportAbove = allSupport.filter(s => s >= strikeMin && s <= strikeMax);
+        if (supportAbove.length > 0) {
+            return { color: 'text-yellow-700 bg-yellow-50', text: `Strike range overlaps support at $${supportAbove[0].toFixed(2)} — watch closely` };
+        }
+        if (supportBelow.length > 0) {
+            return { color: 'text-green-700 bg-green-50', text: `Strikes below nearest support at $${supportBelow[0].toFixed(2)} — good cushion` };
+        }
+        return null;
+    }
+
+    const ctx = strikeContext();
+
+    return (
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-1.5 text-xs text-gray-600">
+            <span><strong className="text-[#0D2654]">52W High:</strong> {l.fiftyTwoWeekHigh ? formatCurrency(l.fiftyTwoWeekHigh) : '—'}</span>
+            <span><strong className="text-[#0D2654]">52W Low:</strong> {l.fiftyTwoWeekLow ? formatCurrency(l.fiftyTwoWeekLow) : '—'}</span>
+            <span><strong className="text-[#0D2654]">MA50:</strong> {l.ma50 ? formatCurrency(l.ma50) : '—'}</span>
+            <span><strong className="text-[#0D2654]">MA200:</strong> {l.ma200 ? formatCurrency(l.ma200) : '—'}</span>
+            {l.swingSupport?.length > 0 && (
+                <span><strong className="text-green-700">Support:</strong> {l.swingSupport.map(p => '$' + p.toFixed(2)).join(', ')}</span>
+            )}
+            {ctx && (
+                <span className={`inline-block px-2 py-0.5 rounded font-medium ${ctx.color}`}>
+                    {ctx.text}
+                </span>
+            )}
+        </div>
+    );
+}
+
 export function OptionScannerPage() {
     const queryClient = useQueryClient();
     const [newTicker, setNewTicker] = useState('');
@@ -49,6 +89,35 @@ export function OptionScannerPage() {
     const [addedPositions, setAddedPositions] = useState(new Set());
     const [sortKey, setSortKey] = useState('score');
     const [sortDir, setSortDir] = useState('desc');
+    const [analyzing, setAnalyzing] = useState(false);
+    const [aiAnalysis, setAiAnalysis] = useState(null);  // structured object or string
+    const [aiFormat, setAiFormat] = useState(null);       // 'structured' or 'text'
+    const [aiError, setAiError] = useState(null);
+    const [expandedLevels, setExpandedLevels] = useState({});  // { ticker: { loading, data, error } }
+
+    async function handleToggleLevels(ticker) {
+        setExpandedLevels(prev => {
+            if (prev[ticker] && !prev[ticker].loading) {
+                const next = { ...prev };
+                delete next[ticker];
+                return next;
+            }
+            return prev;
+        });
+        if (expandedLevels[ticker]) return;
+        setExpandedLevels(prev => ({ ...prev, [ticker]: { loading: true, data: null, error: null } }));
+        try {
+            const response = await scannerApi.getLevels(ticker);
+            const data = response.data || response;
+            if (data.error) {
+                setExpandedLevels(prev => ({ ...prev, [ticker]: { loading: false, data: null, error: data.error } }));
+            } else {
+                setExpandedLevels(prev => ({ ...prev, [ticker]: { loading: false, data, error: null } }));
+            }
+        } catch (err) {
+            setExpandedLevels(prev => ({ ...prev, [ticker]: { loading: false, data: null, error: err.message || 'Failed' } }));
+        }
+    }
 
     function handleSort(key) {
         if (sortKey === key) {
@@ -93,10 +162,33 @@ export function OptionScannerPage() {
         }
     }
 
+    async function handleAnalyze() {
+        if (!scanResults?.results?.length) return;
+        setAnalyzing(true);
+        setAiAnalysis(null);
+        setAiFormat(null);
+        setAiError(null);
+        try {
+            const response = await scannerApi.analyze(scanResults.results, scanResults.stock_prices || {}, params);
+            const data = response.data || {};
+            if (data.error) setAiError(data.error);
+            else {
+                setAiAnalysis(data.analysis);
+                setAiFormat(data.format || 'text');
+            }
+        } catch (err) {
+            setAiError(err.message || 'Analysis failed');
+        } finally {
+            setAnalyzing(false);
+        }
+    }
+
     async function handleScan() {
         setScanning(true);
         setScanResults(null);
         setScanError(null);
+        setAiAnalysis(null);
+        setAiError(null);
         try {
             const response = await scannerApi.scan(params);
             const data = response.data || {};
@@ -321,20 +413,59 @@ export function OptionScannerPage() {
 
             {scanResults && (
                 <div className="border-2 border-[#0D2654]/20 bg-white">
-                    <div className="px-5 py-3 border-b border-[#0D2654]/10 flex items-center justify-between">
-                        <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider">
+                    <div className="px-5 py-3 border-b border-[#0D2654]/10 flex items-center justify-between gap-4">
+                        <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider whitespace-nowrap">
                             Results ({results.length} options found)
                         </h2>
-                        {Object.entries(scanResults.stock_prices || {}).length > 0 && (
-                            <div className="flex gap-3 flex-wrap">
-                                {Object.entries(scanResults.stock_prices).map(([t, p]) => (
-                                    <span key={t} className="text-xs text-gray-500">
-                                        {t}: <span className="font-medium text-[#0D2654]">{formatCurrency(p)}</span>
-                                    </span>
-                                ))}
-                            </div>
-                        )}
+                        <div className="flex items-center gap-4 flex-wrap">
+                            {Object.entries(scanResults.stock_prices || {}).length > 0 && (
+                                <div className="flex gap-3 flex-wrap items-center">
+                                    {Object.entries(scanResults.stock_prices).map(([t, p]) => (
+                                        <span key={t} className="text-xs text-gray-500 inline-flex items-center gap-1">
+                                            {t}: <span className="font-medium text-[#0D2654]">{formatCurrency(p)}</span>
+                                            <button
+                                                onClick={() => handleToggleLevels(t)}
+                                                title={expandedLevels[t] ? 'Hide S/R levels' : 'Show S/R levels'}
+                                                className={`ml-0.5 transition-colors ${expandedLevels[t] ? 'text-[#F06010]' : 'text-gray-400 hover:text-[#F06010]'}`}
+                                            >
+                                                <BarChart3 className="w-4.5 h-4.5" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                            {results.length > 0 && (
+                                <button
+                                    onClick={handleAnalyze}
+                                    disabled={analyzing}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0D2654] text-white text-xs font-medium hover:bg-[#0D2654]/80 disabled:opacity-50 transition-colors whitespace-nowrap"
+                                >
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    {analyzing ? 'Analyzing...' : 'Analyze with AI'}
+                                </button>
+                            )}
+                        </div>
                     </div>
+
+                    {/* S/R Levels Panels */}
+                    {Object.entries(expandedLevels).length > 0 && (
+                        <div className="border-b border-[#0D2654]/10 px-5 py-3 space-y-2">
+                            {Object.entries(expandedLevels).map(([ticker, state]) => (
+                                <div key={ticker}>
+                                    {state.loading ? (
+                                        <span className="text-xs text-gray-500 flex items-center gap-2">
+                                            <span className="inline-block w-3 h-3 border-2 border-[#F06010] border-t-transparent rounded-full animate-spin"></span>
+                                            Loading levels for {ticker}...
+                                        </span>
+                                    ) : state.error ? (
+                                        <span className="text-xs text-red-500">{ticker}: {state.error}</span>
+                                    ) : state.data ? (
+                                        <LevelsPanel levels={state.data} strikes={results.filter(r => r.ticker === ticker).map(r => r.strike)} />
+                                    ) : null}
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
                     {results.length === 0 ? (
                         <div className="py-8 px-5">
@@ -420,8 +551,105 @@ export function OptionScannerPage() {
                             </table>
                         </div>
                     )}
+
+                    {/* AI Analysis Panel */}
+                    {(aiAnalysis || aiError || analyzing) && (
+                        <div className="border-t-2 border-[#0D2654]/10 px-5 py-4">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Sparkles className="w-4 h-4 text-[#F06010]" />
+                                <h3 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider">AI Analysis</h3>
+                            </div>
+                            {analyzing && (
+                                <div className="flex items-center gap-2 text-sm text-gray-500">
+                                    <span className="inline-block w-4 h-4 border-2 border-[#F06010] border-t-transparent rounded-full animate-spin"></span>
+                                    Analyzing {results.length} options with AI...
+                                </div>
+                            )}
+                            {aiError && (
+                                <div className="p-3 bg-red-50 border border-red-200 text-sm text-red-700">
+                                    {aiError}
+                                </div>
+                            )}
+                            {aiAnalysis && aiFormat === 'structured' && typeof aiAnalysis === 'object' ? (
+                                <div className="space-y-4">
+                                    {/* Market Outlook */}
+                                    {aiAnalysis.market_outlook && (
+                                        <div className="bg-[#0D2654]/5 border border-[#0D2654]/15 px-4 py-3 text-sm text-[#0D2654]">
+                                            <span className="font-semibold text-xs uppercase tracking-wider text-[#0D2654]/60 block mb-1">Market Outlook</span>
+                                            {aiAnalysis.market_outlook}
+                                        </div>
+                                    )}
+
+                                    {/* Pick Cards */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {(aiAnalysis.picks || []).map((pick, i) => {
+                                            const verdictStyles = {
+                                                BUY: 'bg-green-600 text-white',
+                                                WATCH: 'bg-yellow-500 text-white',
+                                                SKIP: 'bg-gray-400 text-white',
+                                            };
+                                            return (
+                                                <div key={i} className="border border-[#0D2654]/15 bg-white">
+                                                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#0D2654]/10 bg-[#F5F3EF]">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-bold text-[#0D2654] text-sm">{pick.ticker}</span>
+                                                            <span className="text-xs text-gray-500">${pick.strike} · {pick.expiry}</span>
+                                                        </div>
+                                                        <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded ${verdictStyles[pick.verdict] || verdictStyles.WATCH}`}>
+                                                            {pick.verdict}
+                                                        </span>
+                                                    </div>
+                                                    <div className="px-4 py-3 space-y-2 text-xs">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 font-medium rounded">
+                                                                {pick.order_type}
+                                                            </span>
+                                                            {pick.limit_price_per_contract != null && (
+                                                                <span className="text-gray-600">
+                                                                    Limit: <span className="font-semibold text-[#0D2654]">{formatCurrency(pick.limit_price_per_contract)}</span>/contract
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-gray-700 leading-relaxed">{pick.reason}</p>
+                                                        {pick.support_note && (
+                                                            <p className="text-green-700 bg-green-50 px-2 py-1 rounded">
+                                                                <strong>Support:</strong> {pick.support_note}
+                                                            </p>
+                                                        )}
+                                                        {pick.risk && pick.risk !== 'None' && (
+                                                            <p className="text-amber-700 bg-amber-50 px-2 py-1 rounded">
+                                                                <strong>Risk:</strong> {pick.risk}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Footer: General Risks + Strategy Tip */}
+                                    <div className="flex flex-wrap gap-3 text-xs">
+                                        {aiAnalysis.general_risks && (
+                                            <div className="flex-1 min-w-[200px] bg-amber-50 border border-amber-200 px-3 py-2 text-amber-800 rounded">
+                                                <strong>Risks:</strong> {aiAnalysis.general_risks}
+                                            </div>
+                                        )}
+                                        {aiAnalysis.strategy_tip && (
+                                            <div className="flex-1 min-w-[200px] bg-blue-50 border border-blue-200 px-3 py-2 text-blue-800 rounded">
+                                                <strong>Tip:</strong> {aiAnalysis.strategy_tip}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : aiAnalysis ? (
+                                <div className="bg-[#F5F3EF] p-4 text-sm leading-relaxed whitespace-pre-wrap text-gray-700">
+                                    {typeof aiAnalysis === 'string' ? aiAnalysis : JSON.stringify(aiAnalysis, null, 2)}
+                                </div>
+                            ) : null}
+                        </div>
+                    )}
                 </div>
-            )}
+        )}
         </div>
     );
 }

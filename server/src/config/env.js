@@ -36,4 +36,7 @@ export const env = {
     // Scanner proxy (optional — when set, scanner calls this HTTP URL instead of local OpenD)
     scannerProxyUrl: process.env.SCANNER_PROXY_URL || null,
     scannerProxySecret: process.env.SCANNER_PROXY_SECRET || '',
+    // Ollama Cloud AI analysis
+    ollamaApiKey: process.env.OLLAMA_API_KEY || '',
+    ollamaModel: process.env.OLLAMA_MODEL || 'gpt-oss:120b',
 };

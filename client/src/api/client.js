@@ -171,6 +171,8 @@ export const scannerApi = {
     addTicker: (ticker) => api.post('/admin/scanner/watchlist', { ticker }),
     removeTicker: (ticker) => api.delete(`/admin/scanner/watchlist/${ticker}`),
     scan: (params) => api.post('/admin/scanner/scan', params),
+    analyze: (results, stock_prices, params) => api.post('/admin/scanner/analyze', { results, stock_prices, params }),
+    getLevels: (ticker) => api.get(`/admin/scanner/levels/${encodeURIComponent(ticker)}`),
 };
 export const investorApi = {
     getDashboard: () => api.get('/investor/dashboard'),

@@ -12,6 +12,7 @@ import { notifyAllInvestors } from '../services/notificationEngine.js';
 import { insertAndFetch, updateAndFetch } from '../utils/dbHelpers.js';
 import { getAccountFunds, getAccList } from '../services/moomooService.js';
 import { scanPutOptions, fetchStockPrices } from '../services/scannerService.js';
+import { fetchYahooLevels } from '../services/priceService.js';
 import { env } from '../config/env.js';
 const router = Router();
 // All admin routes require authentication + admin role
@@ -953,6 +954,17 @@ router.delete('/scanner/watchlist/:ticker', authenticate, requireAdmin, async (r
     }
 });
 
+router.get('/scanner/levels/:ticker', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const ticker = req.params.ticker.toUpperCase();
+        const levels = await fetchYahooLevels(ticker);
+        if (!levels) return res.status(404).json({ error: `No data for ${ticker}` });
+        res.json(levels);
+    } catch (error) {
+        next(error);
+    }
+});
+
 router.post('/scanner/scan', authenticate, requireAdmin, async (req, res, next) => {
     try {
         const {
@@ -972,6 +984,118 @@ router.post('/scanner/scan', authenticate, requireAdmin, async (req, res, next) 
             minDelta, maxDelta, minReturn, minOI, minVolume
         );
         res.json({ results, stock_prices: stockPrices, error: error || null, debug });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.post('/scanner/analyze', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        if (!env.ollamaApiKey) {
+            return res.status(503).json({ error: 'OLLAMA_API_KEY is not configured.' });
+        }
+        const { results = [], stock_prices = {}, params = {} } = req.body || {};
+        if (!results.length) return res.status(400).json({ error: 'No scan results to analyze.' });
+
+        // Build a concise markdown table of results for the prompt
+        const today = new Date().toISOString().split('T')[0];
+        const rows = results.slice(0, 20).map(r =>
+            `| ${r.ticker} | $${r.strike} | ${r.expiry} | ${r.days_to_expiry}d | $${(r.premium * 100).toFixed(2)} | ${r.return_pct?.toFixed(2)}% | ${r.discount_pct?.toFixed(1)}% | ${r.delta?.toFixed(3) ?? '—'} | ${r.iv != null ? (r.iv * 100).toFixed(1) + '%' : '—'} | ${r.open_interest?.toLocaleString() ?? '—'} | ${r.score} |`
+        ).join('\n');
+
+        const stockPriceLines = Object.entries(stock_prices).map(([t, p]) => `${t}: $${p}`).join(', ');
+
+        // Fetch S/R levels for each unique ticker (non-blocking — skip on failure)
+        const uniqueTickers = [...new Set(results.map(r => r.ticker))];
+        const levelsMap = {};
+        await Promise.allSettled(uniqueTickers.map(async (ticker) => {
+            try {
+                const levels = await fetchYahooLevels(ticker);
+                if (levels) levelsMap[ticker] = levels;
+            } catch { /* skip */ }
+        }));
+
+        let levelsSection = '';
+        if (Object.keys(levelsMap).length > 0) {
+            const levelsLines = Object.entries(levelsMap).map(([ticker, l]) => {
+                const parts = [`**${ticker}** (Current: $${l.currentPrice?.toFixed(2) ?? '?'})`];
+                if (l.fiftyTwoWeekHigh) parts.push(`52W High: $${l.fiftyTwoWeekHigh.toFixed(2)}`);
+                if (l.fiftyTwoWeekLow) parts.push(`52W Low: $${l.fiftyTwoWeekLow.toFixed(2)}`);
+                if (l.ma50) parts.push(`MA50: $${l.ma50.toFixed(2)}`);
+                if (l.ma200) parts.push(`MA200: $${l.ma200.toFixed(2)}`);
+                if (l.swingSupport?.length) parts.push(`Support: ${l.swingSupport.map(p => '$' + p.toFixed(2)).join(', ')}`);
+
+                return parts.join(' | ');
+            }).join('\n');
+            levelsSection = `\n\n**Key Support Levels:**\n${levelsLines}`;
+        }
+
+        const prompt = `You are an options trading analyst specializing in cash-secured puts. Analyze these PUT option scan results and provide concise, actionable trade recommendations.
+
+**Date:** ${today}
+**Current Stock Prices:** ${stockPriceLines}
+**Scan Parameters:** DTE ${params.minDays ?? 14}–${params.maxDays ?? 28} days, Strike ${params.minDiscount ?? 10}–${params.maxDiscount ?? 20}% OTM, Delta ${params.minDelta ?? 0}–${params.maxDelta ?? 1}
+${levelsSection}
+
+**Scan Results (sorted by Score):**
+| Ticker | Strike | Expiry | DTE | Premium/contract | Return% | Disc% | Delta | IV | OI | Score |
+|--------|--------|--------|-----|-----------------|---------|-------|-------|-----|-----|-------|
+${rows}
+
+**Respond with ONLY valid JSON** (no markdown fences, no extra text) in this exact structure:
+{
+  "market_outlook": "1–2 sentence overall market/sector context relevant to these tickers today",
+  "picks": [
+    {
+      "ticker": "NVDA",
+      "strike": 150,
+      "expiry": "2026-04-17",
+      "verdict": "BUY" or "WATCH" or "SKIP",
+      "order_type": "LIMIT" or "MARKET",
+      "limit_price_per_contract": 52.00,
+      "reason": "1–2 sentence rationale (score, return%, delta, support cushion)",
+      "support_note": "where strike sits vs support levels, e.g. 'strike $150 is below MA50 $158 — good cushion'",
+      "risk": "any concern (low OI, high delta, near support, etc.) or 'None'"
+    }
+  ],
+  "general_risks": "1–2 sentence overall risk note if any, or null",
+  "strategy_tip": "1 practical tip for executing these trades"
+}
+
+Return 2–4 picks max, ordered by conviction (best first). We are SELLING puts (cash-secured), so for LIMIT orders suggest a premium 5–15% ABOVE the current bid to collect more premium while still getting a reasonable fill. Be concise and direct.`;
+
+        const response = await fetch('https://ollama.com/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${env.ollamaApiKey}`,
+            },
+            body: JSON.stringify({
+                model: env.ollamaModel,
+                messages: [{ role: 'user', content: prompt }],
+                stream: false,
+            }),
+            signal: AbortSignal.timeout(60000),
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            return res.status(502).json({ error: `Ollama API error ${response.status}: ${text}` });
+        }
+
+        const data = await response.json();
+        const rawContent = data.message?.content || data.choices?.[0]?.message?.content || '';
+
+        // Try to parse structured JSON from AI response
+        try {
+            // Strip markdown fences if AI wraps in ```json ... ```
+            const cleaned = rawContent.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+            const analysis = JSON.parse(cleaned);
+            res.json({ analysis, format: 'structured' });
+        } catch {
+            // Fallback: return raw text if JSON parsing fails
+            res.json({ analysis: rawContent, format: 'text' });
+        }
     } catch (error) {
         next(error);
     }

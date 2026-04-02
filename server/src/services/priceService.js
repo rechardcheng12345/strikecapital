@@ -6,6 +6,70 @@ function baseSymbol(ticker) {
     return ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase();
 }
 
+// ─── Support & Resistance Levels (Yahoo Finance 6-month OHLCV) ─────────────
+
+export async function fetchYahooLevels(symbol) {
+    try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=6mo`;
+        const resp = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 StrikeCapital/1.0' },
+            signal: AbortSignal.timeout(12000),
+        });
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        const result = data?.chart?.result?.[0];
+        if (!result) return null;
+
+        const meta = result.meta || {};
+        const quote = result.indicators?.quote?.[0] || {};
+        const highs = quote.high || [];
+        const lows = quote.low || [];
+        const currentPrice = meta.regularMarketPrice ?? 0;
+
+        // Swing detection: a swing high/low needs to be a local extreme over a ±5 bar window
+        const WINDOW = 5;
+        const swingHighs = [];
+        const swingLows = [];
+        for (let i = WINDOW; i < highs.length - WINDOW; i++) {
+            const h = highs[i];
+            const l = lows[i];
+            if (h == null || l == null) continue;
+            const isSwingHigh = highs.slice(i - WINDOW, i).every(v => v != null && v <= h) &&
+                                highs.slice(i + 1, i + WINDOW + 1).every(v => v != null && v <= h);
+            const isSwingLow  = lows.slice(i - WINDOW, i).every(v => v != null && v >= l) &&
+                                lows.slice(i + 1, i + WINDOW + 1).every(v => v != null && v >= l);
+            if (isSwingHigh) swingHighs.push(h);
+            if (isSwingLow)  swingLows.push(l);
+        }
+
+        // Cluster nearby levels (within 1% of each other → keep only the most recent)
+        function cluster(prices) {
+            const sorted = [...prices].sort((a, b) => b - a); // most recent last → sorted desc by price
+            const result = [];
+            for (const p of sorted) {
+                if (!result.some(r => Math.abs(r - p) / p < 0.01)) result.push(p);
+            }
+            return result;
+        }
+
+        const allSwingResistance = cluster(swingHighs.filter(p => p > currentPrice));
+        const allSwingSupport    = cluster(swingLows.filter(p => p < currentPrice));
+
+        return {
+            currentPrice,
+            fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh ?? null,
+            fiftyTwoWeekLow:  meta.fiftyTwoWeekLow  ?? null,
+            ma50:   meta.fiftyDayAverage       ?? null,
+            ma200:  meta.twoHundredDayAverage  ?? null,
+            swingResistance: allSwingResistance.slice(0, 4),
+            swingSupport:    allSwingSupport.slice(-4).reverse(), // closest below price first
+        };
+    } catch (err) {
+        console.warn(`[PriceService] fetchYahooLevels failed for ${symbol}:`, err.message);
+        return null;
+    }
+}
+
 // ─── Scanner Proxy (remote Moomoo) ──────────────────────────
 
 async function callProxyForQuotes(positions) {
