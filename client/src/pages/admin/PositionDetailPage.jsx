@@ -105,6 +105,8 @@ export function PositionDetailPage() {
     const [resolveForm, setResolveForm] = useState({
         resolution_type: 'expired_worthless',
         realized_pnl: undefined,
+        commission: undefined,
+        platform_fee: undefined,
         notes: '',
     });
     // Roll form
@@ -149,6 +151,7 @@ export function PositionDetailPage() {
         }
         setResolveOpen(false);
         queryClient.invalidateQueries({ queryKey: ['position', positionId] });
+        queryClient.invalidateQueries({ queryKey: ['positions'] });
         refetch();
     };
     const handleRoll = async () => {
@@ -275,6 +278,8 @@ export function PositionDetailPage() {
                     setResolveForm({
                         resolution_type: position.position_type === 'stock' ? 'sold' : 'expired_worthless',
                         realized_pnl: position.position_type === 'option' ? Math.round(parseFloat(position.premium_received) * 100) / 100 : undefined,
+                        commission: parseFloat(position.commission) || undefined,
+                        platform_fee: parseFloat(position.platform_fee) || undefined,
                         notes: '',
                     });
                     setResolveOpen(true);
@@ -532,15 +537,17 @@ export function PositionDetailPage() {
                 ...f,
                 realized_pnl: e.target.value ? parseFloat(e.target.value) : undefined,
             }))} placeholder="e.g. 450.00"/>
-              {position.position_type === 'option' && (() => {
-                const fees = (parseFloat(position.commission) || 0) + (parseFloat(position.platform_fee) || 0);
-                const net = parseFloat(position.premium_received) - fees;
-                return fees > 0 ? (
-                  <p className="text-xs text-gray-400 -mt-1">
-                    Enter gross premium. Fees ({formatCurrency(fees)}) are deducted automatically → net <span className="font-semibold text-gray-600">{formatCurrency(net)}</span>
-                  </p>
-                ) : null;
-              })()}
+
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Commission ($)" type="number" step="0.01" min="0" value={resolveForm.commission ?? ''} onChange={(e) => setResolveForm((f) => ({
+                  ...f,
+                  commission: e.target.value ? parseFloat(e.target.value) : undefined,
+                }))} placeholder="0.00"/>
+                <Input label="Platform Fee ($)" type="number" step="0.01" min="0" value={resolveForm.platform_fee ?? ''} onChange={(e) => setResolveForm((f) => ({
+                  ...f,
+                  platform_fee: e.target.value ? parseFloat(e.target.value) : undefined,
+                }))} placeholder="0.00"/>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>

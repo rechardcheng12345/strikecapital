@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { BarChart3, DollarSign, TrendingUp, Trophy, Calendar, } from 'lucide-react';
 import { adminApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { Skeleton, ErrorAlert } from '../../components/ui';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
 const PERIOD_TABS = [
     { key: '1m', label: '1M' },
     { key: '3m', label: '3M' },
@@ -65,6 +66,36 @@ function buildTickerMap(positions) {
     }
     return map;
 }
+function buildCumulativeData(records) {
+    if (!records || records.length === 0) return [];
+    const sorted = [...records].sort((a, b) => new Date(a.record_date) - new Date(b.record_date));
+    const grouped = {};
+    for (const r of sorted) {
+        const d = r.record_date;
+        grouped[d] = (grouped[d] || 0) + (r.amount ?? 0);
+    }
+    let cumulative = 0;
+    return Object.entries(grouped).map(([date, amount]) => {
+        cumulative += amount;
+        return {
+            date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            fullDate: date,
+            cumulative: Math.round(cumulative * 100) / 100,
+        };
+    });
+}
+
+function ChartTooltip({ active, payload }) {
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload;
+    return (
+        <div className="bg-white border-2 border-[#0D2654]/20 px-3 py-2 shadow-lg">
+            <p className="text-xs text-gray-500 mb-1">{formatDate(d.fullDate)}</p>
+            <p className={`text-sm font-bold ${amountColor(d.cumulative)}`}>{formatCurrency(d.cumulative)}</p>
+        </div>
+    );
+}
+
 /* ── Skeleton placeholders ──────────────────────────── */
 function SummaryCardSkeleton() {
     return (<div className="rounded-none border-2 border-gray-200 bg-white p-5 space-y-3">
@@ -90,6 +121,8 @@ export function PnlAnalyticsPage() {
     });
     const winRate = pnl ? computeWinRate(pnl.positions) : 0;
     const tickerMap = pnl ? buildTickerMap(pnl.positions) : {};
+    const cumulativeData = useMemo(() => pnl ? buildCumulativeData(pnl.records) : [], [pnl]);
+    const hasNegative = cumulativeData.some(d => d.cumulative < 0);
     return (<div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -167,6 +200,63 @@ export function PnlAnalyticsPage() {
               </div>
             </div>
           </>) : null}
+      </div>
+
+      {/* Cumulative P&L Chart */}
+      <div className="rounded-none border-2 border-[#0D2654]/20 bg-white mb-8">
+        <div className="px-5 py-4 border-b-2 border-[#0D2654]/10">
+          <h2 className="text-lg font-bold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+            <TrendingUp className="w-5 h-5 text-[#F06010]"/>
+            Cumulative P&amp;L
+          </h2>
+        </div>
+        {isLoading ? (
+          <div className="p-5">
+            <Skeleton variant="rectangular" height={300} className="rounded-none w-full"/>
+          </div>
+        ) : cumulativeData.length > 0 ? (
+          <div className="p-5">
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={cumulativeData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb"/>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: '#0D2654', fontFamily: 'Space Grotesk, sans-serif' }}
+                  tickLine={false}
+                  axisLine={{ stroke: '#e5e7eb' }}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: '#0D2654', fontFamily: 'Space Grotesk, sans-serif' }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v}`}
+                />
+                <Tooltip content={<ChartTooltip />}/>
+                {hasNegative && <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3"/>}
+                <defs>
+                  <linearGradient id="pnlGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#F06010" stopOpacity={0.2}/>
+                    <stop offset="100%" stopColor="#F06010" stopOpacity={0.02}/>
+                  </linearGradient>
+                </defs>
+                <Area
+                  type="monotone"
+                  dataKey="cumulative"
+                  stroke="#F06010"
+                  strokeWidth={2}
+                  fill="url(#pnlGradient)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: '#F06010', stroke: '#fff', strokeWidth: 2 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="p-12 text-center text-gray-400">
+            <TrendingUp className="w-10 h-10 mx-auto mb-3 text-gray-300"/>
+            <p className="font-medium">No data to chart for this period.</p>
+          </div>
+        )}
       </div>
 
       {/* P&L Records table */}

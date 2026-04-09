@@ -37,6 +37,7 @@ const PROTO_ID_INIT_CONNECT = 1001;
 const PROTO_ID_GET_OPTION_CHAIN = 3209;
 const PROTO_ID_GET_SECURITY_SNAPSHOT = 3203;
 const PROTO_ID_GET_OPTION_EXPIRY = 3224;
+const PROTO_ID_REQUEST_HISTORY_KL = 3103;
 const PROTO_ID_GET_ACC_LIST = 2001;
 const PROTO_ID_UNLOCK_TRADE = 2005;
 const PROTO_ID_GET_FUNDS = 2101;
@@ -68,6 +69,7 @@ async function loadProtos() {
         path.join(PROTO_DIR, 'Trd_GetAccList.proto'),
         path.join(PROTO_DIR, 'Trd_GetFunds.proto'),
         path.join(PROTO_DIR, 'Trd_UnlockTrade.proto'),
+        path.join(PROTO_DIR, 'Qot_RequestHistoryKL.proto'),
     ]);
     return protoRoot;
 }
@@ -695,6 +697,57 @@ app.get('/funds', async (req, res) => {
         res.json(funds);
     } catch (err) {
         console.error('[ScannerProxy] /funds error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── History K-line ─────────────────────────────────────────────────────────
+async function getHistoryKL(ticker, beginTime, endTime) {
+    const root = await loadProtos();
+    await ensureConnected();
+    const security = { market: 11, code: ticker.toUpperCase() };
+
+    const ReqType = root.lookupType('Qot_RequestHistoryKL.Request');
+    const RespType = root.lookupType('Qot_RequestHistoryKL.Response');
+
+    const reqPayload = ReqType.encode(ReqType.create({
+        c2s: {
+            rehabType: 1,      // forward rehab
+            klType: 2,         // daily
+            security,
+            beginTime,
+            endTime,
+            maxAckKLNum: 200,
+        }
+    })).finish();
+
+    const rawBuf = await sendRequest(PROTO_ID_REQUEST_HISTORY_KL, reqPayload);
+    const resp = RespType.decode(rawBuf);
+    console.log('[Moomoo] RequestHistoryKL retType:', resp.retType, resp.retMsg || '', 'bars:', resp.s2c?.klList?.length || 0);
+    if (!resp.s2c) return null;
+    return {
+        name: resp.s2c.name,
+        klList: (resp.s2c.klList || []).map(k => ({
+            time: k.time,
+            open: k.openPrice,
+            high: k.highPrice,
+            low: k.lowPrice,
+            close: k.closePrice,
+            volume: Number(k.volume),
+        })),
+    };
+}
+
+app.get('/kline/:ticker', async (req, res) => {
+    try {
+        const ticker = req.params.ticker.toUpperCase();
+        const end = new Date().toISOString().split('T')[0];
+        const start = new Date(Date.now() - 180 * 86400000).toISOString().split('T')[0]; // 6 months
+        const data = await getHistoryKL(ticker, start, end);
+        if (!data) return res.status(404).json({ error: `No K-line data for ${ticker}` });
+        res.json({ ticker, name: data.name, bars: data.klList.length, klList: data.klList });
+    } catch (err) {
+        console.error('[ScannerProxy] /kline error:', err.message);
         res.status(500).json({ error: err.message });
     }
 });

@@ -98,6 +98,8 @@ const resolvePositionSchema = z.object({
     resolution_type: z.enum(['expired_worthless', 'assigned', 'bought_to_close', 'rolled', 'sold']),
     close_premium: z.number().optional(),
     realized_pnl: z.number(),
+    commission: z.number().min(0).optional(),
+    platform_fee: z.number().min(0).optional(),
 });
 const rollPositionSchema = z.object({
     ticker: z.string().optional(),
@@ -324,7 +326,7 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res, next) => {
 router.post('/:id/resolve', authenticate, requireAdmin, validate(resolvePositionSchema), async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { resolution_type, close_premium, realized_pnl } = req.body;
+        const { resolution_type, close_premium, realized_pnl, commission, platform_fee } = req.body;
         const position = await db('positions').where({ id }).first();
         if (!position) {
             throw new AppError('Position not found', 404);
@@ -333,13 +335,16 @@ router.post('/:id/resolve', authenticate, requireAdmin, validate(resolvePosition
             throw new AppError('Position is already resolved', 400);
         }
         const closeDate = new Date().toISOString().split('T')[0];
-        const updated = await updateAndFetch('positions', { id }, {
+        const updateFields = {
             status: 'RESOLVED',
             resolution_type,
             close_premium: close_premium ?? null,
             close_date: closeDate,
             realized_pnl,
-        });
+        };
+        if (commission != null) updateFields.commission = commission;
+        if (platform_fee != null) updateFields.platform_fee = platform_fee;
+        const updated = await updateAndFetch('positions', { id }, updateFields);
         // Create P&L record
         await db('pnl_records').insert({
             position_id: parseInt(id, 10),
