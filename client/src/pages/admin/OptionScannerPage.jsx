@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Search, Plus, X, ScanLine, AlertTriangle, ChevronDown, ChevronUp, PlusCircle, CheckCircle, Sparkles, BarChart3 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Plus, X, ScanLine, AlertTriangle, ChevronDown, ChevronUp, PlusCircle, CheckCircle, Sparkles, BarChart3, Calculator } from 'lucide-react';
 import { scannerApi, positionApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,6 +29,68 @@ function deltaColor(delta) {
     if (abs <= 0.25) return 'text-green-600';
     if (abs <= 0.35) return 'text-yellow-600';
     return 'text-red-600';
+}
+
+// ─── Black-Scholes Put Pricing ──────────────────────────────────────────────
+function normalCDF(x) {
+    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429;
+    const p = 0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x) / Math.sqrt(2);
+    const t = 1.0 / (1.0 + p * x);
+    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    return 0.5 * (1.0 + sign * y);
+}
+
+function bsPutPrice(S, K, T, sigma, r = 0.045) {
+    if (T <= 0 || sigma <= 0 || S <= 0) return 0;
+    const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
+    const d2 = d1 - sigma * Math.sqrt(T);
+    return K * Math.exp(-r * T) * normalCDF(-d2) - S * normalCDF(-d1);
+}
+
+function PremiumEstimator({ row }) {
+    const [targetPrice, setTargetPrice] = useState('');
+    // row.iv from moomoo is raw (e.g. 45.723 meaning 4572.3%). BS needs decimal like 0.4572.
+    const iv = (row.iv ?? 0) / 100;
+    const T = (row.days_to_expiry ?? 0) / 365;
+
+    const estimate = targetPrice && Number(targetPrice) > 0
+        ? bsPutPrice(Number(targetPrice), row.strike, T, iv)
+        : null;
+
+    const currentBSPrice = bsPutPrice(row.stock_price, row.strike, T, iv);
+
+    return (
+        <div className="flex items-center gap-3 flex-wrap text-xs">
+            <span className="text-gray-500 font-medium">If {row.ticker} drops to</span>
+            <input
+                type="number"
+                step="0.5"
+                value={targetPrice}
+                onChange={e => setTargetPrice(e.target.value)}
+                placeholder={`e.g. ${Math.floor(row.stock_price * 0.95)}`}
+                className="w-24 px-2 py-1 border border-gray-300 text-xs focus:outline-none focus:border-[#F06010]"
+            />
+            {estimate !== null && (
+                <>
+                    <span className="text-gray-500">→ est. premium:</span>
+                    <span className="font-bold text-[#0D2654]">${(estimate * 100).toFixed(2)}/contract</span>
+                    <span className="text-gray-400">(${estimate.toFixed(4)}/sh)</span>
+                    {row.premium > 0 && (
+                        <span className={`font-medium ${estimate > row.premium ? 'text-green-600' : 'text-red-600'}`}>
+                            {estimate > row.premium ? '+' : ''}{((estimate - row.premium) / row.premium * 100).toFixed(1)}% vs current
+                        </span>
+                    )}
+                </>
+            )}
+            {currentBSPrice > 0 && (
+                <span className="text-gray-400 ml-auto">
+                    BS model @ current: ${(currentBSPrice * 100).toFixed(2)} vs market: ${(row.premium * 100).toFixed(2)}
+                </span>
+            )}
+        </div>
+    );
 }
 
 function LevelsPanel({ levels, strikes }) {
@@ -93,6 +155,7 @@ export function OptionScannerPage() {
     const [aiAnalysis, setAiAnalysis] = useState(null);  // structured object or string
     const [aiFormat, setAiFormat] = useState(null);       // 'structured' or 'text'
     const [aiError, setAiError] = useState(null);
+    const [expandedEstimator, setExpandedEstimator] = useState(null); // option_code of expanded row
     const [expandedLevels, setExpandedLevels] = useState({});  // { ticker: { loading, data, error } }
 
     async function handleToggleLevels(ticker) {
@@ -505,22 +568,33 @@ export function OptionScannerPage() {
                                     {results.map((row) => {
                                         const added = addedPositions.has(row.option_code);
                                         const adding = addingPosition === row.option_code;
+                                        const isEstimatorOpen = expandedEstimator === row.option_code;
                                         return (
-                                        <tr key={row.option_code} className={`transition-colors ${added ? 'bg-green-50' : 'hover:bg-[#F5F3EF]'}`}>
+                                        <React.Fragment key={row.option_code}>
+                                        <tr className={`transition-colors ${added ? 'bg-green-50' : 'hover:bg-[#F5F3EF]'}`}>
                                             <td className="px-3 py-3">
-                                                <button
-                                                    onClick={() => !added && handleAddToMonitoring(row)}
-                                                    disabled={adding || added}
-                                                    title={added ? 'Added to Monitoring' : 'Add to Monitoring'}
-                                                    className="text-gray-400 hover:text-[#F06010] disabled:cursor-default transition-colors"
-                                                >
-                                                    {added
-                                                        ? <CheckCircle className="w-5 h-5 text-green-500" />
-                                                        : adding
-                                                            ? <PlusCircle className="w-5 h-5 animate-pulse text-[#F06010]" />
-                                                            : <PlusCircle className="w-5 h-5" />
-                                                    }
-                                                </button>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={() => !added && handleAddToMonitoring(row)}
+                                                        disabled={adding || added}
+                                                        title={added ? 'Added to Monitoring' : 'Add to Monitoring'}
+                                                        className="text-gray-400 hover:text-[#F06010] disabled:cursor-default transition-colors"
+                                                    >
+                                                        {added
+                                                            ? <CheckCircle className="w-5 h-5 text-green-500" />
+                                                            : adding
+                                                                ? <PlusCircle className="w-5 h-5 animate-pulse text-[#F06010]" />
+                                                                : <PlusCircle className="w-5 h-5" />
+                                                        }
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setExpandedEstimator(isEstimatorOpen ? null : row.option_code)}
+                                                        title="Premium estimator"
+                                                        className={`transition-colors ${isEstimatorOpen ? 'text-[#F06010]' : 'text-gray-400 hover:text-[#F06010]'}`}
+                                                    >
+                                                        <Calculator className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className={scoreColor(row.score)}>{row.score ?? '—'}</span>
@@ -549,6 +623,14 @@ export function OptionScannerPage() {
                                             </td>
                                             <td className="px-4 py-3 text-gray-600">{row.volume > 0 ? row.volume.toLocaleString() : '—'}</td>
                                         </tr>
+                                        {isEstimatorOpen && (
+                                            <tr className="bg-blue-50/50">
+                                                <td colSpan={columns.length + 2} className="px-5 py-2.5">
+                                                    <PremiumEstimator row={row} />
+                                                </td>
+                                            </tr>
+                                        )}
+                                        </React.Fragment>
                                         );
                                     })}
                                 </tbody>
