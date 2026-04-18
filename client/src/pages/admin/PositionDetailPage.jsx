@@ -195,6 +195,7 @@ export function PositionDetailPage() {
                 contracts: position.position_type === 'stock' ? position.shares : position.contracts,
                 expiration_date: position.expiration_date ? position.expiration_date.split('T')[0] : '',
                 notes: position.notes || '',
+                realized_pnl: position.realized_pnl != null ? parseFloat(position.realized_pnl) : undefined,
             });
         }
         setActionError(null);
@@ -211,6 +212,7 @@ export function PositionDetailPage() {
         }
         setEditOpen(false);
         queryClient.invalidateQueries({ queryKey: ['position', positionId] });
+        queryClient.invalidateQueries({ queryKey: ['positions'] });
         refetch();
     };
     const handleRefreshPrices = async () => {
@@ -272,8 +274,9 @@ export function PositionDetailPage() {
           </div>
 
           {/* ─── Admin actions ─────────────────────────── */}
-          {isAdmin && position.status !== 'RESOLVED' && (<div className="flex flex-wrap gap-2">
-              <Button variant="primary" size="sm" onClick={() => {
+          {isAdmin && (<div className="flex flex-wrap gap-2">
+              {position.status !== 'RESOLVED' && (
+                <Button variant="primary" size="sm" onClick={() => {
                     setActionError(null);
                     setResolveForm({
                         resolution_type: position.position_type === 'stock' ? 'sold' : 'expired_worthless',
@@ -286,8 +289,8 @@ export function PositionDetailPage() {
                 }}>
                 <CheckCircle2 className="w-4 h-4 mr-1.5"/>
                 {position.position_type === 'stock' ? 'Sell / Close' : 'Resolve'}
-              </Button>
-              {position.position_type !== 'stock' && (<Button variant="outline" size="sm" onClick={initRollForm}>
+              </Button>)}
+              {position.status !== 'RESOLVED' && position.position_type !== 'stock' && (<Button variant="outline" size="sm" onClick={initRollForm}>
                   <RefreshCw className="w-4 h-4 mr-1.5"/>
                   Roll
                 </Button>)}
@@ -647,6 +650,12 @@ export function PositionDetailPage() {
                   <Input label="Expiration Date" type="date" value={editForm.expiration_date ?? ''} onChange={(e) => setEditForm(f => ({ ...f, expiration_date: e.target.value }))} className="rounded-none"/>
                 )}
               </div>
+              {position.status === 'RESOLVED' && (
+                <div className="pt-2 border-t border-gray-200">
+                  <Input label="Realized P&L ($)" type="number" step="0.01" value={editForm.realized_pnl ?? ''} onChange={(e) => setEditForm(f => ({ ...f, realized_pnl: e.target.value === '' ? undefined : parseFloat(e.target.value) }))} className="rounded-none" placeholder="e.g. 450.00"/>
+                  <p className="text-xs text-gray-400 mt-1">Adjust the final realized P&L for this resolved position.</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <textarea className="block w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-[#F06010] focus:border-[#F06010] sm:text-sm min-h-[60px] resize-y" value={editForm.notes ?? ''} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))}/>

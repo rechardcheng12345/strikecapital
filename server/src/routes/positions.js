@@ -93,6 +93,7 @@ const updatePositionSchema = z.object({
     current_price: z.number().optional(),
     commission: z.number().min(0).optional(),
     platform_fee: z.number().min(0).optional(),
+    realized_pnl: z.number().optional(),
 });
 const resolvePositionSchema = z.object({
     resolution_type: z.enum(['expired_worthless', 'assigned', 'bought_to_close', 'rolled', 'sold']),
