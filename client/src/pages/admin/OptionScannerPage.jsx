@@ -26,8 +26,28 @@ function scoreColor(score) {
 function deltaColor(delta) {
     if (delta == null) return 'text-gray-500';
     const abs = Math.abs(delta);
-    if (abs <= 0.25) return 'text-green-600';
-    if (abs <= 0.35) return 'text-yellow-600';
+    // Aligned to 0.16 sweet spot: ≤0.20 safe, ≤0.30 caution, above = elevated assignment risk
+    if (abs <= 0.20) return 'text-green-600';
+    if (abs <= 0.30) return 'text-yellow-600';
+    return 'text-red-600';
+}
+function popColor(pct) {
+    if (pct == null) return 'text-gray-500';
+    if (pct >= 80) return 'text-green-600 font-semibold';
+    if (pct >= 70) return 'text-yellow-600';
+    return 'text-red-600';
+}
+function edgeColor(edge) {
+    if (edge == null) return 'text-gray-500';
+    if (edge >= 10) return 'text-green-600 font-semibold';
+    if (edge >= 0) return 'text-green-700';
+    if (edge >= -10) return 'text-yellow-600';
+    return 'text-red-600';
+}
+function spreadColor(pct) {
+    if (pct == null) return 'text-gray-500';
+    if (pct <= 5) return 'text-green-600';
+    if (pct <= 15) return 'text-yellow-600';
     return 'text-red-600';
 }
 
@@ -143,6 +163,8 @@ export function OptionScannerPage() {
         minDiscount: 10, maxDiscount: 20,
         minDelta: 0, maxDelta: 1,
         minReturn: 0, minOI: 0,
+        maxSpread: 25,
+        targetDelta: 0.16,
     });
     const [scanning, setScanning] = useState(false);
     const [scanResults, setScanResults] = useState(null);
@@ -267,13 +289,16 @@ export function OptionScannerPage() {
     async function handleAddToMonitoring(row) {
         setAddingPosition(row.option_code);
         try {
+            // Prefer mid (bid/ask midpoint) — it's the honest fillable price.
+            // Fall back to last/curPrice if quote was thin.
+            const pricePerShare = row.mid ?? row.premium;
             await positionApi.create({
                 ticker: `${row.ticker} PUT`,
                 position_type: 'option',
                 status: 'MONITORING',
                 strike_price: row.strike,
                 expiration_date: row.expiry,
-                premium_received: Math.round(row.premium * 100 * 100) / 100,
+                premium_received: Math.round(pricePerShare * 100 * 100) / 100,
                 contracts: 1,
                 commission: 0,
                 platform_fee: 0,
@@ -305,9 +330,15 @@ export function OptionScannerPage() {
         { key: 'annual_return_pct', label: 'Ann%' },
         { key: 'expiry', label: 'Expiry' },
         { key: 'days_to_expiry', label: 'DTE' },
-        { key: 'premium', label: 'Premium' },
+        { key: 'bid', label: 'Bid' },
+        { key: 'ask', label: 'Ask' },
+        { key: 'mid', label: 'Mid' },
+        { key: 'spread_pct', label: 'Spread%' },
+        { key: 'bs_fair_value', label: 'BS Fair' },
+        { key: 'premium_edge_pct', label: 'Edge%' },
         { key: 'iv', label: 'IV' },
         { key: 'delta', label: 'Delta' },
+        { key: 'pop_keep_premium', label: 'POP%' },
         { key: 'volume', label: 'Vol' },
     ];
 
@@ -446,6 +477,30 @@ export function OptionScannerPage() {
                                 value={params.minOI}
                                 onChange={e => setParams(p => ({ ...p, minOI: parseInt(e.target.value) || 0 }))}
                                 min={0}
+                                className="w-full"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-gray-500 block mb-1">
+                                Max Bid/Ask Spread % <span className="text-gray-400">(0 = off)</span>
+                            </label>
+                            <Input
+                                type="number"
+                                value={params.maxSpread}
+                                onChange={e => setParams(p => ({ ...p, maxSpread: parseFloat(e.target.value) || 0 }))}
+                                min={0} step={1}
+                                className="w-full"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-gray-500 block mb-1">
+                                Target |Δ| (sweet spot) <span className="text-gray-400">(0.16 ≈ 14% assignment)</span>
+                            </label>
+                            <Input
+                                type="number"
+                                value={params.targetDelta}
+                                onChange={e => setParams(p => ({ ...p, targetDelta: parseFloat(e.target.value) || 0 }))}
+                                min={0.05} max={0.50} step={0.01}
                                 className="w-full"
                             />
                         </div>
@@ -613,13 +668,41 @@ export function OptionScannerPage() {
                                             </td>
                                             <td className="px-4 py-3 text-gray-600">{row.expiry}</td>
                                             <td className="px-4 py-3 text-gray-600">{row.days_to_expiry}d</td>
-                                            <td className="px-4 py-3 font-medium text-green-700">
-                                                {formatCurrency(row.premium * 100)}
-                                                <span className="text-gray-400 text-[10px] ml-1">(${row.premium}/sh)</span>
+                                            <td className="px-4 py-3 text-gray-600">
+                                                {row.bid != null ? '$' + row.bid.toFixed(2) : '—'}
                                             </td>
-                                            <td className="px-4 py-3 text-gray-600">{row.iv != null ? formatPct(row.iv * 100) : '—'}</td>
+                                            <td className="px-4 py-3 text-gray-600">
+                                                {row.ask != null ? '$' + row.ask.toFixed(2) : '—'}
+                                            </td>
+                                            <td className="px-4 py-3 font-medium text-green-700">
+                                                {row.mid != null ? formatCurrency(row.mid * 100) : '—'}
+                                                <span className="text-gray-400 text-[10px] ml-1">
+                                                    {row.mid != null ? `($${row.mid.toFixed(4)}/sh)` : ''}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={spreadColor(row.spread_pct)}>
+                                                    {row.spread_pct != null ? row.spread_pct.toFixed(1) + '%' : '—'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-600">
+                                                {row.bs_fair_value != null ? '$' + row.bs_fair_value.toFixed(2) : '—'}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={edgeColor(row.premium_edge_pct)}>
+                                                    {row.premium_edge_pct != null
+                                                        ? (row.premium_edge_pct >= 0 ? '+' : '') + row.premium_edge_pct.toFixed(1) + '%'
+                                                        : '—'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-600">{row.iv != null ? formatPct(row.iv) : '—'}</td>
                                             <td className="px-4 py-3">
                                                 <span className={deltaColor(row.delta)}>{row.delta != null ? formatNum(row.delta, 3) : '—'}</span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={popColor(row.pop_keep_premium)}>
+                                                    {row.pop_keep_premium != null ? row.pop_keep_premium.toFixed(1) + '%' : '—'}
+                                                </span>
                                             </td>
                                             <td className="px-4 py-3 text-gray-600">{row.volume > 0 ? row.volume.toLocaleString() : '—'}</td>
                                         </tr>

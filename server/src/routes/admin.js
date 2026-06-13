@@ -972,16 +972,23 @@ router.post('/scanner/scan', authenticate, requireAdmin, async (req, res, next) 
             minDiscount = 10, maxDiscount = 20,
             minDelta = 0, maxDelta = 1,
             minReturn = 0, minOI = 0, minVolume = 0,
+            maxSpread = 0,
+            targetDelta = 0.16,
         } = req.body || {};
         const watchlist = await db('scanner_watchlist').orderBy('ticker');
         const tickers = watchlist.map(w => w.ticker);
         if (tickers.length === 0) return res.json({ results: [], message: 'Watchlist is empty' });
 
+        // Risk-free rate for Black-Scholes fair-value calc — single source of truth in fund_settings.
+        const settings = await db('fund_settings').first();
+        const riskFreeRate = parseFloat(settings?.risk_free_rate ?? '0.0525') || 0.0525;
+
         const stockPrices = await fetchStockPrices(tickers);
         const { results, error, debug } = await scanPutOptions(
             tickers, stockPrices,
             minDays, maxDays, minDiscount, maxDiscount,
-            minDelta, maxDelta, minReturn, minOI, minVolume
+            minDelta, maxDelta, minReturn, minOI, minVolume,
+            maxSpread, riskFreeRate, targetDelta
         );
         res.json({ results, stock_prices: stockPrices, error: error || null, debug });
     } catch (error) {
@@ -999,9 +1006,12 @@ router.post('/scanner/analyze', authenticate, requireAdmin, async (req, res, nex
 
         // Build a concise markdown table of results for the prompt
         const today = new Date().toISOString().split('T')[0];
-        const rows = results.slice(0, 20).map(r =>
-            `| ${r.ticker} | $${r.strike} | ${r.expiry} | ${r.days_to_expiry}d | $${(r.premium * 100).toFixed(2)} | ${r.return_pct?.toFixed(2)}% | ${r.annual_return_pct?.toFixed(1)}% | ${r.discount_pct?.toFixed(1)}% | ${r.delta?.toFixed(3) ?? '—'} | ${r.iv != null ? (r.iv * 100).toFixed(1) + '%' : '—'} | ${r.open_interest?.toLocaleString() ?? '—'} | ${r.score} |`
-        ).join('\n');
+        const fmt = (v, dec = 2) => v == null ? '—' : Number(v).toFixed(dec);
+        const fmtSigned = (v, dec = 1) => v == null ? '—' : (v >= 0 ? '+' : '') + Number(v).toFixed(dec) + '%';
+        const rows = results.slice(0, 20).map(r => {
+            const midPerContract = r.mid != null ? (r.mid * 100).toFixed(2) : (r.premium * 100).toFixed(2);
+            return `| ${r.ticker} | $${r.strike} | ${r.expiry} | ${r.days_to_expiry}d | $${midPerContract} | $${fmt(r.bid)}/$${fmt(r.ask)} | ${fmt(r.spread_pct, 1)}% | $${fmt(r.bs_fair_value)} | ${fmtSigned(r.premium_edge_pct)} | ${r.return_pct?.toFixed(2)}% | ${r.annual_return_pct?.toFixed(1)}% | ${r.discount_pct?.toFixed(1)}% | ${r.delta?.toFixed(3) ?? '—'} | ${r.pop_keep_premium != null ? r.pop_keep_premium.toFixed(1) + '%' : '—'} | ${r.iv != null ? r.iv.toFixed(1) + '%' : '—'} | ${r.open_interest?.toLocaleString() ?? '—'} | ${r.score} |`;
+        }).join('\n');
 
         const stockPriceLines = Object.entries(stock_prices).map(([t, p]) => `${t}: $${p}`).join(', ');
 
@@ -1038,8 +1048,15 @@ router.post('/scanner/analyze', authenticate, requireAdmin, async (req, res, nex
 ${levelsSection}
 
 **Scan Results (sorted by Score):**
-| Ticker | Strike | Expiry | DTE | Premium/contract | Return% | Ann% | Disc% | Delta | IV | OI | Score |
-|--------|--------|--------|-----|-----------------|---------|------|-------|-------|-----|-----|-------|
+- "Mid/contract" = midpoint of bid/ask × 100 (the honest fillable credit per contract).
+- "Bid/Ask" = current quote (per share).
+- "Spread%" = (ask−bid)/mid; tight spreads (<10%) are good, wide spreads kill fills.
+- "BS Fair" = Black-Scholes theoretical price per share at current IV; compare to mid.
+- "Edge%" = (mid − BS Fair) / BS Fair; POSITIVE means market is paying MORE than fair (rich premium — good for sellers).
+- "POP%" = probability of keeping the full premium ≈ (1 − |delta|) × 100. Sweet spot is 80–90% (|Δ| ≈ 0.10–0.20).
+
+| Ticker | Strike | Expiry | DTE | Mid/contract | Bid/Ask | Spread% | BS Fair | Edge% | Return% | Ann% | Disc% | Delta | POP% | IV | OI | Score |
+|--------|--------|--------|-----|--------------|---------|---------|---------|-------|---------|------|-------|-------|------|-----|-----|-------|
 ${rows}
 
 **Respond with ONLY valid JSON** (no markdown fences, no extra text) in this exact structure:
@@ -1062,7 +1079,7 @@ ${rows}
   "strategy_tip": "1 practical tip for executing these trades"
 }
 
-Return 2–4 picks max, ordered by conviction (best first). We are SELLING puts (cash-secured), so for LIMIT orders suggest a premium 5–15% ABOVE the current bid to collect more premium while still getting a reasonable fill. Be concise and direct.`;
+Return 2–4 picks max, ordered by conviction (best first). We are SELLING puts (cash-secured), so for LIMIT orders use the actual Bid/Ask: suggest a price ABOVE the bid but at or below the ask — typically Mid or Mid+5–10% — to collect rich premium while still getting filled. Prefer options with positive Edge% (rich vs Black-Scholes fair value) and Spread% under 15%. Be concise and direct.`;
 
         const response = await fetch('https://ollama.com/api/chat', {
             method: 'POST',

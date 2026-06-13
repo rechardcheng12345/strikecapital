@@ -2,7 +2,7 @@ import { ensureConnected, getValidExpiryDates, getOptionChain, getSnapshots } fr
 import { fetchYahooPrice } from './priceService.js';
 import { env } from '../config/env.js';
 
-async function callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume) {
+async function callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta) {
     try {
         const resp = await fetch(`${env.scannerProxyUrl}/scan`, {
             method: 'POST',
@@ -10,7 +10,7 @@ async function callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscou
                 'Content-Type': 'application/json',
                 ...(env.scannerProxySecret ? { 'x-proxy-secret': env.scannerProxySecret } : {}),
             },
-            body: JSON.stringify({ tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume }),
+            body: JSON.stringify({ tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta }),
             signal: AbortSignal.timeout(60000),
         });
         if (!resp.ok) return { results: [], error: `Proxy error: ${resp.status}`, debug: {} };
@@ -33,25 +33,55 @@ export async function fetchStockPrices(tickers) {
     return prices;
 }
 
+// ─── Black-Scholes Put Pricing ──────────────────────────────────────────────
+// Used to compute a model "fair value" so we can flag market premium as
+// overpriced (good for sellers) or underpriced.
+function normalCDF(x) {
+    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429;
+    const p = 0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    const ax = Math.abs(x) / Math.sqrt(2);
+    const t = 1.0 / (1.0 + p * ax);
+    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-ax * ax);
+    return 0.5 * (1.0 + sign * y);
+}
+
+function bsPutPrice(S, K, T, sigma, r) {
+    if (T <= 0 || sigma <= 0 || S <= 0 || K <= 0) return 0;
+    const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
+    const d2 = d1 - sigma * Math.sqrt(T);
+    return K * Math.exp(-r * T) * normalCDF(-d2) - S * normalCDF(-d1);
+}
+
 /**
  * Scan PUT options matching expiry window + discount range across given tickers.
  * @param {string[]} tickers
  * @param {Object}  stockPrices  - { NVDA: 112.50, ... }
- * @param {number}  minDays      - min days to expiry (default 12)
- * @param {number}  maxDays      - max days to expiry (default 20)
+ * @param {number}  minDays      - min days to expiry (default 14)
+ * @param {number}  maxDays      - max days to expiry (default 28)
  * @param {number}  minDiscount  - min % below current price (default 10)
  * @param {number}  maxDiscount  - max % below current price (default 20)
+ * @param {number}  minDelta     - min |delta| (default 0)
+ * @param {number}  maxDelta     - max |delta| (default 1)
+ * @param {number}  minReturn    - min return % on collateral
+ * @param {number}  minOI        - min open interest
+ * @param {number}  minVolume    - min day volume
+ * @param {number}  maxSpread    - max bid/ask spread % of mid (0 or null = no filter)
+ * @param {number}  riskFreeRate - decimal (e.g. 0.0525)
+ * @param {number}  targetDelta  - score peaks at this |delta|; default 0.16 (≈14% assignment prob)
  */
 export async function scanPutOptions(
     tickers, stockPrices,
     minDays = 14, maxDays = 28,
     minDiscount = 10, maxDiscount = 20,
     minDelta = 0, maxDelta = 1,
-    minReturn = 0, minOI = 0, minVolume = 0
+    minReturn = 0, minOI = 0, minVolume = 0,
+    maxSpread = 0, riskFreeRate = 0.0525,
+    targetDelta = 0.16
 ) {
     if (env.scannerProxyUrl) {
         console.log('[Scanner] using remote proxy:', env.scannerProxyUrl);
-        return callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume);
+        return callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta);
     }
     console.log('[Scanner] scanPutOptions called, tickers:', tickers, 'stockPrices:', stockPrices);
     const isConnected = await ensureConnected();
@@ -135,16 +165,41 @@ export async function scanPutOptions(
         const daysToExpiry = Math.round((new Date(opt.expiry) - today) / (1000 * 60 * 60 * 24));
         const discountPct = Math.round(((opt.stockPrice - opt.strike) / opt.stockPrice) * 10000) / 100;
         const premium = snap.basic?.curPrice ?? 0;
+        const bid = snap.basic?.bidPrice ?? null;
+        const ask = snap.basic?.askPrice ?? null;
+        // Mid is the honest reference. Fall back to last/curPrice when one side is missing.
+        let mid = null;
+        if (bid != null && ask != null && bid > 0 && ask > 0) mid = (bid + ask) / 2;
+        else if (premium > 0) mid = premium;
+        const spreadPct = (bid != null && ask != null && bid > 0 && ask > 0 && mid > 0)
+            ? Math.round(((ask - bid) / mid) * 10000) / 100
+            : null;
         const delta = snap.optionExData?.delta ?? null;
         const openInterest = snap.optionExData?.openInterest ?? null;
         const volume = Number(snap.basic?.volume) || 0;
-        const returnPct = opt.strike > 0 ? Math.round((premium / opt.strike) * 10000) / 100 : 0;
+        // Moomoo IV is already a percentage (e.g. 45.7 means 45.7%). BS wants the decimal.
+        const ivPct = snap.optionExData?.impliedVolatility ?? null;
+        const sigma = ivPct != null ? ivPct / 100 : 0;
+        const T = daysToExpiry / 365;
+        const bsFair = bsPutPrice(opt.stockPrice, opt.strike, T, sigma, riskFreeRate);
+        const premiumRef = mid ?? premium;
+        const premiumEdgePct = bsFair > 0 && premiumRef > 0
+            ? Math.round(((premiumRef - bsFair) / bsFair) * 10000) / 100
+            : null;
+        const returnPct = opt.strike > 0 ? Math.round((premiumRef / opt.strike) * 10000) / 100 : 0;
         const annualReturnPct = daysToExpiry > 0 ? Math.round(returnPct * (365 / daysToExpiry) * 100) / 100 : 0;
         const absDelta = delta != null ? Math.abs(delta) : 0;
+        // Probability of keeping full premium ≈ 1 - |delta|. At |Δ|=0.145 → 85.5%.
+        const popKeepPremium = delta != null ? Math.round((1 - absDelta) * 10000) / 100 : null;
+        // Delta sweet-spot score: triangular peak at targetDelta (default 0.16), zero outside ±0.12.
+        const deltaToleranceHalfWidth = 0.12;
+        const deltaScore = delta != null
+            ? Math.max(0, 1 - Math.abs(absDelta - targetDelta) / deltaToleranceHalfWidth)
+            : 0;
         const score = Math.round(
             Math.min(returnPct / 1.5, 1) * 40 +
             Math.min(discountPct / 15, 1) * 30 +
-            Math.max(0, 1 - Math.abs(absDelta - 0.25) / 0.15) * 20 +
+            deltaScore * 20 +
             Math.min((openInterest ?? 0) / 5000, 1) * 10
         );
         results.push({
@@ -156,8 +211,15 @@ export async function scanPutOptions(
             expiry: opt.expiry,
             days_to_expiry: daysToExpiry,
             premium,
-            iv: snap.optionExData?.impliedVolatility ?? null,
+            bid,
+            ask,
+            mid: mid != null ? Math.round(mid * 10000) / 10000 : null,
+            spread_pct: spreadPct,
+            bs_fair_value: bsFair > 0 ? Math.round(bsFair * 10000) / 10000 : null,
+            premium_edge_pct: premiumEdgePct,
+            iv: ivPct,
             delta,
+            pop_keep_premium: popKeepPremium,
             theta: snap.optionExData?.theta ?? null,
             open_interest: openInterest,
             volume,
@@ -174,6 +236,9 @@ export async function scanPutOptions(
         if (r.return_pct < minReturn) return false;
         if (minOI > 0 && (r.open_interest == null || r.open_interest < minOI)) return false;
         if (minVolume > 0 && r.volume < minVolume) return false;
+        // Only filter when a spread cap was set AND we have a real spread to evaluate.
+        // Missing bid/ask (spread_pct == null) is left through — it just means quote data was thin.
+        if (maxSpread > 0 && r.spread_pct != null && r.spread_pct > maxSpread) return false;
         return true;
     });
     filtered.sort((a, b) => b.score - a.score);
