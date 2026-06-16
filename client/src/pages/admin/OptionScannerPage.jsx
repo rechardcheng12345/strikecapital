@@ -320,26 +320,18 @@ export function OptionScannerPage() {
         return sortDir === 'asc' ? av - bv : bv - av;
     });
 
+    // Compact column model: each column shows a primary metric (top) and a secondary
+    // metric (bottom, smaller) so 19 fields fit in 9 columns. Sort key = primary metric.
     const columns = [
         { key: 'score', label: 'Score' },
-        { key: 'ticker', label: 'Ticker' },
-        { key: 'stock_price', label: 'Stock $' },
-        { key: 'strike', label: 'Strike' },
-        { key: 'discount_pct', label: 'Disc%' },
-        { key: 'return_pct', label: 'Return%' },
-        { key: 'annual_return_pct', label: 'Ann%' },
-        { key: 'expiry', label: 'Expiry' },
-        { key: 'days_to_expiry', label: 'DTE' },
-        { key: 'bid', label: 'Bid' },
-        { key: 'ask', label: 'Ask' },
-        { key: 'mid', label: 'Mid' },
-        { key: 'spread_pct', label: 'Spread%' },
-        { key: 'bs_fair_value', label: 'BS Fair' },
-        { key: 'premium_edge_pct', label: 'Edge%' },
-        { key: 'iv', label: 'IV' },
-        { key: 'delta', label: 'Delta' },
-        { key: 'pop_keep_premium', label: 'POP%' },
-        { key: 'volume', label: 'Vol' },
+        { key: 'ticker', label: 'Symbol', sub: 'Stock $' },
+        { key: 'strike', label: 'Strike', sub: 'Disc%' },
+        { key: 'days_to_expiry', label: 'DTE', sub: 'Expiry' },
+        { key: 'mid', label: 'Premium', sub: 'Bid / Ask' },
+        { key: 'annual_return_pct', label: 'Ann%', sub: 'Period%' },
+        { key: 'premium_edge_pct', label: 'Edge%', sub: 'BS Fair' },
+        { key: 'delta', label: 'Delta', sub: 'POP%' },
+        { key: 'spread_pct', label: 'Spread%', sub: 'IV / Vol' },
     ];
 
     return (
@@ -606,14 +598,19 @@ export function OptionScannerPage() {
                                             <th
                                                 key={col.key}
                                                 onClick={() => handleSort(col.key)}
-                                                className="px-4 py-3 text-xs font-semibold text-[#0D2654] uppercase tracking-wider cursor-pointer select-none hover:bg-[#0D2654]/10 transition-colors text-left"
+                                                className="px-3 py-3 text-xs font-semibold text-[#0D2654] uppercase tracking-wider cursor-pointer select-none hover:bg-[#0D2654]/10 transition-colors text-left align-top"
                                             >
-                                                <span className="inline-flex items-center gap-1">
-                                                    {col.label}
-                                                    {sortKey === col.key && (
-                                                        sortDir === 'asc' ? <ChevronUp className="w-3 h-3 text-[#F06010]" /> : <ChevronDown className="w-3 h-3 text-[#F06010]" />
+                                                <div className="flex flex-col leading-tight">
+                                                    <span className="inline-flex items-center gap-1">
+                                                        {col.label}
+                                                        {sortKey === col.key && (
+                                                            sortDir === 'asc' ? <ChevronUp className="w-3 h-3 text-[#F06010]" /> : <ChevronDown className="w-3 h-3 text-[#F06010]" />
+                                                        )}
+                                                    </span>
+                                                    {col.sub && (
+                                                        <span className="text-[9px] font-normal text-gray-400 tracking-normal normal-case mt-0.5">{col.sub}</span>
                                                     )}
-                                                </span>
+                                                </div>
                                             </th>
                                         ))}
                                         <th className="px-3 py-3 w-10"></th>
@@ -651,60 +648,75 @@ export function OptionScannerPage() {
                                                     </button>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3">
-                                                <span className={scoreColor(row.score)}>{row.score ?? '—'}</span>
+                                            {/* Score */}
+                                            <td className="px-3 py-3 align-top">
+                                                <span className={`${scoreColor(row.score)} text-base`}>{row.score ?? '—'}</span>
                                             </td>
-                                            <td className="px-4 py-3 font-semibold text-[#0D2654]">{row.ticker}</td>
-                                            <td className="px-4 py-3 text-gray-600">{formatCurrency(row.stock_price)}</td>
-                                            <td className="px-4 py-3 font-medium text-[#0D2654]">{formatCurrency(row.strike)}</td>
-                                            <td className="px-4 py-3">
-                                                <span className="text-orange-600 font-medium">{formatPct(row.discount_pct)}</span>
+                                            {/* Symbol / Stock $ */}
+                                            <td className="px-3 py-3 align-top whitespace-nowrap">
+                                                <div className="font-semibold text-[#0D2654]">{row.ticker}</div>
+                                                <div className="text-[10px] text-gray-500">{formatCurrency(row.stock_price)}</div>
                                             </td>
-                                            <td className="px-4 py-3">
-                                                <span className="text-blue-600 font-medium">{row.return_pct != null ? row.return_pct.toFixed(2) + '%' : '—'}</span>
+                                            {/* Strike / Disc% */}
+                                            <td className="px-3 py-3 align-top whitespace-nowrap">
+                                                <div className="font-medium text-[#0D2654]">{formatCurrency(row.strike)}</div>
+                                                <div className="text-[10px] text-orange-600 font-medium">{formatPct(row.discount_pct)}</div>
                                             </td>
-                                            <td className="px-4 py-3">
-                                                <span className="text-purple-600 font-medium">{row.annual_return_pct != null ? row.annual_return_pct.toFixed(1) + '%' : '—'}</span>
+                                            {/* DTE / Expiry */}
+                                            <td className="px-3 py-3 align-top whitespace-nowrap">
+                                                <div className="font-medium text-[#0D2654]">{row.days_to_expiry}d</div>
+                                                <div className="text-[10px] text-gray-500">{row.expiry}</div>
                                             </td>
-                                            <td className="px-4 py-3 text-gray-600">{row.expiry}</td>
-                                            <td className="px-4 py-3 text-gray-600">{row.days_to_expiry}d</td>
-                                            <td className="px-4 py-3 text-gray-600">
-                                                {row.bid != null ? '$' + row.bid.toFixed(2) : '—'}
+                                            {/* Premium (Mid) / Bid·Ask */}
+                                            <td className="px-3 py-3 align-top whitespace-nowrap">
+                                                <div className="font-semibold text-green-700">
+                                                    {row.mid != null ? formatCurrency(row.mid * 100) : '—'}
+                                                </div>
+                                                <div className="text-[10px] text-gray-500">
+                                                    {row.bid != null && row.ask != null
+                                                        ? `$${row.bid.toFixed(2)} / $${row.ask.toFixed(2)}`
+                                                        : '—'}
+                                                </div>
                                             </td>
-                                            <td className="px-4 py-3 text-gray-600">
-                                                {row.ask != null ? '$' + row.ask.toFixed(2) : '—'}
+                                            {/* Ann% / Period% */}
+                                            <td className="px-3 py-3 align-top whitespace-nowrap">
+                                                <div className="font-semibold text-purple-600">
+                                                    {row.annual_return_pct != null ? row.annual_return_pct.toFixed(1) + '%' : '—'}
+                                                </div>
+                                                <div className="text-[10px] text-blue-600">
+                                                    {row.return_pct != null ? row.return_pct.toFixed(2) + '%' : '—'}
+                                                </div>
                                             </td>
-                                            <td className="px-4 py-3 font-medium text-green-700">
-                                                {row.mid != null ? formatCurrency(row.mid * 100) : '—'}
-                                                <span className="text-gray-400 text-[10px] ml-1">
-                                                    {row.mid != null ? `($${row.mid.toFixed(4)}/sh)` : ''}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className={spreadColor(row.spread_pct)}>
-                                                    {row.spread_pct != null ? row.spread_pct.toFixed(1) + '%' : '—'}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-gray-600">
-                                                {row.bs_fair_value != null ? '$' + row.bs_fair_value.toFixed(2) : '—'}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className={edgeColor(row.premium_edge_pct)}>
+                                            {/* Edge% / BS Fair */}
+                                            <td className="px-3 py-3 align-top whitespace-nowrap">
+                                                <div className={`font-semibold ${edgeColor(row.premium_edge_pct)}`}>
                                                     {row.premium_edge_pct != null
                                                         ? (row.premium_edge_pct >= 0 ? '+' : '') + row.premium_edge_pct.toFixed(1) + '%'
                                                         : '—'}
-                                                </span>
+                                                </div>
+                                                <div className="text-[10px] text-gray-500">
+                                                    {row.bs_fair_value != null ? '$' + row.bs_fair_value.toFixed(2) : '—'}
+                                                </div>
                                             </td>
-                                            <td className="px-4 py-3 text-gray-600">{row.iv != null ? formatPct(row.iv) : '—'}</td>
-                                            <td className="px-4 py-3">
-                                                <span className={deltaColor(row.delta)}>{row.delta != null ? formatNum(row.delta, 3) : '—'}</span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className={popColor(row.pop_keep_premium)}>
+                                            {/* Delta / POP% */}
+                                            <td className="px-3 py-3 align-top whitespace-nowrap">
+                                                <div className={`font-semibold ${deltaColor(row.delta)}`}>
+                                                    {row.delta != null ? formatNum(row.delta, 3) : '—'}
+                                                </div>
+                                                <div className={`text-[10px] ${popColor(row.pop_keep_premium)}`}>
                                                     {row.pop_keep_premium != null ? row.pop_keep_premium.toFixed(1) + '%' : '—'}
-                                                </span>
+                                                </div>
                                             </td>
-                                            <td className="px-4 py-3 text-gray-600">{row.volume > 0 ? row.volume.toLocaleString() : '—'}</td>
+                                            {/* Spread% / IV · Vol */}
+                                            <td className="px-3 py-3 align-top whitespace-nowrap">
+                                                <div className={`font-semibold ${spreadColor(row.spread_pct)}`}>
+                                                    {row.spread_pct != null ? row.spread_pct.toFixed(1) + '%' : '—'}
+                                                </div>
+                                                <div className="text-[10px] text-gray-500">
+                                                    {row.iv != null ? formatPct(row.iv) : '—'}
+                                                    {row.volume > 0 ? ` · ${row.volume.toLocaleString()}` : ''}
+                                                </div>
+                                            </td>
                                         </tr>
                                         {isEstimatorOpen && (
                                             <tr className="bg-blue-50/50">
