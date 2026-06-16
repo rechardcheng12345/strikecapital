@@ -327,7 +327,7 @@ export function OptionScannerPage() {
         { key: 'ticker', label: 'Symbol', sub: 'Stock $' },
         { key: 'strike', label: 'Strike', sub: 'Disc%' },
         { key: 'days_to_expiry', label: 'DTE', sub: 'Expiry' },
-        { key: 'mid', label: 'Premium', sub: 'Bid / Ask' },
+        { key: 'mid', label: 'Premium', sub: 'Bid / Ask · Last' },
         { key: 'annual_return_pct', label: 'Ann%', sub: 'Period%' },
         { key: 'premium_edge_pct', label: 'Edge%', sub: 'BS Fair' },
         { key: 'delta', label: 'Delta', sub: 'POP%' },
@@ -667,15 +667,17 @@ export function OptionScannerPage() {
                                                 <div className="font-medium text-[#0D2654]">{row.days_to_expiry}d</div>
                                                 <div className="text-[10px] text-gray-500">{row.expiry}</div>
                                             </td>
-                                            {/* Premium (Mid) / Bid·Ask */}
+                                            {/* Premium (Mid) / Bid·Ask·Last */}
                                             <td className="px-3 py-3 align-top whitespace-nowrap">
                                                 <div className="font-semibold text-green-700">
                                                     {row.mid != null ? formatCurrency(row.mid * 100) : '—'}
                                                 </div>
                                                 <div className="text-[10px] text-gray-500">
-                                                    {row.bid != null && row.ask != null
+                                                    {row.bid != null && row.ask != null && (row.bid > 0 || row.ask > 0)
                                                         ? `$${row.bid.toFixed(2)} / $${row.ask.toFixed(2)}`
-                                                        : '—'}
+                                                        : row.premium != null
+                                                            ? `Last $${row.premium.toFixed(2)}`
+                                                            : '—'}
                                                 </div>
                                             </td>
                                             {/* Ann% / Period% */}
