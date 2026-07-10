@@ -139,6 +139,7 @@ export const adminApi = {
     // Moomoo
     getMoomooFunds: () => api.get('/admin/moomoo/funds'),
     getMoomooAccounts: () => api.get('/admin/moomoo/accounts'),
+    getEarningsReconciliation: () => api.get('/admin/earnings/reconciliation'),
     // Investors
     getInvestors: (page = 1, limit = 20, search) => api.get(`/admin/investors?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
     getInvestor: (id) => api.get(`/admin/investors/${id}`),

@@ -1,4 +1,5 @@
-import { Wallet, RefreshCw, DollarSign, TrendingUp, TrendingDown, Shield, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { Wallet, RefreshCw, DollarSign, TrendingUp, TrendingDown, Shield, Sparkles, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { adminApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { formatDateTime } from '../../lib/constants';
@@ -75,6 +76,209 @@ function FundsSkeleton() {
                     </div>
                 </div>
             ))}
+        </div>
+    );
+}
+
+function ReconciliationPanel() {
+    const [open, setOpen] = useState(false);
+    const { data: recon, isLoading, isError, error } = useApiQuery({
+        queryKey: ['admin', 'earnings', 'reconciliation'],
+        queryFn: () => adminApi.getEarningsReconciliation(),
+        enabled: open,
+    });
+
+    const plColor = (val) => {
+        if (val == null) return 'text-[#0D2654]';
+        return Number(val) >= 0 ? 'text-green-600' : 'text-red-600';
+    };
+
+    return (
+        <div className="rounded-none border-2 border-[#0D2654]/15 bg-white">
+            <button
+                onClick={() => setOpen(v => !v)}
+                className="w-full px-5 py-3 border-b-2 border-[#0D2654]/10 flex items-center gap-2 hover:bg-gray-50"
+            >
+                <div className="p-1.5 rounded-none bg-[#0D2654]/5 text-[#0D2654]">
+                    <AlertTriangle className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    Earnings Reconciliation
+                </h3>
+                <span className="ml-auto text-[10px] text-gray-400 uppercase tracking-wider hidden sm:block">
+                    Line-by-line breakdown to identify P&L mismatches
+                </span>
+                {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            </button>
+            {open && (
+                <div className="p-5 space-y-6">
+                    {isLoading && <div className="text-sm text-gray-500">Loading reconciliation...</div>}
+                    {isError && <ErrorAlert message={error?.message || 'Failed to load reconciliation'} />}
+                    {recon && (
+                        <>
+                            {/* Formula terms */}
+                            <div>
+                                <h4 className="text-xs font-bold text-[#0D2654] uppercase tracking-wider mb-2">Formula Terms</h4>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase">Total Assets</p>
+                                        <p className="font-semibold text-[#0D2654]">{formatCurrency(recon.terms.totalAssets)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase">Market Value</p>
+                                        <p className={`font-semibold ${plColor(recon.terms.marketVal)}`}>{formatCurrency(recon.terms.marketVal)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase">Gross Fund Value</p>
+                                        <p className="font-semibold text-[#0D2654]">{formatCurrency(recon.terms.grossFundValue)}</p>
+                                        <p className="text-[9px] text-gray-400">TA − MV</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase">Fund Capital</p>
+                                        <p className="font-semibold text-[#0D2654]">{formatCurrency(recon.terms.totalCapital)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase">Open Premium (net)</p>
+                                        <p className="font-semibold text-green-600">{formatCurrency(recon.terms.openPremiumNet)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase">Realized (gross)</p>
+                                        <p className={`font-semibold ${plColor(recon.terms.realizedGross)}`}>{formatCurrency(recon.terms.realizedGross)}</p>
+                                        <p className="text-[9px] text-gray-400">SUM(pnl_amount)</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase">Realized (net of fees)</p>
+                                        <p className={`font-semibold ${plColor(recon.terms.realizedNetFees)}`}>{formatCurrency(recon.terms.realizedNetFees)}</p>
+                                        <p className="text-[9px] text-gray-400">Dashboard uses this</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase">Additional Earnings</p>
+                                        <p className={`font-semibold ${plColor(recon.terms.additionalEarningsGross)}`}>{formatCurrency(recon.terms.additionalEarningsGross)}</p>
+                                        <p className="text-[9px] text-gray-400">gross / net: {formatCurrency(recon.terms.additionalEarningsNet)}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Duplicate warning */}
+                            {recon.duplicatePositions?.length > 0 && (
+                                <div className="border-2 border-red-300 bg-red-50 p-3">
+                                    <p className="text-xs font-bold text-red-700 uppercase tracking-wider mb-2">
+                                        Positions with multiple P&L rows (possible double-count)
+                                    </p>
+                                    <table className="w-full text-xs">
+                                        <thead>
+                                            <tr className="text-left text-red-700">
+                                                <th className="py-1 pr-2">Position ID</th>
+                                                <th className="py-1 pr-2">Ticker</th>
+                                                <th className="py-1 pr-2">Status</th>
+                                                <th className="py-1 pr-2">Resolution</th>
+                                                <th className="py-1 pr-2 text-right">Row Count</th>
+                                                <th className="py-1 pr-2 text-right">Total P&L</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {recon.duplicatePositions.map(g => (
+                                                <tr key={g.position_id} className="border-t border-red-200">
+                                                    <td className="py-1 pr-2">{g.position_id}</td>
+                                                    <td className="py-1 pr-2 font-semibold">{g.ticker}</td>
+                                                    <td className="py-1 pr-2">{g.position_status}</td>
+                                                    <td className="py-1 pr-2">{g.resolution_type || '—'}</td>
+                                                    <td className="py-1 pr-2 text-right">{g.row_count}</td>
+                                                    <td className={`py-1 pr-2 text-right font-semibold ${plColor(g.total_pnl)}`}>{formatCurrency(g.total_pnl)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {/* Open premium detail */}
+                            <div>
+                                <h4 className="text-xs font-bold text-[#0D2654] uppercase tracking-wider mb-2">
+                                    Open Option Positions ({recon.openPremiumDetail.length}) — contributing {formatCurrency(recon.terms.openPremiumNet)}
+                                </h4>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                        <thead>
+                                            <tr className="text-left text-gray-500 border-b border-gray-200">
+                                                <th className="py-1 pr-2">ID</th>
+                                                <th className="py-1 pr-2">Ticker</th>
+                                                <th className="py-1 pr-2 text-right">Strike</th>
+                                                <th className="py-1 pr-2 text-right">Contracts</th>
+                                                <th className="py-1 pr-2">Expiry</th>
+                                                <th className="py-1 pr-2 text-right">Premium (gross)</th>
+                                                <th className="py-1 pr-2 text-right">Fees</th>
+                                                <th className="py-1 pr-2 text-right">Premium (net)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {recon.openPremiumDetail.map(p => (
+                                                <tr key={p.id} className="border-b border-gray-100">
+                                                    <td className="py-1 pr-2">{p.id}</td>
+                                                    <td className="py-1 pr-2 font-semibold">{p.ticker}</td>
+                                                    <td className="py-1 pr-2 text-right">{formatCurrency(p.strike_price)}</td>
+                                                    <td className="py-1 pr-2 text-right">{p.contracts}</td>
+                                                    <td className="py-1 pr-2">{p.expiration_date}</td>
+                                                    <td className="py-1 pr-2 text-right">{formatCurrency(p.premium_gross)}</td>
+                                                    <td className="py-1 pr-2 text-right text-gray-500">{formatCurrency(p.commission + p.platform_fee)}</td>
+                                                    <td className="py-1 pr-2 text-right font-semibold text-green-600">{formatCurrency(p.premium_net)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* All P&L records */}
+                            <div>
+                                <h4 className="text-xs font-bold text-[#0D2654] uppercase tracking-wider mb-2">
+                                    All P&L Records ({recon.pnlDetail.length}) — SUM = {formatCurrency(recon.terms.realizedGross)}
+                                </h4>
+                                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                                    <table className="w-full text-xs">
+                                        <thead className="sticky top-0 bg-white">
+                                            <tr className="text-left text-gray-500 border-b border-gray-200">
+                                                <th className="py-1 pr-2">Date</th>
+                                                <th className="py-1 pr-2">Ticker</th>
+                                                <th className="py-1 pr-2">Type</th>
+                                                <th className="py-1 pr-2">Pos Status</th>
+                                                <th className="py-1 pr-2">Resolution</th>
+                                                <th className="py-1 pr-2 text-right">Strike</th>
+                                                <th className="py-1 pr-2 text-right">Premium In</th>
+                                                <th className="py-1 pr-2 text-right">Close Prem</th>
+                                                <th className="py-1 pr-2 text-right">Fees</th>
+                                                <th className="py-1 pr-2 text-right">P&L Amount</th>
+                                                <th className="py-1 pr-2">Roll</th>
+                                                <th className="py-1 pr-2">Description</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {recon.pnlDetail.map(r => (
+                                                <tr key={r.pnl_id} className="border-b border-gray-100">
+                                                    <td className="py-1 pr-2">{r.record_date}</td>
+                                                    <td className="py-1 pr-2 font-semibold">{r.ticker || '—'}</td>
+                                                    <td className="py-1 pr-2">{r.position_type}</td>
+                                                    <td className="py-1 pr-2">{r.position_status}</td>
+                                                    <td className="py-1 pr-2">{r.resolution_type || '—'}</td>
+                                                    <td className="py-1 pr-2 text-right">{r.strike_price != null ? formatCurrency(r.strike_price) : '—'}</td>
+                                                    <td className="py-1 pr-2 text-right text-green-600">{r.premium_received != null ? formatCurrency(r.premium_received) : '—'}</td>
+                                                    <td className="py-1 pr-2 text-right">{r.close_premium != null ? formatCurrency(r.close_premium) : '—'}</td>
+                                                    <td className="py-1 pr-2 text-right text-gray-500">{formatCurrency(r.commission + r.platform_fee)}</td>
+                                                    <td className={`py-1 pr-2 text-right font-semibold ${plColor(r.pnl_amount)}`}>{formatCurrency(r.pnl_amount)}</td>
+                                                    <td className="py-1 pr-2 text-gray-500">
+                                                        {r.rolled_from_id ? `←${r.rolled_from_id}` : ''}{r.rolled_to_id ? ` →${r.rolled_to_id}` : ''}
+                                                    </td>
+                                                    <td className="py-1 pr-2 text-gray-500 max-w-xs truncate">{r.description || '—'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
@@ -217,6 +421,8 @@ export function AccountFundsPage() {
                             </div>
                         </div>
                     )}
+
+                    <ReconciliationPanel />
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Cash & Withdrawals */}

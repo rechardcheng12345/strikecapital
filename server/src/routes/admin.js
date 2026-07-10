@@ -920,6 +920,159 @@ router.get('/moomoo/accounts', async (req, res, next) => {
     }
 });
 
+// ─── Earnings Reconciliation ─────────────────────────────────
+// Returns every term of the Additional Earnings formula plus per-row detail
+// so the admin can identify double-counted P&L, missing capital adjustments,
+// or stale account snapshots without querying the DB directly.
+router.get('/earnings/reconciliation', async (req, res, next) => {
+    try {
+        const fundSettings = await db('fund_settings').first();
+        const totalCapital = parseFloat(fundSettings?.total_fund_capital || '0');
+
+        const cached = await db('account_funds_cache').orderBy('fetched_at', 'desc').first();
+        const totalAssets = cached ? parseFloat(cached.total_assets) || 0 : 0;
+        const marketVal = cached ? parseFloat(cached.market_val) || 0 : 0;
+        const grossFundValue = totalAssets - marketVal;
+        const fetchedAt = cached?.fetched_at ? new Date(cached.fetched_at).toISOString() : null;
+
+        // Open premium (net of fees) — per position
+        const openPositions = await db('positions')
+            .where('status', 'OPEN')
+            .where('position_type', 'option')
+            .select('id', 'ticker', 'strike_price', 'contracts', 'premium_received', 'commission', 'platform_fee', 'open_date', 'expiration_date');
+        const openPremiumDetail = openPositions
+            .filter(p => p.contracts > 0)
+            .map(p => {
+                const gross = parseFloat(p.premium_received) || 0;
+                const comm = parseFloat(p.commission) || 0;
+                const fee = parseFloat(p.platform_fee) || 0;
+                return {
+                    id: p.id,
+                    ticker: p.ticker,
+                    strike_price: parseFloat(p.strike_price),
+                    contracts: p.contracts,
+                    open_date: p.open_date,
+                    expiration_date: p.expiration_date,
+                    premium_gross: Math.round(gross * 100) / 100,
+                    commission: Math.round(comm * 100) / 100,
+                    platform_fee: Math.round(fee * 100) / 100,
+                    premium_net: Math.round((gross - comm - fee) * 100) / 100,
+                };
+            });
+        const openPremiumNet = Math.round(
+            openPremiumDetail.reduce((s, p) => s + p.premium_net, 0) * 100
+        ) / 100;
+
+        // Every pnl_records row with its position context
+        const pnlRows = await db('pnl_records')
+            .leftJoin('positions', 'pnl_records.position_id', 'positions.id')
+            .select(
+                'pnl_records.id as pnl_id',
+                'pnl_records.position_id',
+                'pnl_records.record_date',
+                'pnl_records.pnl_amount',
+                'pnl_records.pnl_type',
+                'pnl_records.description',
+                'pnl_records.created_at',
+                'positions.ticker',
+                'positions.status as position_status',
+                'positions.position_type',
+                'positions.resolution_type',
+                'positions.strike_price',
+                'positions.contracts',
+                'positions.premium_received',
+                'positions.close_premium',
+                'positions.close_date',
+                'positions.commission',
+                'positions.platform_fee',
+                'positions.rolled_from_id',
+                'positions.rolled_to_id',
+            )
+            .orderBy('pnl_records.record_date', 'desc')
+            .orderBy('pnl_records.id', 'desc');
+
+        const pnlDetail = pnlRows.map(r => ({
+            pnl_id: r.pnl_id,
+            position_id: r.position_id,
+            ticker: r.ticker,
+            record_date: r.record_date,
+            pnl_amount: parseFloat(r.pnl_amount) || 0,
+            pnl_type: r.pnl_type,
+            description: r.description,
+            position_status: r.position_status,
+            position_type: r.position_type,
+            resolution_type: r.resolution_type,
+            strike_price: r.strike_price != null ? parseFloat(r.strike_price) : null,
+            contracts: r.contracts,
+            premium_received: r.premium_received != null ? parseFloat(r.premium_received) : null,
+            close_premium: r.close_premium != null ? parseFloat(r.close_premium) : null,
+            close_date: r.close_date,
+            commission: r.commission != null ? parseFloat(r.commission) : 0,
+            platform_fee: r.platform_fee != null ? parseFloat(r.platform_fee) : 0,
+            rolled_from_id: r.rolled_from_id,
+            rolled_to_id: r.rolled_to_id,
+        }));
+
+        const realizedGross = Math.round(
+            pnlDetail.reduce((s, r) => s + r.pnl_amount, 0) * 100
+        ) / 100;
+        const realizedNetFees = Math.round(
+            pnlDetail.reduce((s, r) => s + r.pnl_amount - r.commission - r.platform_fee, 0) * 100
+        ) / 100;
+
+        // Formula terms
+        const additionalEarningsGross = Math.round(
+            (grossFundValue - totalCapital - openPremiumNet - realizedGross) * 100
+        ) / 100;
+        const additionalEarningsNet = Math.round(
+            (grossFundValue - totalCapital - openPremiumNet - realizedNetFees) * 100
+        ) / 100;
+
+        // Group by position_id to spot duplicate P&L rows on the same position
+        const byPosition = {};
+        for (const r of pnlDetail) {
+            const key = String(r.position_id);
+            if (!byPosition[key]) {
+                byPosition[key] = {
+                    position_id: r.position_id,
+                    ticker: r.ticker,
+                    position_status: r.position_status,
+                    position_type: r.position_type,
+                    resolution_type: r.resolution_type,
+                    row_count: 0,
+                    total_pnl: 0,
+                };
+            }
+            byPosition[key].row_count += 1;
+            byPosition[key].total_pnl += r.pnl_amount;
+        }
+        const duplicatePositions = Object.values(byPosition)
+            .filter(g => g.row_count > 1)
+            .map(g => ({ ...g, total_pnl: Math.round(g.total_pnl * 100) / 100 }));
+
+        res.json({
+            fetchedAt,
+            source: cached ? 'cached' : 'none',
+            terms: {
+                totalAssets: Math.round(totalAssets * 100) / 100,
+                marketVal: Math.round(marketVal * 100) / 100,
+                grossFundValue: Math.round(grossFundValue * 100) / 100,
+                totalCapital: Math.round(totalCapital * 100) / 100,
+                openPremiumNet,
+                realizedGross,
+                realizedNetFees,
+                additionalEarningsGross,
+                additionalEarningsNet,
+            },
+            openPremiumDetail,
+            pnlDetail,
+            duplicatePositions,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // ─── Option Scanner ──────────────────────────────────────────
 router.get('/scanner/watchlist', authenticate, requireAdmin, async (req, res, next) => {
     try {
