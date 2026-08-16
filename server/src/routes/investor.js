@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../config/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { investorRealizedShare } from '../services/capitalAccountService.js';
 const router = Router();
 // All investor routes require authentication
 router.use(authenticate);
@@ -17,12 +18,12 @@ router.get('/dashboard', async (req, res, next) => {
         const [activeResult] = await db('positions')
             .where('status', 'OPEN')
             .count('* as count');
-        // Total P&L (investor's share, net of commission + platform_fee)
-        const pnlResult = await db('pnl_records')
-            .join('positions', 'pnl_records.position_id', 'positions.id')
-            .select(db.raw('SUM(pnl_records.pnl_amount - COALESCE(positions.commission, 0) - COALESCE(positions.platform_fee, 0)) as total'))
-            .first();
-        const totalPnl = parseFloat(pnlResult?.total || '0');
+        let totalPnl = 0;
+        try {
+            totalPnl = await investorRealizedShare(userId);
+        } catch {
+            totalPnl = 0;
+        }
         // Win rate: resolved positions where net P&L > 0
         const [resolvedCount] = await db('positions').where('status', 'RESOLVED').count('* as count');
         const wonResult = await db('pnl_records')
@@ -62,7 +63,7 @@ router.get('/dashboard', async (req, res, next) => {
             .select('last_price_update');
 
         const allocationAmount = parseFloat(allocation?.invested_amount || '0');
-        const realizedShare = Math.round(totalPnl * allocationPct * 100) / 100;
+        const realizedShare = Math.round(totalPnl * 100) / 100;
         const unrealizedShare = Math.round(totalUnrealizedPnl * allocationPct * 100) / 100;
         const total_return_pct = allocationAmount > 0
             ? Math.round(((realizedShare + unrealizedShare) / allocationAmount) * 10000) / 100

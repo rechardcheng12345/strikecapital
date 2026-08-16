@@ -62,9 +62,13 @@ export function AdminPositionsPage() {
                 toast.error(response.error);
                 return;
             }
-            const { updated, prices, source } = response.data;
+            const { updated, prices, source, unmatched = [] } = response.data;
             const sourceLabel = source === 'moomoo' ? 'Live API' : source === 'cache' ? 'Cached' : '';
-            toast.success(`Refreshed ${prices.length} ticker${prices.length !== 1 ? 's' : ''}, updated ${updated} position${updated !== 1 ? 's' : ''}${sourceLabel ? ` (${sourceLabel})` : ''}`);
+            toast.success(`Refreshed ${prices.length} contract${prices.length !== 1 ? 's' : ''}, updated ${updated} position${updated !== 1 ? 's' : ''}${sourceLabel ? ` (${sourceLabel})` : ''}`);
+            if (unmatched.length > 0) {
+                const detail = unmatched.map(p => `${p.ticker} $${p.strike} ${p.expiry}`).join('; ');
+                toast.warning(`Could not match ${unmatched.length} position${unmatched.length !== 1 ? 's' : ''}: ${detail}`);
+            }
             queryClient.invalidateQueries({ queryKey: ['positions'] });
         },
         onError: () => {

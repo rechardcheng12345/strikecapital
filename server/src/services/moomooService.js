@@ -5,6 +5,7 @@ import Long from 'long';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { env } from '../config/env.js';
+import { resolveExpiryCandidates, toCalendarDate } from './optionExpiry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROTO_DIR = path.resolve(__dirname, '../../../node_modules/moomoo-api/proto');
@@ -314,12 +315,12 @@ export async function getOptionQuotes(positions) {
         const groups = new Map();
         for (const pos of positions) {
             if (!pos.expiration_date) continue;
-            const rawExpiry = toLocalDateStr(pos.expiration_date);
+            const rawExpiry = toCalendarDate(pos.expiration_date);
 
-            // Find closest valid expiry date (position date may be off by a day)
+            // Prefer a listed expiry within 3 days; otherwise still try the stored date on the chain.
             const symbol = baseSymbol(pos.ticker);
             const validDates = expiryCache.get(symbol) || [];
-            const expiry = findClosestExpiry(validDates, rawExpiry);
+            const expiry = resolveExpiryCandidates(rawExpiry, validDates)[0];
             if (!expiry) {
                 console.warn(`[Moomoo] No valid expiry near ${rawExpiry} for ${symbol}`);
                 continue;
@@ -342,7 +343,7 @@ export async function getOptionQuotes(positions) {
                 const strike = parseFloat(pos.strike_price);
                 const match = chain.find(opt => Math.abs(opt.strikePrice - strike) < 0.01);
                 if (match) {
-                    const posExpiry = toLocalDateStr(pos.expiration_date);
+                    const posExpiry = toCalendarDate(pos.expiration_date);
                     if (!optionMap.has(match.code)) {
                         optionSecurities.push({ market: match.market, code: match.code });
                         optionMap.set(match.code, {

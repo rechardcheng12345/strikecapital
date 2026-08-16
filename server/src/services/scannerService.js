@@ -1,6 +1,7 @@
 import { ensureConnected, getValidExpiryDates, getOptionChain, getSnapshots } from './moomooService.js';
 import { fetchYahooPrice } from './priceService.js';
 import { env } from '../config/env.js';
+import { attachScoreParts, computeScanScore } from './scanScore.js';
 
 async function callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta) {
     try {
@@ -14,7 +15,11 @@ async function callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscou
             signal: AbortSignal.timeout(60000),
         });
         if (!resp.ok) return { results: [], error: `Proxy error: ${resp.status}`, debug: {} };
-        return await resp.json();
+        const payload = await resp.json();
+        return {
+            ...payload,
+            results: attachScoreParts(payload.results, targetDelta),
+        };
     } catch (err) {
         return { results: [], error: `Proxy unreachable: ${err.message}`, debug: {} };
     }
@@ -191,17 +196,13 @@ export async function scanPutOptions(
         const absDelta = delta != null ? Math.abs(delta) : 0;
         // Probability of keeping full premium ≈ 1 - |delta|. At |Δ|=0.145 → 85.5%.
         const popKeepPremium = delta != null ? Math.round((1 - absDelta) * 10000) / 100 : null;
-        // Delta sweet-spot score: triangular peak at targetDelta (default 0.16), zero outside ±0.12.
-        const deltaToleranceHalfWidth = 0.12;
-        const deltaScore = delta != null
-            ? Math.max(0, 1 - Math.abs(absDelta - targetDelta) / deltaToleranceHalfWidth)
-            : 0;
-        const score = Math.round(
-            Math.min(returnPct / 1.5, 1) * 40 +
-            Math.min(discountPct / 15, 1) * 30 +
-            deltaScore * 20 +
-            Math.min((openInterest ?? 0) / 5000, 1) * 10
-        );
+        const { score, score_parts } = computeScanScore({
+            returnPct,
+            discountPct,
+            absDelta: delta != null ? absDelta : null,
+            openInterest,
+            targetDelta,
+        });
         results.push({
             ticker: opt.ticker,
             option_code: opt.code,
@@ -226,6 +227,7 @@ export async function scanPutOptions(
             return_pct: returnPct,
             annual_return_pct: annualReturnPct,
             score,
+            score_parts,
         });
     }
 

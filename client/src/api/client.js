@@ -148,6 +148,7 @@ export const adminApi = {
     deleteInvestor: (id) => api.delete(`/admin/investors/${id}`),
     getFundSummary: () => api.get('/admin/investors/fund-summary'),
     resetInvestorPassword: (id, password) => api.post(`/admin/investors/${id}/reset-password`, { password }),
+    addCapital: (id, data) => api.post(`/admin/investors/${id}/capital`, data),
     // P&L
     getPnl: (period = 'all') => api.get(`/admin/pnl?period=${period}`),
     createPnlRecord: (data) => api.post('/admin/pnl', data),

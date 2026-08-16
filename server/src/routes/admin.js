@@ -12,8 +12,11 @@ import { notifyAllInvestors } from '../services/notificationEngine.js';
 import { insertAndFetch, updateAndFetch } from '../utils/dbHelpers.js';
 import { getAccountFunds, getAccList } from '../services/moomooService.js';
 import { scanPutOptions, fetchStockPrices } from '../services/scannerService.js';
+import { resolveScanTickers } from '../services/scanScore.js';
 import { fetchYahooLevels } from '../services/priceService.js';
 import { env } from '../config/env.js';
+import { addCapital, investorRealizedShare, syncAllocationPctFromInvested } from '../services/capitalAccountService.js';
+import { allocationPctFromInvested } from '../services/capitalAccount.js';
 const router = Router();
 // All admin routes require authentication + admin role
 router.use(authenticate, requireAdmin);
@@ -102,9 +105,27 @@ router.get('/dashboard/stats', async (req, res, next) => {
             ? Math.round((gross_fund_value - totalCapital - open_premium_collected - total_realized_pnl) * 100) / 100
             : null;
 
-        const total_return_pct = totalCapital > 0
-            ? Math.round(((total_realized_pnl + total_unrealized_pnl) / totalCapital) * 10000) / 100
-            : null;
+        let lastMove = null;
+        try {
+            lastMove = await db('capital_movements').orderBy('moved_on', 'desc').orderBy('id', 'desc').first();
+        } catch {
+            lastMove = null;
+        }
+        let return_since_last_add_pct = null;
+        if (lastMove && totalCapital > 0) {
+            const since = lastMove.moved_on instanceof Date
+                ? lastMove.moved_on.toISOString().slice(0, 10)
+                : String(lastMove.moved_on).slice(0, 10);
+            const sinceRow = await db('pnl_records')
+                .join('positions', 'pnl_records.position_id', 'positions.id')
+                .where('pnl_records.record_date', '>=', since)
+                .select(db.raw('SUM(pnl_records.pnl_amount - COALESCE(positions.commission, 0) - COALESCE(positions.platform_fee, 0)) as total'))
+                .first();
+            const sincePnl = parseFloat(sinceRow?.total || '0') || 0;
+            return_since_last_add_pct = Math.round((sincePnl / totalCapital) * 10000) / 100;
+        }
+
+        const total_return_pct = return_since_last_add_pct;
 
         res.json({
             total_positions,
@@ -121,6 +142,12 @@ router.get('/dashboard/stats', async (req, res, next) => {
             total_capital: Math.round(totalCapital * 100) / 100,
             account_balance,
             additional_earnings,
+            last_contribution_on: lastMove
+                ? (lastMove.moved_on instanceof Date
+                    ? lastMove.moved_on.toISOString().slice(0, 10)
+                    : String(lastMove.moved_on).slice(0, 10))
+                : null,
+            return_since_last_add_pct,
         });
     }
     catch (error) {
@@ -293,12 +320,19 @@ router.get('/investors', async (req, res, next) => {
                 'investor_allocations.invested_amount', 'investor_allocations.allocation_pct',
                 'investor_allocations.start_date as allocation_start_date'
             )
-            .orderByRaw('COALESCE(investor_allocations.allocation_pct, 0) DESC, users.created_at DESC')
+            .orderByRaw('COALESCE(investor_allocations.invested_amount, 0) DESC, users.created_at DESC')
             .limit(limit)
             .offset(offset);
 
+        const settings = await db('fund_settings').first();
+        const totalCapital = parseFloat(settings?.total_fund_capital || '0') || 0;
+        const investorsWithPct = investors.map((inv) => ({
+            ...inv,
+            allocation_pct: allocationPctFromInvested(inv.invested_amount, totalCapital),
+        }));
+
         res.json({
-            investors,
+            investors: investorsWithPct,
             pagination: { page, limit, total, pages: Math.ceil(total / limit) },
         });
     }
@@ -333,14 +367,12 @@ router.post('/investors', validate(createInvestorSchema), async (req, res, next)
         const password_hash = await bcrypt.hash(password, 10);
         const user = await insertAndFetch('users', { email, password_hash, full_name, phone: phone || null, role: 'investor' });
         if (allocation_amount && allocation_amount > 0) {
-            const pct = await calcAllocationPct(allocation_amount);
-            await db('investor_allocations').insert({
-                user_id: user.id,
-                invested_amount: allocation_amount,
-                allocation_pct: pct,
-                start_date: new Date().toISOString().split('T')[0],
-                is_active: true,
-                created_by: req.user.id,
+            await addCapital({
+                userId: user.id,
+                amount: allocation_amount,
+                movedOn: new Date().toISOString().split('T')[0],
+                note: 'Initial contribution',
+                createdBy: req.user.id,
             });
         }
         await logAudit({
@@ -396,23 +428,30 @@ router.put('/investors/:id', validate(updateInvestorSchema), async (req, res, ne
             });
         }
         if (invested_amount !== undefined) {
-            const allocation_pct = await calcAllocationPct(invested_amount);
             const existing = await db('investor_allocations').where({ user_id: user.id, is_active: true }).first();
-            if (existing) {
+            const current = parseFloat(existing?.invested_amount || '0') || 0;
+            const delta = invested_amount - current;
+            if (delta > 0) {
+                await addCapital({
+                    userId: user.id,
+                    amount: delta,
+                    movedOn: new Date().toISOString().split('T')[0],
+                    note: 'Allocation increase',
+                    createdBy: req.user.id,
+                });
+            } else if (existing) {
                 await db('investor_allocations').where({ id: existing.id }).update({
                     invested_amount,
-                    allocation_pct,
                     updated_at: new Date(),
                 });
-            }
-            else {
-                await db('investor_allocations').insert({
-                    user_id: user.id,
-                    invested_amount,
-                    allocation_pct,
-                    start_date: new Date().toISOString().split('T')[0],
-                    is_active: true,
-                    created_by: req.user.id,
+                await syncAllocationPctFromInvested();
+            } else if (invested_amount > 0) {
+                await addCapital({
+                    userId: user.id,
+                    amount: invested_amount,
+                    movedOn: new Date().toISOString().split('T')[0],
+                    note: 'Initial contribution',
+                    createdBy: req.user.id,
                 });
             }
         }
@@ -430,6 +469,39 @@ router.put('/investors/:id', validate(updateInvestorSchema), async (req, res, ne
         res.json({ ...updated, invested_amount: allocation?.invested_amount, allocation_pct: allocation?.allocation_pct });
     }
     catch (error) {
+        next(error);
+    }
+});
+
+const addCapitalSchema = z.object({
+    amount: z.number().positive(),
+    moved_on: z.string().optional(),
+    note: z.string().optional(),
+});
+
+// POST /investors/:id/capital — Contribution (not P&L)
+router.post('/investors/:id/capital', validate(addCapitalSchema), async (req, res, next) => {
+    try {
+        const user = await db('users').where({ id: req.params.id }).first();
+        if (!user) throw new AppError('Investor not found', 404);
+        const result = await addCapital({
+            userId: user.id,
+            amount: req.body.amount,
+            movedOn: req.body.moved_on,
+            note: req.body.note,
+            createdBy: req.user.id,
+        });
+        await logAudit({
+            userId: req.user.id,
+            action: 'capital.contribute',
+            entityType: 'user',
+            entityId: user.id,
+            newValues: { amount: req.body.amount, moved_on: result.moved_on },
+            ipAddress: req.ip,
+        });
+        res.status(201).json(result);
+    } catch (error) {
+        if (error.status === 400) return next(new AppError(error.message, 400));
         next(error);
     }
 });
@@ -1127,9 +1199,10 @@ router.post('/scanner/scan', authenticate, requireAdmin, async (req, res, next) 
             minReturn = 0, minOI = 0, minVolume = 0,
             maxSpread = 0,
             targetDelta = 0.16,
+            tickers: requestedTickers,
         } = req.body || {};
         const watchlist = await db('scanner_watchlist').orderBy('ticker');
-        const tickers = watchlist.map(w => w.ticker);
+        const tickers = resolveScanTickers(watchlist.map(w => w.ticker), requestedTickers);
         if (tickers.length === 0) return res.json({ results: [], message: 'Watchlist is empty' });
 
         // Risk-free rate for Black-Scholes fair-value calc — single source of truth in fund_settings.

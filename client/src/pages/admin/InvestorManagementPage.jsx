@@ -513,6 +513,76 @@ function DeleteConfirmModal({ isOpen, onClose, investor }) {
   );
 }
 
+function AddCapitalModal({ isOpen, onClose, investor }) {
+  const queryClient = useQueryClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const [amount, setAmount] = useState('');
+  const [movedOn, setMovedOn] = useState(today);
+  const [note, setNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    const n = parseFloat(amount);
+    if (!(n > 0)) {
+      setFormError('Amount must be greater than 0');
+      return;
+    }
+    setSubmitting(true);
+    const res = await adminApi.addCapital(investor.id, {
+      amount: n,
+      moved_on: movedOn,
+      note: note || undefined,
+    });
+    setSubmitting(false);
+    if (res.error) {
+      setFormError(res.error);
+      return;
+    }
+    const realized = res.data?.total_realized_pnl;
+    toast.success(
+      realized != null
+        ? `Added ${formatCurrency(n)}. Realized P&L unchanged at ${formatCurrency(realized)}.`
+        : `Added ${formatCurrency(n)}.`,
+    );
+    queryClient.invalidateQueries({ queryKey: ['admin', 'investors'] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'fund-summary'] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Add capital — ${investor?.full_name || ''}`} size="md">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <p className="text-sm text-gray-600">
+          This is a contribution, not profit. Existing realized P&L stays with whoever was already in the fund.
+        </p>
+        <div>
+          <label className="text-xs font-medium text-gray-500 block mb-1">Amount (USD)</label>
+          <Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full" required />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 block mb-1">Date</label>
+          <Input type="date" value={movedOn} onChange={(e) => setMovedOn(e.target.value)} className="w-full" required />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 block mb-1">Note (optional)</label>
+          <Input value={note} onChange={(e) => setNote(e.target.value)} className="w-full" placeholder="e.g. Second close" />
+        </div>
+        {formError && (
+          <div className="bg-red-50 border border-red-200 p-3 text-sm text-red-700">{formError}</div>
+        )}
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="outline" onClick={onClose} className="rounded-none">Cancel</Button>
+          <Button type="submit" variant="primary" loading={submitting} className="rounded-none">Add capital</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 // ─── Table Skeleton ──────────────────────────────────
 function TableSkeleton() {
   return (
@@ -546,6 +616,7 @@ export function InvestorManagementPage() {
   const [viewingInvestor, setViewingInvestor] = useState(null);
   const [deletingInvestor, setDeletingInvestor] = useState(null);
   const [resetPasswordInvestor, setResetPasswordInvestor] = useState(null);
+  const [capitalInvestor, setCapitalInvestor] = useState(null);
 
   const handleSearchChange = useCallback((value) => {
     setSearch(value);
@@ -679,6 +750,13 @@ export function InvestorManagementPage() {
                     <Eye className="w-4 h-4 text-[#0D2654]" />
                   </button>
                   <button
+                    onClick={() => setCapitalInvestor(inv)}
+                    className="p-1.5 hover:bg-green-100 rounded-none transition-colors"
+                    title="Add capital"
+                  >
+                    <Wallet className="w-4 h-4 text-green-700" />
+                  </button>
+                  <button
                     onClick={() => setEditingInvestor(inv)}
                     className="p-1.5 hover:bg-[#F06010]/10 rounded-none transition-colors"
                     title="Edit investor"
@@ -763,6 +841,14 @@ export function InvestorManagementPage() {
           isOpen={!!viewingInvestor}
           onClose={() => setViewingInvestor(null)}
           investor={viewingInvestor}
+        />
+      )}
+
+      {capitalInvestor && (
+        <AddCapitalModal
+          isOpen={!!capitalInvestor}
+          onClose={() => setCapitalInvestor(null)}
+          investor={capitalInvestor}
         />
       )}
 

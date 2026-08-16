@@ -230,6 +230,24 @@ export async function refreshAllPrices() {
         }
 
         result.stockPrices = Object.fromEntries(stockPriceMap);
+        if (quotes.length > 0) {
+            const quotedIds = new Set();
+            for (const q of quotes) {
+                for (const id of (q.positionIds || [])) quotedIds.add(id);
+            }
+            result.unmatched = positions
+                .filter(p => !quotedIds.has(p.id))
+                .map(p => ({
+                    id: p.id,
+                    ticker: p.ticker,
+                    strike: parseFloat(p.strike_price),
+                    expiry: typeof p.expiration_date === 'object'
+                        ? p.expiration_date.toISOString().split('T')[0]
+                        : String(p.expiration_date).split('T')[0],
+                }));
+        } else {
+            result.unmatched = [];
+        }
         return result;
     } catch (err) {
         console.error('[PriceService] Unexpected error in refreshAllPrices:', err.message);

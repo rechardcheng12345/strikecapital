@@ -181,14 +181,17 @@ async function ensureConnected() {
 }
 
 // ─── Shared Helpers ──────────────────────────────────────────────────────────
-function toLocalDateStr(d) {
-    if (d instanceof Date) {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-    }
-    return String(d).split('T')[0];
+function toCalendarDate(d) {
+    if (d == null || d === '') return '';
+    if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) return d.trim();
+    const date = d instanceof Date ? d : new Date(d);
+    if (Number.isNaN(date.getTime())) return String(d).split('T')[0];
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Singapore',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(date);
 }
 
 function baseSymbol(ticker) {
@@ -196,18 +199,29 @@ function baseSymbol(ticker) {
 }
 
 function findClosestExpiry(validDates, targetDate) {
+    if (!targetDate) return null;
     if (validDates.includes(targetDate)) return targetDate;
     const target = new Date(targetDate).getTime();
+    if (Number.isNaN(target)) return null;
     let closest = null;
     let minDiff = Infinity;
     for (const d of validDates) {
-        const diff = Math.abs(new Date(d).getTime() - target);
+        const t = new Date(d).getTime();
+        if (Number.isNaN(t)) continue;
+        const diff = Math.abs(t - target);
         if (diff < minDiff && diff <= 3 * 24 * 60 * 60 * 1000) {
             minDiff = diff;
             closest = d;
         }
     }
     return closest;
+}
+
+function resolveExpiryCandidates(rawDate, validDates = []) {
+    const calendar = toCalendarDate(rawDate);
+    const listed = findClosestExpiry(validDates, calendar);
+    if (listed) return [listed];
+    return calendar ? [calendar] : [];
 }
 
 // ─── Black-Scholes Put Pricing ──────────────────────────────────────────────
@@ -491,10 +505,10 @@ async function getOptionQuotes(positions) {
         const groups = new Map();
         for (const pos of positions) {
             if (!pos.expiration_date) continue;
-            const rawExpiry = toLocalDateStr(pos.expiration_date);
+            const rawExpiry = toCalendarDate(pos.expiration_date);
             const symbol = baseSymbol(pos.ticker);
             const validDates = expiryCache.get(symbol) || [];
-            const expiry = findClosestExpiry(validDates, rawExpiry);
+            const expiry = resolveExpiryCandidates(rawExpiry, validDates)[0];
             if (!expiry) {
                 console.warn(`[Quotes] No valid expiry near ${rawExpiry} for ${symbol}`);
                 continue;
@@ -514,7 +528,7 @@ async function getOptionQuotes(positions) {
                 const strike = parseFloat(pos.strike_price);
                 const match = chain.find(opt => Math.abs(opt.strikePrice - strike) < 0.01);
                 if (match) {
-                    const posExpiry = toLocalDateStr(pos.expiration_date);
+                    const posExpiry = toCalendarDate(pos.expiration_date);
                     if (!optionMap.has(match.code)) {
                         optionSecurities.push({ market: match.market, code: match.code });
                         optionMap.set(match.code, {
