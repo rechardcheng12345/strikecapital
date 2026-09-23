@@ -114,7 +114,7 @@ export function AdminDashboardPage() {
               {stats.total_return_pct !== null && stats.total_return_pct !== undefined && (
                 <MetricCard title="Return since last add" value={formatPercent(stats.total_return_pct)} icon={<TrendingUp className="w-5 h-5"/>} subtitle={stats.last_contribution_on ? `P&L after ${stats.last_contribution_on}` : 'Since last capital add'} valueColor={stats.total_return_pct >= 0 ? 'text-green-600' : 'text-red-600'}/>
               )}
-              <MetricCard title="Capital Utilization" value={formatPercent(stats.capital_utilization)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="Deployed" progressBar={{ value: stats.capital_utilization }}/>
+              <MetricCard title="Capital Utilization" value={formatPercent(stats.capital_utilization)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="Deployed vs capital + realized P&L" progressBar={{ value: stats.capital_utilization }}/>
               <MetricCard title="Total Investors" value={stats.total_investors.toLocaleString()} icon={<Users className="w-5 h-5"/>} subtitle="Accounts"/>
               <MetricCard title="Expiring Soon" value={stats.positions_expiring_soon.toLocaleString()} icon={<Clock className="w-5 h-5"/>} subtitle="Next 7 days" accent={stats.positions_expiring_soon > 0}/>
               {stats.additional_earnings !== null && stats.additional_earnings !== undefined && (

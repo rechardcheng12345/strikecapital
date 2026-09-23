@@ -90,13 +90,25 @@ export function RiskDashboardPage() {
                 <p className={`text-4xl font-bold ${risk.capital_utilization.utilization_pct > 80 ? 'text-red-500' : 'text-[#0D2654]'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                   {formatPercent(risk.capital_utilization.utilization_pct)}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">of total capital deployed</p>
+                <p className="text-sm text-gray-500 mt-1">of capital base (total capital + realized P&amp;L) deployed</p>
               </div>
-              <div className="flex gap-8">
+              <div className="flex flex-wrap gap-8">
                 <div>
                   <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Total Capital</p>
                   <p className="text-lg font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                     {formatCurrency(risk.capital_utilization.total_capital)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Realized P&amp;L</p>
+                  <p className={`text-lg font-bold ${(risk.capital_utilization.realized_pnl ?? 0) < 0 ? 'text-red-500' : 'text-green-600'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    {formatCurrency(risk.capital_utilization.realized_pnl ?? 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Capital Base</p>
+                  <p className="text-lg font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    {formatCurrency(risk.capital_utilization.capital_base ?? risk.capital_utilization.total_capital)}
                   </p>
                 </div>
                 <div>

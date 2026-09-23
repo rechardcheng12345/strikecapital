@@ -46,10 +46,11 @@ router.get('/dashboard/stats', async (req, res, next) => {
             .select(db.raw('SUM(pnl_records.pnl_amount - COALESCE(positions.commission, 0) - COALESCE(positions.platform_fee, 0)) as total'))
             .first();
         const total_realized_pnl = parseFloat(pnlResult?.total || '0');
-        // Capital utilization
+        // Capital utilization — measured against total capital + realized P&L
         const settings = await db('fund_settings').first();
         const totalCapital = parseFloat(settings?.total_fund_capital || '0');
-        const capital_utilization = totalCapital > 0 ? (total_collateral / totalCapital) * 100 : 0;
+        const capitalBase = totalCapital + total_realized_pnl;
+        const capital_utilization = capitalBase > 0 ? (total_collateral / capitalBase) * 100 : 0;
         // Positions expiring within 7 days
         const now = new Date();
         const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -140,6 +141,7 @@ router.get('/dashboard/stats', async (req, res, next) => {
             positions_expiring_soon,
             last_price_update: latestUpdate?.last_price_update || null,
             total_capital: Math.round(totalCapital * 100) / 100,
+            capital_base: Math.round(capitalBase * 100) / 100,
             account_balance,
             additional_earnings,
             last_contribution_on: lastMove
@@ -720,6 +722,8 @@ router.get('/risk/dashboard', async (req, res, next) => {
         // Map capital utilization fields
         const capital_utilization = {
             total_capital: utilization.totalCapital,
+            realized_pnl: Math.round(utilization.realizedPnl * 100) / 100,
+            capital_base: Math.round(utilization.capitalBase * 100) / 100,
             deployed_capital: utilization.utilizedCapital,
             utilization_pct: utilization.utilizationPct,
         };

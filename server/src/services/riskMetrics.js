@@ -1,4 +1,13 @@
 import { db } from '../config/database.js';
+// Total realized P&L (net of commission + platform_fee)
+export async function getTotalRealizedPnl() {
+    const row = await db('pnl_records')
+        .join('positions', 'pnl_records.position_id', 'positions.id')
+        .select(db.raw('SUM(pnl_records.pnl_amount - COALESCE(positions.commission, 0) - COALESCE(positions.platform_fee, 0)) as total'))
+        .first();
+    return parseFloat(row?.total || '0') || 0;
+}
+// Utilization is measured against capital base = total fund capital + realized P&L
 export async function getCapitalUtilization() {
     const settings = await db('fund_settings').first();
     const totalCollateral = await db('positions')
@@ -7,11 +16,15 @@ export async function getCapitalUtilization() {
         .first();
     const utilized = parseFloat(totalCollateral?.total || '0');
     const total = parseFloat(settings?.total_fund_capital || '0');
-    const pct = total > 0 ? (utilized / total) * 100 : 0;
+    const realizedPnl = await getTotalRealizedPnl();
+    const base = total + realizedPnl;
+    const pct = base > 0 ? (utilized / base) * 100 : 0;
     return {
         totalCapital: total,
+        realizedPnl,
+        capitalBase: base,
         utilizedCapital: utilized,
-        availableCapital: total - utilized,
+        availableCapital: base - utilized,
         utilizationPct: Math.round(pct * 100) / 100,
     };
 }

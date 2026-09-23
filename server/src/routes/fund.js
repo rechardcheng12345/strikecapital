@@ -4,6 +4,7 @@ import { db } from '../config/database.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { logAudit } from '../services/auditLogger.js';
+import { getCapitalUtilization } from '../services/riskMetrics.js';
 import { insertAndFetch, updateAndFetch } from '../utils/dbHelpers.js';
 const router = Router();
 const updateSettingsSchema = z.object({
@@ -58,18 +59,14 @@ router.put('/settings', authenticate, requireAdmin, validate(updateSettingsSchem
 // GET /capacity
 router.get('/capacity', authenticate, async (req, res, next) => {
     try {
-        const settings = await db('fund_settings').first();
-        const totalCapital = parseFloat(settings?.total_fund_capital || '0');
-        const result = await db('positions')
-            .where('status', 'OPEN')
-            .sum('collateral as total')
-            .first();
-        const utilized = parseFloat(result?.total || '0');
+        const u = await getCapitalUtilization();
         res.json({
-            total_fund_capital: totalCapital,
-            capital_at_risk: utilized,
-            available_capital: totalCapital - utilized,
-            utilization_pct: totalCapital > 0 ? Math.round((utilized / totalCapital) * 10000) / 100 : 0,
+            total_fund_capital: u.totalCapital,
+            realized_pnl: Math.round(u.realizedPnl * 100) / 100,
+            capital_base: Math.round(u.capitalBase * 100) / 100,
+            capital_at_risk: u.utilizedCapital,
+            available_capital: u.availableCapital,
+            utilization_pct: u.utilizationPct,
         });
     }
     catch (error) {
