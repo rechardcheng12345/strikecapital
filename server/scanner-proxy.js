@@ -32,11 +32,19 @@ app.get('/health', (req, res) => {
 });
 
 app.post('/scan', async (req, res) => {
-    const { tickers, stockPrices, minDays = 12, maxDays = 20, minDiscount = 10, maxDiscount = 20 } = req.body || {};
+    const {
+        tickers, stockPrices,
+        minDays = 30, maxDays = 60,
+        minDiscount = 3, maxDiscount = 35,
+        minDelta = 0, maxDelta = 1,
+        minReturn = 0, minOI = 0, minVolume = 0,
+        maxSpread = 0, riskFreeRate = 0.0525,
+        targetDelta = 0.2, expiryTargets = [],
+    } = req.body || {};
     if (!tickers || !stockPrices) {
         return res.status(400).json({ error: 'tickers and stockPrices are required' });
     }
-    const result = await scanPutOptions(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount);
+    const result = await scanPutOptions(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta, expiryTargets);
     res.json(result);
 });
 

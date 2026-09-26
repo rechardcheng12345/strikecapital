@@ -12,6 +12,7 @@ import { Modal } from '../../components/ui/Modal';
 import { ErrorAlert } from '../../components/ui/ErrorAlert';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ProfitCaptured } from '../../components/ui/ProfitCaptured';
 const STATUS_TABS = [
     { key: 'ALL', label: 'All' },
     { key: 'OPEN', label: 'Opened' },
@@ -178,6 +179,7 @@ export function AdminPositionsPage() {
                   <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>B/E</th>
                   <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Cur.</th>
                   <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{activeTab === 'MONITORING' ? 'vs Target' : 'Unreal. P&L'}</th>
+                  <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }} title="% of premium (max profit) captured">Captured</th>
                   <th className="text-center px-1 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}></th>
                 </tr>
               </thead>
@@ -203,6 +205,9 @@ export function AdminPositionsPage() {
                     <td className="px-2 py-2.5 text-right font-mono">{pos.current_price != null ? formatCurrency(pos.current_price) : '--'}</td>
                     <td className={`px-2 py-2.5 text-right font-mono font-semibold ${pos.unrealized_pnl != null ? (pos.unrealized_pnl >= 0 ? 'text-green-600' : 'text-red-600') : ''}`}>
                       {pos.unrealized_pnl != null ? formatCurrency(pos.unrealized_pnl) : '--'}
+                    </td>
+                    <td className="px-2 py-2.5 text-right">
+                      <ProfitCaptured pct={pos.profit_captured_pct} compact/>
                     </td>
                     <td className="px-1 py-2.5 text-center">
                       <button onClick={(e) => {

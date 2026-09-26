@@ -6,7 +6,7 @@ import { requireAdmin } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { logAudit } from '../services/auditLogger.js';
-import { calculateCollateral, calculateBreakEven, calculateMaxProfit, calculateStockCollateral, calculateStockBreakEven } from '../services/pnlEngine.js';
+import { calculateCollateral, calculateBreakEven, calculateMaxProfit, calculateStockCollateral, calculateStockBreakEven, calculateProfitCapturedPct } from '../services/pnlEngine.js';
 import { notifyAllInvestors } from '../services/notificationEngine.js';
 import { refreshAllPrices } from '../services/priceService.js';
 import { insertAndFetch, updateAndFetch } from '../utils/dbHelpers.js';
@@ -22,6 +22,7 @@ function addComputedFields(pos, stockPriceMap) {
         } else if (p.position_type === 'option' && p.contracts > 0) {
             const fees = (parseFloat(p.commission) || 0) + (parseFloat(p.platform_fee) || 0);
             p.unrealized_pnl = Math.round((parseFloat(p.premium_received) - fees - (parseFloat(p.current_price) * p.contracts * 100)) * 100) / 100;
+            p.profit_captured_pct = calculateProfitCapturedPct(p.premium_received, p.current_price, p.contracts);
         } else {
             p.unrealized_pnl = null;
         }

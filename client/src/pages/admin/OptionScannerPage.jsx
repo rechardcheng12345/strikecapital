@@ -1,11 +1,14 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Search, Plus, X, ScanLine, AlertTriangle, ChevronDown, ChevronUp, Sparkles, Square } from 'lucide-react';
+import { Search, Plus, X, ScanLine, AlertTriangle, ChevronDown, ChevronUp, Sparkles, Square, Brain, Ban, CalendarClock, Wallet } from 'lucide-react';
 import { scannerApi, positionApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Input, Skeleton, ErrorAlert } from '../../components/ui';
 import { OptionScannerDetailPanel } from './OptionScannerDetailPanel';
+import { ScannerRulesCard } from './ScannerRulesCard';
+import { RollWatchCard } from './RollWatchCard';
+import { SCAN_PRESETS, FIT_LABELS, finalScore, scoreColor } from './scannerShared';
 
 function formatCurrency(v) {
     if (v == null) return '—';
@@ -19,11 +22,6 @@ function formatNum(v, dec = 4) {
     if (v == null) return '—';
     return Number(v).toFixed(dec);
 }
-function scoreColor(score) {
-    if (score >= 70) return 'text-green-600 font-semibold';
-    if (score >= 50) return 'text-yellow-600 font-semibold';
-    return 'text-gray-400';
-}
 function deltaColor(delta) {
     if (delta == null) return 'text-gray-500';
     const abs = Math.abs(delta);
@@ -33,14 +31,45 @@ function deltaColor(delta) {
 }
 
 const HUNT_COLUMNS = [
-    { key: 'score', label: 'Score' },
+    { key: 'final_score', label: 'Score', sub: 'Quant' },
     { key: 'ticker', label: 'Symbol', sub: 'Stock $' },
     { key: 'strike', label: 'Strike', sub: 'Disc%' },
-    { key: 'days_to_expiry', label: 'DTE' },
-    { key: 'mid', label: 'Premium' },
-    { key: 'return_pct', label: 'Return' },
-    { key: 'delta', label: 'Delta' },
+    { key: 'days_to_expiry', label: 'DTE', sub: '→80%' },
+    { key: 'mid', label: 'Premium', sub: 'Return' },
+    { key: 'managed_ann_pct', label: 'Mgd Ann.', sub: 'if closed at 80%' },
+    { key: 'sigma_otm', label: 'Cushion', sub: 'σ · |Δ|' },
+    { key: 'iv_hv_ratio', label: 'IV/HV', sub: 'IV' },
+    { key: 'flags', label: 'Flags', sortable: false },
 ];
+
+function parseTargets(text) {
+    return String(text || '')
+        .split(/[,\s]+/)
+        .map(Number)
+        .filter(n => Number.isFinite(n) && n > 0);
+}
+
+function AiBadge({ ctx }) {
+    if (!ctx) return null;
+    if (ctx.loading) return <span className="text-[10px] text-gray-400 animate-pulse">AI…</span>;
+    if (ctx.error) return <span className="text-[10px] text-gray-400" title={ctx.error}>AI n/a</span>;
+    if (ctx.veto) {
+        return (
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold bg-red-600 text-white" title={ctx.veto_reasons.join('\n')}>
+                <Ban className="w-3 h-3" /> VETO
+            </span>
+        );
+    }
+    const tip = ctx.warnings.length ? ctx.warnings.join('\n') : 'No concerns from Jev';
+    if (ctx.warnings.length) {
+        return <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-800" title={tip}><Brain className="w-3 h-3" /> {ctx.warnings.length}</span>;
+    }
+    return (
+        <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold ${ctx.review ? 'bg-gray-100 text-gray-600' : 'bg-green-50 text-green-700'}`} title={ctx.review ? 'Jev is unsure — review manually' : tip}>
+            <Brain className="w-3 h-3" /> {ctx.review ? 'Review' : 'OK'}
+        </span>
+    );
+}
 
 export function OptionScannerPage() {
     const queryClient = useQueryClient();
@@ -48,13 +77,17 @@ export function OptionScannerPage() {
     const [addingTicker, setAddingTicker] = useState(false);
 
     const [params, setParams] = useState({
-        minDays: 14, maxDays: 28,
-        minDiscount: 10, maxDiscount: 20,
-        minDelta: 0, maxDelta: 1,
+        ...SCAN_PRESETS.find(p => p.key === '30-60').params,
         minReturn: 0, minOI: 0,
         maxSpread: 0,
-        targetDelta: 0.16,
     });
+    const [presetKey, setPresetKey] = useState('30-60');
+    const [aiContext, setAiContext] = useState({});
+    const [aiWeight, setAiWeight] = useState(1);
+    const [hideVetoed, setHideVetoed] = useState(true);
+    const [hideUnfit, setHideUnfit] = useState(false);
+    const [skipEarnings, setSkipEarnings] = useState(false);
+    const [portfolioInfo, setPortfolioInfo] = useState(null);
     const [scanning, setScanning] = useState(false);
     const [scanComplete, setScanComplete] = useState(false);
     const [scanProgress, setScanProgress] = useState({ current: 0, total: 0, ticker: null });
@@ -62,7 +95,7 @@ export function OptionScannerPage() {
     const [scanWarnings, setScanWarnings] = useState([]);
     const [addingPosition, setAddingPosition] = useState(null);
     const [addedPositions, setAddedPositions] = useState(new Set());
-    const [sortKey, setSortKey] = useState('score');
+    const [sortKey, setSortKey] = useState('final_score');
     const [sortDir, setSortDir] = useState('desc');
     const [analyzing, setAnalyzing] = useState(false);
     const [aiAnalysis, setAiAnalysis] = useState(null);
@@ -142,7 +175,14 @@ export function OptionScannerPage() {
         setAiFormat(null);
         setAiError(null);
         try {
-            const response = await scannerApi.analyze(scanResults.results, scanResults.stock_prices || {}, params);
+            const rows = results.map(r => {
+                const ctx = aiContext[r.ticker];
+                const note = !ctx || ctx.loading || ctx.error ? null
+                    : ctx.veto ? `VETO: ${ctx.veto_reasons.join('; ')}`
+                        : ctx.warnings.length ? ctx.warnings.join('; ') : 'ok';
+                return { ...r, ai_note: note };
+            });
+            const response = await scannerApi.analyze(rows, scanResults.stock_prices || {}, params);
             const data = response.data || {};
             if (data.error || response.error) setAiError(data.error || response.error);
             else {
@@ -154,6 +194,22 @@ export function OptionScannerPage() {
         } finally {
             setAnalyzing(false);
         }
+    }
+
+    async function loadAiContext(ticker, latestExpiry, gen) {
+        setAiContext(c => ({ ...c, [ticker]: { loading: true } }));
+        const res = await scannerApi.context([{ ticker, latest_expiry: latestExpiry }]);
+        if (scanGenRef.current !== gen) return;
+        const ctx = res?.data?.contexts?.[0];
+        const error = res?.error || ctx?.error || (!ctx ? 'No AI context' : null);
+        setAiContext(c => ({ ...c, [ticker]: error ? { error } : ctx }));
+    }
+
+    function applyPreset(key) {
+        const preset = SCAN_PRESETS.find(p => p.key === key);
+        if (!preset) return;
+        setPresetKey(key);
+        setParams(p => ({ ...p, ...preset.params }));
     }
 
     function handleStopScan() {
@@ -173,7 +229,9 @@ export function OptionScannerPage() {
         setAiAnalysis(null);
         setAiError(null);
         setSelectedCode(null);
+        setAiContext({});
         setScanProgress({ current: 0, total: tickers.length, ticker: null });
+        const scanParams = { ...params, expiryTargets: parseTargets(params.expiryTargets) };
 
         const merged = { results: [], stock_prices: {}, debug: {} };
 
@@ -182,7 +240,7 @@ export function OptionScannerPage() {
             const ticker = tickers[i].ticker;
             setScanProgress({ current: i + 1, total: tickers.length, ticker });
             try {
-                const response = await scannerApi.scan({ ...params, tickers: [ticker] });
+                const response = await scannerApi.scan({ ...scanParams, tickers: [ticker] });
                 if (scanGenRef.current !== gen) break;
                 const data = response.data || {};
                 if (response.error && !data.results) {
@@ -193,6 +251,13 @@ export function OptionScannerPage() {
                     setScanWarnings(w => [...w, `${ticker}: ${data.error}`]);
                 }
                 merged.results = [...merged.results, ...(data.results || [])];
+                if (data.portfolio) setPortfolioInfo(data.portfolio);
+                // Jev context runs in the background so the next ticker's scan isn't held up.
+                const tickerRows = data.results || [];
+                if (tickerRows.length > 0) {
+                    const latestExpiry = tickerRows.reduce((m, r) => (r.expiry > m ? r.expiry : m), '');
+                    loadAiContext(ticker, latestExpiry, gen);
+                }
                 merged.stock_prices = { ...merged.stock_prices, ...(data.stock_prices || {}) };
                 merged.debug = { ...merged.debug, ...(data.debug || {}) };
                 setScanResults({
@@ -237,8 +302,16 @@ export function OptionScannerPage() {
         }
     }
 
-    const rawResults = scanResults?.results || [];
-    const results = [...rawResults].sort((a, b) => {
+    const rawResults = (scanResults?.results || []).map(r => ({ ...r, final_score: finalScore(r, aiContext[r.ticker], aiWeight) }));
+    const hiddenCounts = { veto: 0, unfit: 0, earnings: 0 };
+    const visible = rawResults.filter(r => {
+        const ctx = aiContext[r.ticker];
+        if (hideVetoed && ctx?.veto) { hiddenCounts.veto++; return false; }
+        if (hideUnfit && r.fits === false) { hiddenCounts.unfit++; return false; }
+        if (skipEarnings && r.earnings_before_expiry) { hiddenCounts.earnings++; return false; }
+        return true;
+    });
+    const results = [...visible].sort((a, b) => {
         const av = a[sortKey] ?? -Infinity;
         const bv = b[sortKey] ?? -Infinity;
         if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
@@ -302,8 +375,26 @@ export function OptionScannerPage() {
                     )}
                 </div>
 
+                <RollWatchCard />
+
+                <ScannerRulesCard />
+
                 <div className="border-2 border-[#0D2654]/20 bg-white p-5">
-                    <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider mb-4">Scan Parameters</h2>
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider">Scan Parameters</h2>
+                        <div className="flex flex-wrap gap-1.5">
+                            {SCAN_PRESETS.map(p => (
+                                <button
+                                    key={p.key}
+                                    type="button"
+                                    onClick={() => applyPreset(p.key)}
+                                    className={`px-2.5 py-1 text-xs font-medium border transition-colors ${presetKey === p.key ? 'bg-[#0D2654] text-white border-[#0D2654]' : 'bg-white text-[#0D2654] border-[#0D2654]/20 hover:border-[#0D2654]/50'}`}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-x-5 gap-y-4 mb-5">
                         <div>
                             <label className="text-xs font-medium text-gray-500 block mb-1">Days to expiry</label>
@@ -312,6 +403,12 @@ export function OptionScannerPage() {
                                 <span className="text-gray-400 text-xs shrink-0">to</span>
                                 <Input type="number" value={params.maxDays} onChange={e => setParams(p => ({ ...p, maxDays: parseInt(e.target.value) || 0 }))} min={1} className="w-full" />
                             </div>
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-gray-500 block mb-1">
+                                Expiry targets <span className="text-gray-400">(DTE, blank = all)</span>
+                            </label>
+                            <Input value={params.expiryTargets} onChange={e => setParams(p => ({ ...p, expiryTargets: e.target.value }))} placeholder="30,45,60" className="w-full" />
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-500 block mb-1">Discount %</label>
@@ -345,7 +442,7 @@ export function OptionScannerPage() {
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-500 block mb-1">
-                                Target |Δ| <span className="text-gray-400">(0.16 ≈ 14% assign)</span>
+                                Target |Δ| <span className="text-gray-400">(0.20 ≈ 1 in 5 ITM)</span>
                             </label>
                             <Input type="number" value={params.targetDelta} onChange={e => setParams(p => ({ ...p, targetDelta: parseFloat(e.target.value) || 0 }))} min={0.05} max={0.50} step={0.01} className="w-full" />
                         </div>
@@ -401,6 +498,11 @@ export function OptionScannerPage() {
                             Results ({results.length} options found)
                             {scanning ? ' · scanning…' : ''}
                         </h2>
+                        {portfolioInfo && (
+                            <span className="hidden lg:inline-flex items-center gap-1 text-xs text-gray-500 whitespace-nowrap" title="Capital base = total capital + realized P&L">
+                                <Wallet className="w-3.5 h-3.5" /> Available {formatCurrency(portfolioInfo.available)} of {formatCurrency(portfolioInfo.capital_base)}
+                            </span>
+                        )}
                         <button
                             onClick={handleAnalyze}
                             disabled={analyzing || scanning || !scanComplete || results.length === 0}
@@ -409,6 +511,27 @@ export function OptionScannerPage() {
                             <Sparkles className="w-3.5 h-3.5" />
                             {analyzing ? 'Analyzing...' : 'Analyze with AI'}
                         </button>
+                    </div>
+
+                    <div className="px-5 py-2.5 border-b border-[#0D2654]/10 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-600 bg-[#F5F3EF]/60">
+                        <label className="flex items-center gap-2" title="How much the Jev context lowers the quant score (0% = ignore AI)">
+                            <Brain className="w-3.5 h-3.5 text-[#F06010]" />
+                            AI weight
+                            <input type="range" min={0} max={1} step={0.25} value={aiWeight} onChange={e => setAiWeight(parseFloat(e.target.value))} className="w-24 accent-[#F06010]" />
+                            <span className="w-8 font-medium text-[#0D2654]">{Math.round(aiWeight * 100)}%</span>
+                        </label>
+                        <label className="flex items-center gap-1.5">
+                            <input type="checkbox" checked={hideVetoed} onChange={e => setHideVetoed(e.target.checked)} />
+                            Hide AI vetoed{hiddenCounts.veto ? ` (${hiddenCounts.veto})` : ''}
+                        </label>
+                        <label className="flex items-center gap-1.5">
+                            <input type="checkbox" checked={hideUnfit} onChange={e => setHideUnfit(e.target.checked)} />
+                            Hide over fund limits{hiddenCounts.unfit ? ` (${hiddenCounts.unfit})` : ''}
+                        </label>
+                        <label className="flex items-center gap-1.5">
+                            <input type="checkbox" checked={skipEarnings} onChange={e => setSkipEarnings(e.target.checked)} />
+                            Skip earnings before expiry{hiddenCounts.earnings ? ` (${hiddenCounts.earnings})` : ''}
+                        </label>
                     </div>
 
                     <div className="flex flex-col md:flex-row">
@@ -435,7 +558,7 @@ export function OptionScannerPage() {
                                                 {HUNT_COLUMNS.map(col => (
                                                     <th
                                                         key={col.key}
-                                                        onClick={() => handleSort(col.key)}
+                                                        onClick={() => col.sortable !== false && handleSort(col.key)}
                                                         className="px-3 py-3 text-xs font-semibold text-[#0D2654] uppercase tracking-wider cursor-pointer select-none hover:bg-[#0D2654]/10 transition-colors text-left align-top"
                                                     >
                                                         <div className="flex flex-col leading-tight">
@@ -465,7 +588,10 @@ export function OptionScannerPage() {
                                                         className={`cursor-pointer transition-colors ${selected ? 'bg-[#F06010]/10' : added ? 'bg-green-50' : 'hover:bg-[#F5F3EF]'}`}
                                                     >
                                                         <td className="px-3 py-3 align-top">
-                                                            <span className={`${scoreColor(row.score)} text-base`}>{row.score ?? '—'}</span>
+                                                            <span className={`${scoreColor(row.final_score)} text-base`}>{row.final_score ?? '—'}</span>
+                                                            {row.final_score !== row.score && (
+                                                                <div className="text-[10px] text-gray-400">{row.score}</div>
+                                                            )}
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
                                                             <div className="font-semibold text-[#0D2654]">{row.ticker}</div>
@@ -477,16 +603,39 @@ export function OptionScannerPage() {
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
                                                             <div className="font-medium text-[#0D2654]">{row.days_to_expiry}d</div>
+                                                            <div className="text-[10px] text-gray-500" title="Estimated days to reach 80% profit if the stock and IV stay flat">{row.days_to_80 != null ? `~${row.days_to_80}d` : '—'}</div>
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
                                                             <div className="font-semibold text-green-700">{premium != null ? formatCurrency(premium) : '—'}</div>
+                                                            <div className="text-[10px] text-blue-600">{row.return_pct != null ? row.return_pct.toFixed(2) + '%' : '—'}</div>
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
-                                                            <div className="font-medium text-blue-600">{row.return_pct != null ? row.return_pct.toFixed(2) + '%' : '—'}</div>
+                                                            <div className="font-semibold text-blue-700">{row.managed_ann_pct != null ? row.managed_ann_pct.toFixed(1) + '%' : '—'}</div>
+                                                            <div className="text-[10px] text-gray-400">{row.annual_return_pct != null ? `${row.annual_return_pct.toFixed(1)}% held` : ''}</div>
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
-                                                            <div className={`font-semibold ${deltaColor(row.delta)}`}>
-                                                                {row.delta != null ? formatNum(Math.abs(row.delta), 3) : '—'}
+                                                            <div className={`font-medium ${row.sigma_otm >= 1 ? 'text-green-600' : row.sigma_otm >= 0.6 ? 'text-[#0D2654]' : 'text-red-600'}`}>{row.sigma_otm != null ? `${row.sigma_otm.toFixed(2)}σ` : '—'}</div>
+                                                            <div className={`text-[10px] ${deltaColor(row.delta)}`}>{row.delta != null ? `Δ ${formatNum(Math.abs(row.delta), 2)}` : ''}</div>
+                                                        </td>
+                                                        <td className="px-3 py-3 align-top whitespace-nowrap">
+                                                            <div className={`font-medium ${row.iv_hv_ratio == null ? 'text-gray-400' : row.iv_hv_ratio >= 1.2 ? 'text-green-600' : row.iv_hv_ratio >= 0.9 ? 'text-[#0D2654]' : 'text-red-600'}`} title="Implied ÷ 20-day realized volatility — above 1.2 means premium is rich">
+                                                                {row.iv_hv_ratio != null ? `${row.iv_hv_ratio.toFixed(2)}×` : '—'}
+                                                            </div>
+                                                            <div className="text-[10px] text-gray-400">{row.iv != null ? `${Number(row.iv).toFixed(0)}%` : ''}</div>
+                                                        </td>
+                                                        <td className="px-3 py-3 align-top">
+                                                            <div className="flex flex-wrap gap-1 max-w-[140px]">
+                                                                <AiBadge ctx={aiContext[row.ticker]} />
+                                                                {row.earnings_before_expiry && (
+                                                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold bg-purple-100 text-purple-800" title={`Earnings ${row.earnings_date}${row.earnings_estimated ? ' (estimated)' : ''} — before expiry`}>
+                                                                        <CalendarClock className="w-3 h-3" /> Earn
+                                                                    </span>
+                                                                )}
+                                                                {row.fits === false && (
+                                                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold bg-red-50 text-red-700" title={(row.fit_flags || []).filter(f => f !== 'ALREADY_HELD').map(f => FIT_LABELS[f] || f).join('\n')}>
+                                                                        <Wallet className="w-3 h-3" /> Limit
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -501,6 +650,8 @@ export function OptionScannerPage() {
                         {selectedRow && (
                             <OptionScannerDetailPanel
                                 row={selectedRow}
+                                aiContext={aiContext[selectedRow.ticker]}
+                                aiWeight={aiWeight}
                                 onClose={() => setSelectedCode(null)}
                                 levelsState={tickerLevels[selectedRow.ticker]}
                                 onNeedLevels={ensureLevels}

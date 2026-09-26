@@ -30,3 +30,12 @@ export function calculateStockCollateral(shares, costBasis) {
 export function calculateStockBreakEven(costBasis, originalPremium, shares) {
     return Math.round((costBasis - (originalPremium / shares)) * 100) / 100;
 }
+// % of max profit captured on a short option: (premium received − current cost to close) / premium received.
+// 100% = option worth $0, 0% = unchanged, negative = option now worth more than sold for. Gross of fees.
+export function calculateProfitCapturedPct(premiumReceived, currentPrice, contracts) {
+    const premium = parseFloat(premiumReceived);
+    const price = parseFloat(currentPrice);
+    if (!(premium > 0) || !(contracts > 0) || currentPrice == null || isNaN(price)) return null;
+    const costToClose = price * contracts * 100;
+    return Math.round(((premium - costToClose) / premium) * 10000) / 100;
+}

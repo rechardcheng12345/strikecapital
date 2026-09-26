@@ -39,4 +39,6 @@ export const env = {
     // Ollama Cloud AI analysis
     ollamaApiKey: process.env.OLLAMA_API_KEY || '',
     ollamaModel: process.env.OLLAMA_MODEL || 'gpt-oss:120b',
+    // TypeSafe Jev (scanner context scoring)
+    typesafeApiKey: process.env.TYPESAFE_API_KEY || '',
 };

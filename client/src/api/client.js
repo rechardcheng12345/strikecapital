@@ -175,6 +175,14 @@ export const scannerApi = {
     scan: (params) => api.post('/admin/scanner/scan', params),
     analyze: (results, stock_prices, params) => api.post('/admin/scanner/analyze', { results, stock_prices, params }),
     getLevels: (ticker) => api.get(`/admin/scanner/levels/${encodeURIComponent(ticker)}`),
+    // Jev context: tickers = [{ ticker, latest_expiry }]
+    context: (tickers) => api.post('/admin/scanner/context', { tickers }),
+    getRules: () => api.get('/admin/scanner/rules'),
+    addRule: (rule_text, action) => api.post('/admin/scanner/rules', { rule_text, action }),
+    updateRule: (id, patch) => api.put(`/admin/scanner/rules/${id}`, patch),
+    deleteRule: (id) => api.delete(`/admin/scanner/rules/${id}`),
+    getRollWatch: () => api.get('/admin/scanner/roll-watch'),
+    findRolls: (positionId, opts = {}) => api.post(`/admin/scanner/rolls/${positionId}`, opts),
 };
 export const investorApi = {
     getDashboard: () => api.get('/investor/dashboard'),

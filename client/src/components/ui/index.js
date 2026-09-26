@@ -7,3 +7,4 @@ export { ErrorAlert } from './ErrorAlert';
 export { Skeleton, SkeletonCard } from './Skeleton';
 export { EmptyState } from './EmptyState';
 export { SuccessAnimation } from './SuccessAnimation';
+export { ProfitCaptured } from './ProfitCaptured';

@@ -1,9 +1,9 @@
 import { ensureConnected, getValidExpiryDates, getOptionChain, getSnapshots } from './moomooService.js';
 import { fetchYahooPrice } from './priceService.js';
 import { env } from '../config/env.js';
-import { attachScoreParts, computeScanScore } from './scanScore.js';
+import { pickExpiries } from './scanScore.js';
 
-async function callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta) {
+async function callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta, expiryTargets) {
     try {
         const resp = await fetch(`${env.scannerProxyUrl}/scan`, {
             method: 'POST',
@@ -11,15 +11,12 @@ async function callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscou
                 'Content-Type': 'application/json',
                 ...(env.scannerProxySecret ? { 'x-proxy-secret': env.scannerProxySecret } : {}),
             },
-            body: JSON.stringify({ tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta }),
+            body: JSON.stringify({ tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta, expiryTargets }),
             signal: AbortSignal.timeout(60000),
         });
         if (!resp.ok) return { results: [], error: `Proxy error: ${resp.status}`, debug: {} };
-        const payload = await resp.json();
-        return {
-            ...payload,
-            results: attachScoreParts(payload.results, targetDelta),
-        };
+        // Rows are re-scored by the caller (enrichScanRow), so the proxy's own score is ignored.
+        return await resp.json();
     } catch (err) {
         return { results: [], error: `Proxy unreachable: ${err.message}`, debug: {} };
     }
@@ -74,6 +71,8 @@ function bsPutPrice(S, K, T, sigma, r) {
  * @param {number}  maxSpread    - max bid/ask spread % of mid (0 or null = no filter)
  * @param {number}  riskFreeRate - decimal (e.g. 0.0525)
  * @param {number}  targetDelta  - score peaks at this |delta|; default 0.16 (≈14% assignment prob)
+ * @param {number[]} expiryTargets - optional DTE targets (e.g. [30,45,60]); keeps only the nearest expiry to each
+ * Returns raw rows; scoring happens in enrichScanRow (scanScore.js) so local and proxy paths score identically.
  */
 export async function scanPutOptions(
     tickers, stockPrices,
@@ -82,11 +81,12 @@ export async function scanPutOptions(
     minDelta = 0, maxDelta = 1,
     minReturn = 0, minOI = 0, minVolume = 0,
     maxSpread = 0, riskFreeRate = 0.0525,
-    targetDelta = 0.16
+    targetDelta = 0.16,
+    expiryTargets = []
 ) {
     if (env.scannerProxyUrl) {
         console.log('[Scanner] using remote proxy:', env.scannerProxyUrl);
-        return callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta);
+        return callRemoteProxy(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta, expiryTargets);
     }
     console.log('[Scanner] scanPutOptions called, tickers:', tickers, 'stockPrices:', stockPrices);
     const isConnected = await ensureConnected();
@@ -123,10 +123,7 @@ export async function scanPutOptions(
         }
         debug[ticker].allExpiries = expiryDates.slice(0, 10);
 
-        const filteredExpiries = expiryDates.filter(d => {
-            const days = Math.round((new Date(d) - today) / (1000 * 60 * 60 * 24));
-            return days >= minDays && days <= maxDays;
-        });
+        const filteredExpiries = pickExpiries(expiryDates, today, minDays, maxDays, expiryTargets);
         console.log(`[Scanner] ${ticker} filteredExpiries (${minDays}-${maxDays}d):`, filteredExpiries);
         debug[ticker].filteredExpiries = filteredExpiries;
 
@@ -196,13 +193,6 @@ export async function scanPutOptions(
         const absDelta = delta != null ? Math.abs(delta) : 0;
         // Probability of keeping full premium ≈ 1 - |delta|. At |Δ|=0.145 → 85.5%.
         const popKeepPremium = delta != null ? Math.round((1 - absDelta) * 10000) / 100 : null;
-        const { score, score_parts } = computeScanScore({
-            returnPct,
-            discountPct,
-            absDelta: delta != null ? absDelta : null,
-            openInterest,
-            targetDelta,
-        });
         results.push({
             ticker: opt.ticker,
             option_code: opt.code,
@@ -226,8 +216,6 @@ export async function scanPutOptions(
             volume,
             return_pct: returnPct,
             annual_return_pct: annualReturnPct,
-            score,
-            score_parts,
         });
     }
 
@@ -243,6 +231,5 @@ export async function scanPutOptions(
         if (maxSpread > 0 && r.spread_pct != null && r.spread_pct > maxSpread) return false;
         return true;
     });
-    filtered.sort((a, b) => b.score - a.score);
     return { results: filtered, debug };
 }

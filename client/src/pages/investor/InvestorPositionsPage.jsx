@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { TrendingUp, ChevronLeft, ChevronRight, Briefcase, } from 'lucide-react';
 import { investorApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
-import { Button, Skeleton, ErrorAlert, EmptyState } from '../../components/ui';
+import { Button, Skeleton, ErrorAlert, EmptyState, ProfitCaptured } from '../../components/ui';
 import { POSITION_STATUS } from '../../lib/constants';
 function formatCurrency(value) {
     return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -74,6 +74,7 @@ export function InvestorPositionsPage() {
                   <th className="text-right px-4 py-3 font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Collateral</th>
                   <th className="text-right px-4 py-3 font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Cur. Price</th>
                   <th className="text-right px-4 py-3 font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Unrealized P&L</th>
+                  <th className="text-right px-4 py-3 font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }} title="% of premium (max profit) captured">Captured</th>
                 </tr>
               </thead>
               <tbody>
@@ -99,6 +100,9 @@ export function InvestorPositionsPage() {
                       <td className="px-4 py-3 text-right font-mono">{pos.current_price != null ? formatCurrency(pos.current_price) : '--'}</td>
                       <td className={`px-4 py-3 text-right font-mono font-semibold ${pos.unrealized_pnl != null ? (pos.unrealized_pnl >= 0 ? 'text-green-600' : 'text-red-600') : ''}`}>
                         {pos.unrealized_pnl != null ? formatCurrency(pos.unrealized_pnl) : '--'}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <ProfitCaptured pct={pos.profit_captured_pct}/>
                       </td>
                     </tr>);
             })}

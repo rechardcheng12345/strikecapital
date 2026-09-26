@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Calendar, DollarSign, TrendingDown, Shield, Target, Percent, Edit3, Trash2, CheckCircle2, RefreshCw, Info, ExternalLink, } from 'lucide-react';
+import { ArrowLeft, Calendar, DollarSign, TrendingDown, Shield, Target, Percent, Edit3, Trash2, CheckCircle2, RefreshCw, Info, ExternalLink, Repeat, } from 'lucide-react';
+import { RollFinderModal } from './RollFinderModal';
+import { rollPrefillFromCandidate } from './rollPrefill';
 import { positionApi, investorApi, } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
-import { POSITION_STATUS, RESOLUTION_TYPE, POSITION_TYPE, formatDateTime } from '../../lib/constants';
-import { Button, Input, Card, CardHeader, CardBody, Badge, Modal, ErrorAlert, Skeleton, } from '../../components/ui';
+import { POSITION_STATUS, RESOLUTION_TYPE, POSITION_TYPE, formatDateTime, PROFIT_TAKE_TARGET_PCT } from '../../lib/constants';
+import { Button, Input, Card, CardHeader, CardBody, Badge, Modal, ErrorAlert, Skeleton, ProfitCaptured, } from '../../components/ui';
 // ─── Helpers ───────────────────────────────────────────
 function formatCurrency(value) {
     if (value == null)
@@ -93,6 +95,7 @@ export function PositionDetailPage() {
     // ─── State ────────────────────────────────────────
     const [resolveOpen, setResolveOpen] = useState(false);
     const [rollOpen, setRollOpen] = useState(false);
+    const [rollFinderOpen, setRollFinderOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
@@ -124,8 +127,8 @@ export function PositionDetailPage() {
         queryFn: () => isAdmin ? positionApi.get(positionId) : investorApi.getPosition(positionId),
         enabled: !isNaN(positionId) && positionId > 0,
     });
-    // Pre-fill roll form when position loads
-    const initRollForm = () => {
+    // Pre-fill roll form when position loads (optionally with a Roll Finder pick)
+    const initRollForm = (prefill = null) => {
         if (position) {
             setRollForm({
                 ticker: position.ticker,
@@ -134,11 +137,21 @@ export function PositionDetailPage() {
                 contracts: position.contracts,
                 expiration_date: '',
                 notes: '',
+                ...(prefill || {}),
             });
         }
         setActionError(null);
         setRollOpen(true);
     };
+    // Arriving from the scanner's Roll Watch with a chosen roll → open the Roll form once.
+    const navRollPrefill = location.state?.rollPrefill;
+    useEffect(() => {
+        if (navRollPrefill && position) {
+            initRollForm(navRollPrefill);
+            navigate(location.pathname, { replace: true, state: null });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [navRollPrefill, position]);
     // ─── Actions ──────────────────────────────────────
     const handleResolve = async () => {
         setActionLoading(true);
@@ -290,9 +303,13 @@ export function PositionDetailPage() {
                 <CheckCircle2 className="w-4 h-4 mr-1.5"/>
                 {position.position_type === 'stock' ? 'Sell / Close' : 'Resolve'}
               </Button>)}
-              {position.status !== 'RESOLVED' && position.position_type !== 'stock' && (<Button variant="outline" size="sm" onClick={initRollForm}>
+              {position.status !== 'RESOLVED' && position.position_type !== 'stock' && (<Button variant="outline" size="sm" onClick={() => initRollForm()}>
                   <RefreshCw className="w-4 h-4 mr-1.5"/>
                   Roll
+                </Button>)}
+              {isAdmin && position.status !== 'RESOLVED' && position.position_type !== 'stock' && (<Button variant="outline" size="sm" onClick={() => setRollFinderOpen(true)}>
+                  <Repeat className="w-4 h-4 mr-1.5"/>
+                  Find Rolls
                 </Button>)}
               <Button variant="outline" size="sm" onClick={initEditForm}>
                 <Edit3 className="w-4 h-4 mr-1.5"/>
@@ -381,7 +398,7 @@ export function PositionDetailPage() {
           )}
 
           {/* ─── Risk Metrics Strip ────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 ${position.position_type === 'stock' ? 'lg:grid-cols-6' : 'lg:grid-cols-7'}`}>
             {position.position_type === 'stock' ? (<>
                 <RiskMetric label="Shares" value={position.shares?.toLocaleString() || '--'} icon={<DollarSign className="w-4 h-4"/>}/>
                 <RiskMetric label="Cost Basis" value={formatCurrency(position.cost_basis)} icon={<Target className="w-4 h-4"/>}/>
@@ -394,6 +411,7 @@ export function PositionDetailPage() {
               </>) : (<>
                 <RiskMetric label="Current Price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'} icon={<DollarSign className="w-4 h-4"/>}/>
                 <RiskMetric label="Unrealized P&L" value={position.unrealized_pnl != null ? formatCurrency(position.unrealized_pnl) : '--'} icon={<TrendingDown className="w-4 h-4"/>} highlight={position.unrealized_pnl != null && position.unrealized_pnl < 0}/>
+                <RiskMetric label="Profit Captured" value={<ProfitCaptured pct={position.profit_captured_pct}/>} icon={<Percent className="w-4 h-4"/>} highlight={position.profit_captured_pct != null && position.profit_captured_pct >= PROFIT_TAKE_TARGET_PCT}/>
                 <RiskMetric label="Collateral" value={formatCurrency(position.collateral)} icon={<Shield className="w-4 h-4"/>}/>
                 <RiskMetric label="Break-Even" value={formatCurrency(position.break_even)} icon={<Target className="w-4 h-4"/>}/>
                 <RiskMetric label="Max Profit" value={formatCurrency(position.max_profit)} icon={<DollarSign className="w-4 h-4"/>}/>
@@ -441,6 +459,7 @@ export function PositionDetailPage() {
                     <DetailRow label="Max Profit" value={formatCurrency(position.max_profit)}/>
                     <DetailRow label="Current Price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'}/>
                     <DetailRow label="Unrealized P&L" value={position.unrealized_pnl != null ? formatCurrency(position.unrealized_pnl) : '--'}/>
+                    <DetailRow label="Profit Captured" value={position.profit_captured_pct != null ? `${position.profit_captured_pct.toFixed(1)}% of max profit` : '--'}/>
                     <DetailRow label="Last Price Update" value={formatDateTime(position.last_price_update)}/>
                     <DetailRow label="Created" value={formatDate(position.created_at)}/>
                   </>)}
@@ -567,6 +586,12 @@ export function PositionDetailPage() {
               </div>
             </div>
           </Modal>
+
+          {/* ─── Roll Finder ───────────────────────────── */}
+          {isAdmin && position.position_type !== 'stock' && (<RollFinderModal positionId={positionId} isOpen={rollFinderOpen} onClose={() => setRollFinderOpen(false)} onUse={(c, result) => {
+                setRollFinderOpen(false);
+                initRollForm(rollPrefillFromCandidate(c, result));
+            }}/>)}
 
           {/* ─── Roll Modal ────────────────────────────── */}
           <Modal isOpen={rollOpen} onClose={() => setRollOpen(false)} title="Roll Position" size="lg">

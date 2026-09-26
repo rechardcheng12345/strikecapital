@@ -7,6 +7,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }) {
         md: 'max-w-md',
         lg: 'max-w-lg',
         xl: 'max-w-xl',
+        '4xl': 'max-w-4xl',
     };
     return (<Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>

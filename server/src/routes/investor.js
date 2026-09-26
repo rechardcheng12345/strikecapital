@@ -3,6 +3,7 @@ import { db } from '../config/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { investorRealizedShare } from '../services/capitalAccountService.js';
+import { calculateProfitCapturedPct } from '../services/pnlEngine.js';
 const router = Router();
 // All investor routes require authentication
 router.use(authenticate);
@@ -120,6 +121,7 @@ router.get('/positions', async (req, res, next) => {
                 } else if (p.contracts > 0) {
                     const fees = (parseFloat(p.commission) || 0) + (parseFloat(p.platform_fee) || 0);
                     p.unrealized_pnl = Math.round((parseFloat(p.premium_received) - fees - (parseFloat(p.current_price) * p.contracts * 100)) * 100) / 100;
+                    if (p.position_type === 'option') p.profit_captured_pct = calculateProfitCapturedPct(p.premium_received, p.current_price, p.contracts);
                 } else {
                     p.unrealized_pnl = null;
                 }
@@ -164,6 +166,7 @@ router.get('/positions/:id', async (req, res, next) => {
             } else if (p.contracts > 0) {
                 const fees = (parseFloat(p.commission) || 0) + (parseFloat(p.platform_fee) || 0);
                 p.unrealized_pnl = Math.round((parseFloat(p.premium_received) - fees - (parseFloat(p.current_price) * p.contracts * 100)) * 100) / 100;
+                if (p.position_type === 'option') p.profit_captured_pct = calculateProfitCapturedPct(p.premium_received, p.current_price, p.contracts);
             }
         }
         // Distance to strike from cached stock price

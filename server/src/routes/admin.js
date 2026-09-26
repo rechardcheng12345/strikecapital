@@ -12,7 +12,11 @@ import { notifyAllInvestors } from '../services/notificationEngine.js';
 import { insertAndFetch, updateAndFetch } from '../utils/dbHelpers.js';
 import { getAccountFunds, getAccList } from '../services/moomooService.js';
 import { scanPutOptions, fetchStockPrices } from '../services/scannerService.js';
-import { resolveScanTickers } from '../services/scanScore.js';
+import { resolveScanTickers, enrichScanRow } from '../services/scanScore.js';
+import { getVolatilityStats, getEarningsDate } from '../services/marketContext.js';
+import { getPortfolioSnapshot, portfolioFit } from '../services/portfolioFit.js';
+import { jevConfigured, getAiContextForTickers, getTickerAiContext, AI_POLICY } from '../services/jevService.js';
+import { getRollWatchList, findRollCandidates } from '../services/rollFinder.js';
 import { fetchYahooLevels } from '../services/priceService.js';
 import { env } from '../config/env.js';
 import { addCapital, investorRealizedShare, syncAllocationPctFromInvested } from '../services/capitalAccountService.js';
@@ -1197,12 +1201,13 @@ router.get('/scanner/levels/:ticker', authenticate, requireAdmin, async (req, re
 router.post('/scanner/scan', authenticate, requireAdmin, async (req, res, next) => {
     try {
         const {
-            minDays = 14, maxDays = 28,
-            minDiscount = 10, maxDiscount = 20,
-            minDelta = 0, maxDelta = 1,
+            minDays = 30, maxDays = 60,
+            minDiscount = 3, maxDiscount = 35,
+            minDelta = 0.10, maxDelta = 0.30,
             minReturn = 0, minOI = 0, minVolume = 0,
             maxSpread = 0,
-            targetDelta = 0.16,
+            targetDelta = 0.20,
+            expiryTargets = [],
             tickers: requestedTickers,
         } = req.body || {};
         const watchlist = await db('scanner_watchlist').orderBy('ticker');
@@ -1213,14 +1218,142 @@ router.post('/scanner/scan', authenticate, requireAdmin, async (req, res, next) 
         const settings = await db('fund_settings').first();
         const riskFreeRate = parseFloat(settings?.risk_free_rate ?? '0.0525') || 0.0525;
 
-        const stockPrices = await fetchStockPrices(tickers);
-        const { results, error, debug } = await scanPutOptions(
+        const targets = Array.isArray(expiryTargets)
+            ? expiryTargets.map(Number).filter(n => Number.isFinite(n) && n > 0)
+            : [];
+        const [stockPrices, volEntries, earnEntries, portfolio] = await Promise.all([
+            fetchStockPrices(tickers),
+            Promise.all(tickers.map(async t => [t, await getVolatilityStats(t)])),
+            Promise.all(tickers.map(async t => [t, await getEarningsDate(t)])),
+            getPortfolioSnapshot(),
+        ]);
+        const volMap = Object.fromEntries(volEntries);
+        const earnMap = Object.fromEntries(earnEntries);
+
+        const { results: raw, error, debug } = await scanPutOptions(
             tickers, stockPrices,
             minDays, maxDays, minDiscount, maxDiscount,
             minDelta, maxDelta, minReturn, minOI, minVolume,
-            maxSpread, riskFreeRate, targetDelta
+            maxSpread, riskFreeRate, targetDelta, targets
         );
-        res.json({ results, stock_prices: stockPrices, error: error || null, debug });
+        const results = (raw || [])
+            .map(r => enrichScanRow(r, { targetDelta, riskFreeRate, vol: volMap[r.ticker], earnings: earnMap[r.ticker] }))
+            .map(r => ({ ...r, ...portfolioFit(r, portfolio) }))
+            .sort((a, b) => b.score - a.score);
+        res.json({
+            results,
+            stock_prices: stockPrices,
+            ticker_info: Object.fromEntries(tickers.map(t => [t, { vol: volMap[t], earnings: earnMap[t] }])),
+            portfolio: {
+                capital_base: portfolio.capitalBase,
+                available: portfolio.available,
+                max_ticker_concentration_pct: portfolio.maxTickerConcentrationPct,
+            },
+            error: error || null,
+            debug,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Jev qualitative context per ticker: event risk, thesis break, owner comfort, custom rules.
+// Body: { tickers: [{ ticker, latest_expiry }] }
+router.post('/scanner/context', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        if (!jevConfigured()) return res.status(503).json({ error: 'TYPESAFE_API_KEY is not configured.' });
+        const items = (req.body?.tickers || [])
+            .filter(t => t && t.ticker)
+            .slice(0, 50)
+            .map(t => ({ ticker: String(t.ticker).toUpperCase().trim(), latest_expiry: t.latest_expiry || null }));
+        if (items.length === 0) return res.status(400).json({ error: 'tickers is required' });
+        const contexts = await getAiContextForTickers(items);
+        res.json({ contexts, policy: AI_POLICY });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ─── Roll finder ─────────────────────────────────────────────
+router.get('/scanner/roll-watch', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        res.json({ positions: await getRollWatchList() });
+    } catch (error) {
+        next(error);
+    }
+});
+// Body (all optional): { minDays, maxDays, expiryTargets, maxStrikeDropPct }
+router.post('/scanner/rolls/:positionId', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const settings = await db('fund_settings').first();
+        const riskFreeRate = parseFloat(settings?.risk_free_rate ?? '0.0525') || 0.0525;
+        const { minDays, maxDays, expiryTargets, maxStrikeDropPct } = req.body || {};
+        const opts = { riskFreeRate };
+        if (Number.isFinite(Number(minDays))) opts.minDays = Number(minDays);
+        if (Number.isFinite(Number(maxDays))) opts.maxDays = Number(maxDays);
+        if (Array.isArray(expiryTargets)) opts.expiryTargets = expiryTargets.map(Number).filter(n => n > 0);
+        if (Number.isFinite(Number(maxStrikeDropPct))) opts.maxStrikeDropPct = Number(maxStrikeDropPct);
+        const result = await findRollCandidates(Number(req.params.positionId), opts);
+        if (result.error) return res.status(result.status || 400).json({ error: result.error });
+        // Jev context is advisory — e.g. a thesis-break veto means "take the loss, don't roll".
+        if (jevConfigured() && result.candidates.length) {
+            const latest = result.candidates.reduce((m, c) => (c.expiry > m ? c.expiry : m), '');
+            try {
+                result.ai = await getTickerAiContext(result.position.ticker, latest);
+            } catch (err) {
+                result.ai = { error: err.message };
+            }
+        }
+        delete result.debug;
+        res.json(result);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ─── Scanner rules (plain English, checked by Jev) ──────────
+const scannerRuleSchema = z.object({
+    rule_text: z.string().trim().min(3).max(300),
+    action: z.enum(['block', 'warn']).default('warn'),
+});
+router.get('/scanner/rules', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const rules = await db('scanner_rules').orderBy('id');
+        res.json({ rules, available: true });
+    } catch (error) {
+        // Table missing → migration not run yet.
+        if (error?.code === 'ER_NO_SUCH_TABLE') return res.json({ rules: [], available: false });
+        next(error);
+    }
+});
+router.post('/scanner/rules', authenticate, requireAdmin, validate(scannerRuleSchema), async (req, res, next) => {
+    try {
+        const { rule_text, action } = req.body;
+        const rule = await insertAndFetch('scanner_rules', { rule_text, action, is_active: true, created_by: req.user.id });
+        res.status(201).json(rule);
+    } catch (error) {
+        if (error?.code === 'ER_NO_SUCH_TABLE') return next(new AppError('Run the database migration to enable scanner rules.', 400));
+        next(error);
+    }
+});
+router.put('/scanner/rules/:id', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const patch = {};
+        if (typeof req.body?.is_active === 'boolean') patch.is_active = req.body.is_active;
+        if (['block', 'warn'].includes(req.body?.action)) patch.action = req.body.action;
+        if (Object.keys(patch).length === 0) throw new AppError('Nothing to update', 400);
+        const updated = await db('scanner_rules').where({ id: req.params.id }).update(patch);
+        if (!updated) throw new AppError('Rule not found', 404);
+        res.json(await db('scanner_rules').where({ id: req.params.id }).first());
+    } catch (error) {
+        next(error);
+    }
+});
+router.delete('/scanner/rules/:id', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const deleted = await db('scanner_rules').where({ id: req.params.id }).delete();
+        if (!deleted) throw new AppError('Rule not found', 404);
+        res.json({ success: true });
     } catch (error) {
         next(error);
     }
@@ -1240,7 +1373,7 @@ router.post('/scanner/analyze', authenticate, requireAdmin, async (req, res, nex
         const fmtSigned = (v, dec = 1) => v == null ? '—' : (v >= 0 ? '+' : '') + Number(v).toFixed(dec) + '%';
         const rows = results.slice(0, 20).map(r => {
             const midPerContract = r.mid != null ? (r.mid * 100).toFixed(2) : (r.premium * 100).toFixed(2);
-            return `| ${r.ticker} | $${r.strike} | ${r.expiry} | ${r.days_to_expiry}d | $${midPerContract} | $${fmt(r.bid)}/$${fmt(r.ask)} | ${fmt(r.spread_pct, 1)}% | $${fmt(r.bs_fair_value)} | ${fmtSigned(r.premium_edge_pct)} | ${r.return_pct?.toFixed(2)}% | ${r.annual_return_pct?.toFixed(1)}% | ${r.discount_pct?.toFixed(1)}% | ${r.delta?.toFixed(3) ?? '—'} | ${r.pop_keep_premium != null ? r.pop_keep_premium.toFixed(1) + '%' : '—'} | ${r.iv != null ? r.iv.toFixed(1) + '%' : '—'} | ${r.open_interest?.toLocaleString() ?? '—'} | ${r.score} |`;
+            return `| ${r.ticker} | $${r.strike} | ${r.expiry} | ${r.days_to_expiry}d | $${midPerContract} | $${fmt(r.bid)}/$${fmt(r.ask)} | ${fmt(r.spread_pct, 1)}% | $${fmt(r.bs_fair_value)} | ${fmtSigned(r.premium_edge_pct)} | ${r.return_pct?.toFixed(2)}% | ${r.annual_return_pct?.toFixed(1)}% | ${r.discount_pct?.toFixed(1)}% | ${r.delta?.toFixed(3) ?? '—'} | ${r.pop_keep_premium != null ? r.pop_keep_premium.toFixed(1) + '%' : '—'} | ${r.iv != null ? r.iv.toFixed(1) + '%' : '—'} | ${r.open_interest?.toLocaleString() ?? '—'} | ${fmt(r.sigma_otm)}σ | ${r.days_to_80 ?? '—'}d | ${fmt(r.managed_ann_pct, 1)}% | ${fmt(r.iv_hv_ratio)} | ${r.earnings_before_expiry ? 'YES ' + r.earnings_date : 'no'} | ${r.fits === false ? (r.fit_flags || []).join(',') : 'ok'} | ${r.ai_note || '—'} | ${r.final_score ?? r.score} |`;
         }).join('\n');
 
         const stockPriceLines = Object.entries(stock_prices).map(([t, p]) => `${t}: $${p}`).join(', ');
@@ -1274,7 +1407,7 @@ router.post('/scanner/analyze', authenticate, requireAdmin, async (req, res, nex
 
 **Date:** ${today}
 **Current Stock Prices:** ${stockPriceLines}
-**Scan Parameters:** DTE ${params.minDays ?? 14}–${params.maxDays ?? 28} days, Strike ${params.minDiscount ?? 10}–${params.maxDiscount ?? 20}% OTM, Delta ${params.minDelta ?? 0}–${params.maxDelta ?? 1}
+**Scan Parameters:** DTE ${params.minDays ?? 30}–${params.maxDays ?? 60} days, Strike ${params.minDiscount ?? 3}–${params.maxDiscount ?? 35}% OTM, Delta ${params.minDelta ?? 0.1}–${params.maxDelta ?? 0.3}. We usually close at 80% of max profit.
 ${levelsSection}
 
 **Scan Results (sorted by Score):**
@@ -1284,9 +1417,14 @@ ${levelsSection}
 - "BS Fair" = Black-Scholes theoretical price per share at current IV; compare to mid.
 - "Edge%" = (mid − BS Fair) / BS Fair; POSITIVE means market is paying MORE than fair (rich premium — good for sellers).
 - "POP%" = probability of keeping the full premium ≈ (1 − |delta|) × 100. Sweet spot is 80–90% (|Δ| ≈ 0.10–0.20).
+- "σ OTM" = strike distance below spot in expected-move units (1σ ≈ 84% chance of staying above).
+- "→80%" = estimated days until 80% of max profit if the stock and IV stay flat; "Mgd Ann%" = annualized return if closed at 80% then.
+- "IV/HV" = implied ÷ 20-day realized volatility; above 1.2 means premium is rich.
+- "Earnings" = whether the next earnings report lands before expiry. "Fit" = fund limit problems (NO_CAPITAL, OVER_CONCENTRATION, …).
+- "Jev" = qualitative flags from the Jev model (event risk, lasting damage, speculative to own, rule matches); "VETO" means do not trade.
 
-| Ticker | Strike | Expiry | DTE | Mid/contract | Bid/Ask | Spread% | BS Fair | Edge% | Return% | Ann% | Disc% | Delta | POP% | IV | OI | Score |
-|--------|--------|--------|-----|--------------|---------|---------|---------|-------|---------|------|-------|-------|------|-----|-----|-------|
+| Ticker | Strike | Expiry | DTE | Mid/contract | Bid/Ask | Spread% | BS Fair | Edge% | Return% | Ann% | Disc% | Delta | POP% | IV | OI | σ OTM | →80% | Mgd Ann% | IV/HV | Earnings | Fit | Jev | Score |
+|--------|--------|--------|-----|--------------|---------|---------|---------|-------|---------|------|-------|-------|------|-----|-----|-------|------|----------|-------|----------|-----|-----|-------|
 ${rows}
 
 **Respond with ONLY valid JSON** (no markdown fences, no extra text) in this exact structure:
@@ -1309,7 +1447,7 @@ ${rows}
   "strategy_tip": "1 practical tip for executing these trades"
 }
 
-Return 2–4 picks max, ordered by conviction (best first). We are SELLING puts (cash-secured), so for LIMIT orders use the actual Bid/Ask: suggest a price ABOVE the bid but at or below the ask — typically Mid or Mid+5–10% — to collect rich premium while still getting filled. Prefer options with positive Edge% (rich vs Black-Scholes fair value) and Spread% under 15%. Be concise and direct.`;
+Return 2–4 picks max, ordered by conviction (best first). We are SELLING puts (cash-secured), so for LIMIT orders use the actual Bid/Ask: suggest a price ABOVE the bid but at or below the ask — typically Mid or Mid+5–10% — to collect rich premium while still getting filled. Prefer options with IV/HV above 1, no earnings before expiry, Fit ok, no Jev VETO, and Spread% under 15%. Never recommend BUY for a row with a VETO or a Fit problem. Be concise and direct.`;
 
         const response = await fetch('https://ollama.com/api/chat', {
             method: 'POST',

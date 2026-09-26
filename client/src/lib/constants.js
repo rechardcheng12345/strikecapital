@@ -17,6 +17,8 @@ export const POSITION_TYPE = {
     option: { label: 'Cash-Secured Put', shortLabel: 'Option', color: 'bg-blue-100 text-blue-800' },
     stock: { label: 'Stock Position', shortLabel: 'Stock', color: 'bg-purple-100 text-purple-800' },
 };
+// Suggested take-profit level for short options: % of max profit (premium) captured
+export const PROFIT_TAKE_TARGET_PCT = 80;
 export const TIMEZONE = 'Asia/Singapore';
 export function formatDateTime(dateStr) {
     if (!dateStr) return '--';

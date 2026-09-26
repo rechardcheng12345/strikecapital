@@ -324,6 +324,24 @@ async function getSnapshots(securityList) {
     return results;
 }
 
+// Keep the listed expiry nearest to each target DTE (e.g. [30,45,60]) instead of every weekly in the
+// window — keeps 30–60 DTE scans fast. Same logic as server/src/services/scanScore.js → pickExpiries.
+function pickExpiries(expiryDates, today, minDays, maxDays, targets) {
+    const withDays = expiryDates
+        .map(d => ({ d, days: Math.round((new Date(d) - today) / 86400000) }))
+        .filter(x => x.days >= minDays && x.days <= maxDays);
+    if (!Array.isArray(targets) || targets.length === 0) return withDays.map(x => x.d);
+    const picked = new Set();
+    for (const t of targets) {
+        let best = null;
+        for (const x of withDays) {
+            if (!best || Math.abs(x.days - t) < Math.abs(best.days - t)) best = x;
+        }
+        if (best) picked.add(best.d);
+    }
+    return [...picked].sort();
+}
+
 async function scanPutOptions(
     tickers, stockPrices,
     minDays = 14, maxDays = 28,
@@ -331,7 +349,8 @@ async function scanPutOptions(
     minDelta = 0, maxDelta = 1,
     minReturn = 0, minOI = 0, minVolume = 0,
     maxSpread = 0, riskFreeRate = 0.0525,
-    targetDelta = 0.16
+    targetDelta = 0.16,
+    expiryTargets = []
 ) {
     console.log('[Scanner] scanPutOptions called, tickers:', tickers);
 
@@ -363,10 +382,7 @@ async function scanPutOptions(
         }
         debug[ticker].allExpiries = expiryDates.slice(0, 10);
 
-        const filteredExpiries = expiryDates.filter(d => {
-            const days = Math.round((new Date(d) - today) / (1000 * 60 * 60 * 24));
-            return days >= minDays && days <= maxDays;
-        });
+        const filteredExpiries = pickExpiries(expiryDates, today, minDays, maxDays, expiryTargets);
         debug[ticker].filteredExpiries = filteredExpiries;
 
         for (const expiry of filteredExpiries) {
@@ -735,11 +751,12 @@ app.post('/scan', async (req, res) => {
             minReturn = 0, minOI = 0, minVolume = 0,
             maxSpread = 0, riskFreeRate = 0.0525,
             targetDelta = 0.16,
+            expiryTargets = [],
         } = req.body || {};
         if (!tickers || !stockPrices) {
             return res.status(400).json({ error: 'tickers and stockPrices are required' });
         }
-        const result = await scanPutOptions(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta);
+        const result = await scanPutOptions(tickers, stockPrices, minDays, maxDays, minDiscount, maxDiscount, minDelta, maxDelta, minReturn, minOI, minVolume, maxSpread, riskFreeRate, targetDelta, expiryTargets);
         res.json(result);
     } catch (err) {
         console.error('[ScannerProxy] /scan error:', err.message);
