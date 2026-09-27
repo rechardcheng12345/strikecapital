@@ -6,6 +6,7 @@ import {
   Eye, DollarSign, PieChart, UserCheck, KeyRound, Wallet,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { LastCapitalAddCard } from './LastCapitalAddCard';
 import { adminApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import {
@@ -550,6 +551,7 @@ function AddCapitalModal({ isOpen, onClose, investor }) {
     queryClient.invalidateQueries({ queryKey: ['admin', 'investors'] });
     queryClient.invalidateQueries({ queryKey: ['admin', 'fund-summary'] });
     queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'capital'] });
     onClose();
   };
 
@@ -557,7 +559,7 @@ function AddCapitalModal({ isOpen, onClose, investor }) {
     <Modal isOpen={isOpen} onClose={onClose} title={`Add capital — ${investor?.full_name || ''}`} size="md">
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="text-sm text-gray-600">
-          This is a contribution, not profit. Existing realized P&L stays with whoever was already in the fund.
+          This is a contribution, not profit. Profit already earned — including on positions still open today — stays with whoever was already in the fund.
         </p>
         <div>
           <label className="text-xs font-medium text-gray-500 block mb-1">Amount (USD)</label>
@@ -566,6 +568,11 @@ function AddCapitalModal({ isOpen, onClose, investor }) {
         <div>
           <label className="text-xs font-medium text-gray-500 block mb-1">Date</label>
           <Input type="date" value={movedOn} onChange={(e) => setMovedOn(e.target.value)} className="w-full" required />
+          {movedOn !== today && (
+            <p className="text-xs text-amber-700 mt-1">
+              Open positions are valued at today&apos;s prices, not on this date. Record the add on the day the money arrives for the fairest split.
+            </p>
+          )}
         </div>
         <div>
           <label className="text-xs font-medium text-gray-500 block mb-1">Note (optional)</label>
@@ -659,6 +666,7 @@ export function InvestorManagementPage() {
 
       {/* Fund Overview */}
       <FundOverview />
+      <LastCapitalAddCard />
 
       {/* Search */}
       <div className="mb-4">

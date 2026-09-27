@@ -149,6 +149,8 @@ export const adminApi = {
     getFundSummary: () => api.get('/admin/investors/fund-summary'),
     resetInvestorPassword: (id, password) => api.post(`/admin/investors/${id}/reset-password`, { password }),
     addCapital: (id, data) => api.post(`/admin/investors/${id}/capital`, data),
+    getLastCapital: () => api.get('/admin/capital/last'),
+    undoLastCapital: () => api.post('/admin/capital/undo-last', {}),
     // P&L
     getPnl: (period = 'all') => api.get(`/admin/pnl?period=${period}`),
     createPnlRecord: (data) => api.post('/admin/pnl', data),

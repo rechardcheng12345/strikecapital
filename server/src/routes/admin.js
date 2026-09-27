@@ -19,7 +19,7 @@ import { jevConfigured, getAiContextForTickers, getTickerAiContext, getOptionJev
 import { getRollWatchList, findRollCandidates } from '../services/rollFinder.js';
 import { fetchYahooLevels } from '../services/priceService.js';
 import { env } from '../config/env.js';
-import { addCapital, investorRealizedShare, syncAllocationPctFromInvested } from '../services/capitalAccountService.js';
+import { addCapital, investorRealizedShare, syncAllocationPctFromInvested, getLastCapitalMovement, undoLastCapitalMovement } from '../services/capitalAccountService.js';
 import { allocationPctFromInvested } from '../services/capitalAccount.js';
 const router = Router();
 // All admin routes require authentication + admin role
@@ -506,6 +506,34 @@ router.post('/investors/:id/capital', validate(addCapitalSchema), async (req, re
             ipAddress: req.ip,
         });
         res.status(201).json(result);
+    } catch (error) {
+        if (error.status === 400) return next(new AppError(error.message, 400));
+        next(error);
+    }
+});
+
+// GET /capital/last — most recent capital movement and whether it can be undone
+router.get('/capital/last', async (req, res, next) => {
+    try {
+        res.json({ movement: await getLastCapitalMovement() });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// POST /capital/undo-last — reverse the most recent capital add (ownership, invested, fund capital, snapshots)
+router.post('/capital/undo-last', async (req, res, next) => {
+    try {
+        const undone = await undoLastCapitalMovement();
+        await logAudit({
+            userId: req.user.id,
+            action: 'capital.contribute_undone',
+            entityType: 'capital_movement',
+            entityId: undone.id,
+            oldValues: undone,
+            ipAddress: req.ip,
+        });
+        res.json({ undone });
     } catch (error) {
         if (error.status === 400) return next(new AppError(error.message, 400));
         next(error);

@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { db } from '../config/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { investorRealizedShare } from '../services/capitalAccountService.js';
+import { investorRealizedShare, investorUnrealizedShare, loadShareContext } from '../services/capitalAccountService.js';
+import { positionShareForInvestor } from '../services/capitalAccount.js';
 import { calculateProfitCapturedPct } from '../services/pnlEngine.js';
 const router = Router();
 // All investor routes require authentication
@@ -65,7 +66,10 @@ router.get('/dashboard', async (req, res, next) => {
 
         const allocationAmount = parseFloat(allocation?.invested_amount || '0');
         const realizedShare = Math.round(totalPnl * 100) / 100;
-        const unrealizedShare = Math.round(totalUnrealizedPnl * allocationPct * 100) / 100;
+        // Same basis as the realized share: ownership periods + snapshots taken at capital adds.
+        // Alloc % is only a fallback for accounts that predate ownership periods.
+        const ownedUnrealized = await investorUnrealizedShare(userId);
+        const unrealizedShare = ownedUnrealized ?? Math.round(totalUnrealizedPnl * allocationPct * 100) / 100;
         const total_return_pct = allocationAmount > 0
             ? Math.round(((realizedShare + unrealizedShare) / allocationAmount) * 10000) / 100
             : null;
@@ -211,22 +215,27 @@ router.get('/pnl', async (req, res, next) => {
         const records = await pnlQuery
             .select('pnl_records.*', 'positions.ticker', 'positions.strike_price', 'positions.commission', 'positions.platform_fee')
             .orderBy('pnl_records.record_date', 'desc');
-        const totalRealized = records.reduce((sum, r) => {
+        // Same basis as the dashboard: ownership in force on each record's date, plus snapshots taken
+        // at capital adds. Accounts without ownership periods fall back to Alloc %.
+        const { periods, marksByPosition } = await loadShareContext(userId);
+        const shared = records.map((r) => {
             const fees = (parseFloat(r.commission) || 0) + (parseFloat(r.platform_fee) || 0);
-            return sum + parseFloat(r.pnl_amount) - fees;
-        }, 0);
+            const net = parseFloat(r.pnl_amount) - fees;
+            const d = r.record_date instanceof Date ? r.record_date.toISOString().slice(0, 10) : String(r.record_date).slice(0, 10);
+            const share = periods.length
+                ? positionShareForInvestor({ amount: net, asOf: d, periods, userId, marks: marksByPosition.get(r.position_id) || [] })
+                : net * allocationPct;
+            return {
+                position_id: r.position_id,
+                ticker: r.ticker,
+                pnl_share: Math.round(share * 100) / 100,
+                record_date: r.record_date,
+            };
+        });
         res.json({
-            total_pnl_share: Math.round(totalRealized * allocationPct * 100) / 100,
+            total_pnl_share: Math.round(shared.reduce((sum, r) => sum + r.pnl_share, 0) * 100) / 100,
             allocation_pct: parseFloat(allocation?.allocation_pct || '0'),
-            records: records.map((r) => {
-                const fees = (parseFloat(r.commission) || 0) + (parseFloat(r.platform_fee) || 0);
-                return {
-                    position_id: r.position_id,
-                    ticker: r.ticker,
-                    pnl_share: Math.round((parseFloat(r.pnl_amount) - fees) * allocationPct * 100) / 100,
-                    record_date: r.record_date,
-                };
-            }),
+            records: shared,
         });
     }
     catch (error) {
