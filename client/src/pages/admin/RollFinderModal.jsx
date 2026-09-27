@@ -2,9 +2,41 @@ import { useEffect, useState, useCallback } from 'react';
 import { Ban, Brain, CalendarClock, RefreshCw, Wallet } from 'lucide-react';
 import { scannerApi } from '../../api/client';
 import { Modal } from '../../components/ui';
-import { formatCurrency, scoreColor } from './scannerShared';
+import { formatCurrency, scoreColor, formatExpiry } from './scannerShared';
 
-const RULES_TEXT = 'Close cost uses the ask; new credit uses the bid (conservative fills). Effective cost counts the original premium plus the net credit.';
+const RULES_TEXT = 'Close cost uses the ask; new credit uses the bid (conservative fills). Effective cost counts the original premium plus the net credit. Roll score is the formula; Jev is a separate AI rating of each roll (hover it to see what Jev read).';
+
+function jevColor(score) {
+    if (score == null) return 'text-gray-400';
+    if (score >= 60) return 'text-green-600 font-semibold';
+    if (score >= 40) return 'text-yellow-600 font-semibold';
+    return 'text-red-500 font-semibold';
+}
+
+// One line per Jev ticker judgement (comfort / event / damage), with its level text.
+function JevTickerView({ ai }) {
+    if (!ai || ai.error) return ai?.error ? <p className="text-[11px] text-gray-400">Jev context unavailable: {ai.error}</p> : null;
+    const rows = [
+        ['Comfort owning it', ai.owner_comfort],
+        ['Event risk', ai.event_risk],
+        ['Damage to business', ai.thesis_break],
+    ].filter(([, v]) => v);
+    return (
+        <div className="border border-[#0D2654]/10 px-3 py-2 text-xs">
+            <p className="font-semibold text-[#0D2654] mb-1 flex items-center gap-1.5"><Brain className="w-3.5 h-3.5 text-[#F06010]" /> Jev view of {ai.ticker}</p>
+            <ul className="space-y-0.5">
+                {rows.map(([k, v]) => (
+                    <li key={k} className="flex gap-2">
+                        <span className="text-gray-500 w-32 flex-shrink-0">{k}</span>
+                        <span className="text-gray-700">{(v.label || '').split(':')[0] || '—'}</span>
+                        <span className="text-gray-400 ml-auto">conf {v.confidence != null ? v.confidence.toFixed(2) : '—'}</span>
+                    </li>
+                ))}
+            </ul>
+            {!ai.event_risk && <p className="text-[11px] text-gray-400 mt-1">No recent headlines — event and damage checks skipped.</p>}
+        </div>
+    );
+}
 
 /**
  * Roll Finder: prices "buy to close this put, sell a later one" for an open position.
@@ -48,8 +80,13 @@ export function RollFinderModal({ positionId, isOpen, onClose, onUse }) {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-[#F5F3EF] p-3">
                         <div>
                             <div className="text-gray-400 uppercase tracking-wider text-[10px]">Current put</div>
-                            <div className="font-semibold text-[#0D2654]">{pos.ticker} {formatCurrency(pos.strike)} · {pos.expiry}</div>
+                            <div className="font-semibold text-[#0D2654]">{pos.ticker} {formatCurrency(pos.strike)} · {formatExpiry(pos.expiry)}</div>
                             <div className="text-gray-500">{pos.dte}d left · {pos.contracts} contract{pos.contracts > 1 ? 's' : ''}</div>
+                            {pos.profit_captured_pct != null && (
+                                <div className={pos.profit_captured_pct >= 80 ? 'text-green-700 font-medium' : 'text-gray-500'}>
+                                    {pos.profit_captured_pct.toFixed(1)}% captured{pos.profit_captured_pct >= 80 ? ' — at take-profit target, consider closing instead' : ''}
+                                </div>
+                            )}
                         </div>
                         <div>
                             <div className="text-gray-400 uppercase tracking-wider text-[10px]">Stock</div>
@@ -81,6 +118,9 @@ export function RollFinderModal({ positionId, isOpen, onClose, onUse }) {
                         </div>
                     </div>
                 )}
+
+                <JevTickerView ai={ai} />
+                {result?.jev_error && <p className="text-[11px] text-gray-400">Jev roll scores unavailable: {result.jev_error}</p>}
 
                 <div className="flex flex-wrap items-end gap-3 text-xs">
                     <label className="flex flex-col gap-1">
@@ -114,7 +154,8 @@ export function RollFinderModal({ positionId, isOpen, onClose, onUse }) {
                         <table className="w-full text-xs">
                             <thead className="sticky top-0 bg-[#0D2654] text-white">
                                 <tr>
-                                    <th className="px-2 py-2 text-left">Score</th>
+                                    <th className="px-2 py-2 text-left" title="Formula roll score">Score</th>
+                                    <th className="px-2 py-2 text-left" title="Jev AI rating of this roll">Jev</th>
                                     <th className="px-2 py-2 text-left">New put</th>
                                     <th className="px-2 py-2 text-right">Net credit</th>
                                     <th className="px-2 py-2 text-right" title="Net credit ÷ new collateral, annualized over the extra days">Net ann.</th>
@@ -129,8 +170,16 @@ export function RollFinderModal({ positionId, isOpen, onClose, onUse }) {
                                 {candidates.map(c => (
                                     <tr key={c.option_code} className="hover:bg-[#F5F3EF]">
                                         <td className="px-2 py-2"><span className={scoreColor(c.roll_score)}>{c.roll_score}</span></td>
+                                        <td className="px-2 py-2 whitespace-nowrap" title={c.jev ? `${c.jev.label} · confidence ${c.jev.confidence?.toFixed(2)}\n\nJev read:\n• ${(c.jev.inputs || []).join('\n• ')}` : ''}>
+                                            {c.jev ? (
+                                                <>
+                                                    <span className={jevColor(c.jev.jev_score)}>{c.jev.jev_score}</span>
+                                                    <div className="text-[10px] text-gray-400">{c.jev.label}</div>
+                                                </>
+                                            ) : <span className="text-gray-400">—</span>}
+                                        </td>
                                         <td className="px-2 py-2 whitespace-nowrap">
-                                            <div className="font-semibold text-[#0D2654]">{formatCurrency(c.strike)} · {c.expiry}</div>
+                                            <div className="font-semibold text-[#0D2654]">{formatCurrency(c.strike)} · {formatExpiry(c.expiry)}</div>
                                             <div className="text-gray-500">{c.days_to_expiry}d (+{c.extra_days}d) · bid {formatCurrency(c.bid)}</div>
                                         </td>
                                         <td className={`px-2 py-2 text-right font-semibold ${c.net_credit >= 0 ? 'text-green-700' : 'text-red-600'}`}>{formatCurrency(c.net_credit)}</td>

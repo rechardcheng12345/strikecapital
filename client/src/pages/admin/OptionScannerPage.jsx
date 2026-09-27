@@ -8,7 +8,7 @@ import { Input, Skeleton, ErrorAlert } from '../../components/ui';
 import { OptionScannerDetailPanel } from './OptionScannerDetailPanel';
 import { ScannerRulesCard } from './ScannerRulesCard';
 import { RollWatchCard } from './RollWatchCard';
-import { SCAN_PRESETS, FIT_LABELS, finalScore, scoreColor } from './scannerShared';
+import { SCAN_PRESETS, FIT_LABELS, finalScore, scoreColor, formatExpiry } from './scannerShared';
 
 function formatCurrency(v) {
     if (v == null) return '—';
@@ -35,7 +35,7 @@ const HUNT_COLUMNS = [
     { key: 'jev_score', label: 'Jev', sub: 'AI score' },
     { key: 'ticker', label: 'Symbol', sub: 'Stock $' },
     { key: 'strike', label: 'Strike', sub: 'Disc%' },
-    { key: 'days_to_expiry', label: 'DTE', sub: '→80%' },
+    { key: 'days_to_expiry', label: 'DTE', sub: 'Expiry · →80%' },
     { key: 'mid', label: 'Premium', sub: 'Return' },
     { key: 'managed_ann_pct', label: 'Mgd Ann.', sub: 'if closed at 80%' },
     { key: 'sigma_otm', label: 'Cushion', sub: 'σ · |Δ|' },
@@ -657,7 +657,8 @@ export function OptionScannerPage() {
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
                                                             <div className="font-medium text-[#0D2654]">{row.days_to_expiry}d</div>
-                                                            <div className="text-[10px] text-gray-500" title="Estimated days to reach 80% profit if the stock and IV stay flat">{row.days_to_80 != null ? `~${row.days_to_80}d` : '—'}</div>
+                                                            <div className="text-[10px] text-[#0D2654]/70">{formatExpiry(row.expiry)}</div>
+                                                            <div className="text-[10px] text-gray-500" title="Estimated days to reach 80% profit if the stock and IV stay flat">{row.days_to_80 != null ? `→80% ~${row.days_to_80}d` : ''}</div>
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
                                                             <div className="font-semibold text-green-700">{premium != null ? formatCurrency(premium) : '—'}</div>

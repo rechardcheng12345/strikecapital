@@ -4,7 +4,7 @@ import { RefreshCw, Repeat } from 'lucide-react';
 import { scannerApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { RollFinderModal } from './RollFinderModal';
-import { formatCurrency } from './scannerShared';
+import { formatCurrency, formatExpiry } from './scannerShared';
 import { rollPrefillFromCandidate } from './rollPrefill';
 
 const REASONS = {
@@ -62,7 +62,7 @@ export function RollWatchCard() {
                                         <button type="button" onClick={() => navigate(`/admin/positions/${p.id}`)} className="font-semibold text-[#0D2654] hover:text-[#F06010]">
                                             {p.ticker} {formatCurrency(p.strike)}P
                                         </button>
-                                        <span className="text-gray-400"> · {p.expiry}{p.contracts > 1 ? ` · ×${p.contracts}` : ''}</span>
+                                        <span className="text-gray-400"> · {formatExpiry(p.expiry)}{p.contracts > 1 ? ` · ×${p.contracts}` : ''}</span>
                                     </td>
                                     <td className="py-2 pr-3 text-right">{p.dte ?? '—'}d</td>
                                     <td className="py-2 pr-3 text-right whitespace-nowrap">

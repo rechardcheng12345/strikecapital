@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, PlusCircle, CheckCircle, Brain, Ban, ExternalLink } from 'lucide-react';
-import { FIT_LABELS, finalScore } from './scannerShared';
+import { FIT_LABELS, finalScore, formatExpiry } from './scannerShared';
 
 function formatCurrency(v) {
     if (v == null) return '—';
@@ -269,7 +269,7 @@ export function OptionScannerDetailPanel({
                         <h3 className="text-lg font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                             {row.ticker} {formatCurrency(row.strike)} PUT
                         </h3>
-                        <p className="text-xs text-gray-500">{row.expiry} · {row.days_to_expiry}d · <span className={scoreColor(finalScore(row, aiContext, aiWeight))}>Score {finalScore(row, aiContext, aiWeight) ?? '—'}</span></p>
+                        <p className="text-xs text-gray-500">{formatExpiry(row.expiry)} · {row.days_to_expiry}d · <span className={scoreColor(finalScore(row, aiContext, aiWeight))}>Score {finalScore(row, aiContext, aiWeight) ?? '—'}</span></p>
                     </div>
                     <button type="button" onClick={onClose} className="text-gray-400 hover:text-[#0D2654] p-1">
                         <X className="w-5 h-5" />

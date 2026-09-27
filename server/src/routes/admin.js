@@ -15,7 +15,7 @@ import { scanPutOptions, fetchStockPrices } from '../services/scannerService.js'
 import { resolveScanTickers, enrichScanRow } from '../services/scanScore.js';
 import { getVolatilityStats, getEarningsDate } from '../services/marketContext.js';
 import { getPortfolioSnapshot, portfolioFit } from '../services/portfolioFit.js';
-import { jevConfigured, getAiContextForTickers, getTickerAiContext, getOptionJevScores, AI_POLICY } from '../services/jevService.js';
+import { jevConfigured, getAiContextForTickers, getTickerAiContext, getOptionJevScores, getRollJevScores, AI_POLICY } from '../services/jevService.js';
 import { getRollWatchList, findRollCandidates } from '../services/rollFinder.js';
 import { fetchYahooLevels } from '../services/priceService.js';
 import { env } from '../config/env.js';
@@ -1312,10 +1312,16 @@ router.post('/scanner/rolls/:positionId', authenticate, requireAdmin, async (req
         // Jev context is advisory — e.g. a thesis-break veto means "take the loss, don't roll".
         if (jevConfigured() && result.candidates.length) {
             const latest = result.candidates.reduce((m, c) => (c.expiry > m ? c.expiry : m), '');
-            try {
-                result.ai = await getTickerAiContext(result.position.ticker, latest);
-            } catch (err) {
-                result.ai = { error: err.message };
+            const p = result.position;
+            const [ai, jev] = await Promise.allSettled([
+                getTickerAiContext(p.ticker, latest),
+                getRollJevScores(p.ticker, latest, result.candidates),
+            ]);
+            result.ai = ai.status === 'fulfilled' ? ai.value : { error: ai.reason?.message };
+            if (jev.status === 'fulfilled') {
+                result.candidates = result.candidates.map(c => ({ ...c, jev: jev.value[c.option_code] || null }));
+            } else {
+                result.jev_error = jev.reason?.message;
             }
         }
         delete result.debug;

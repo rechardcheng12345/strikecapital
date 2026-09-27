@@ -36,3 +36,11 @@ export function formatCurrency(v) {
     if (v == null) return '—';
     return '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+/** "2026-10-30" → "Fri 30 Oct 2026" (expiry dates are calendar dates — format in UTC so they never shift). */
+export function formatExpiry(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(`${String(dateStr).slice(0, 10)}T00:00:00Z`);
+    if (Number.isNaN(d.getTime())) return String(dateStr);
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}

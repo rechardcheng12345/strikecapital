@@ -283,20 +283,39 @@ const TRADE_CONCURRENCY = 6;
  * @returns { [option_code]: { jev_score, level, confidence, label } }
  */
 export async function getOptionJevScores(ticker, latestExpiry, options) {
+    return scoreByDescription(ticker, latestExpiry, options, {
+        describe: describeOption,
+        stateKey: 'candidate',
+        question: tradeQuestion('candidate'),
+        levels: Q_TRADE_LEVELS,
+        cacheTag: 'trade',
+    });
+}
+
+function legendText(entry) {
+    if (!entry) return '';
+    return typeof entry === 'string' ? entry : (entry.what || '');
+}
+
+// Shared engine: describe each item in words (code), dedupe identical wordings, ask Jev once per
+// wording (parallel, cached), map the answer back to every item's option_code.
+async function scoreByDescription(ticker, latestExpiry, items, { describe, stateKey, question, levels, cacheTag, extraState = {} }) {
     const T = ticker.toUpperCase();
     const ctx = await buildTickerState(T, latestExpiry);
+    const extraSig = JSON.stringify(extraState);
     const bySig = new Map(); // signature -> { desc, codes: [] }
-    for (const o of options) {
-        const desc = describeOption(o);
+    for (const o of items) {
+        const desc = describe(o);
         const sig = JSON.stringify(desc);
         if (!bySig.has(sig)) bySig.set(sig, { desc, codes: [] });
         bySig.get(sig).codes.push(o.option_code);
     }
+    const cacheKey = (sig) => `${cacheTag}|${T}|${latestExpiry || ''}|${extraSig}|${sig}`;
 
     const results = new Map(); // sig -> answer
     const pending = [];
     for (const [sig, v] of bySig) {
-        const hit = scoreCache.get(`${T}|${latestExpiry || ''}|${sig}`);
+        const hit = scoreCache.get(cacheKey(sig));
         if (hit && Date.now() - hit.at < CACHE_TTL_MS) results.set(sig, hit.value);
         else pending.push([sig, v.desc]);
     }
@@ -304,18 +323,18 @@ export async function getOptionJevScores(ticker, latestExpiry, options) {
     async function worker() {
         while (next < pending.length) {
             const [sig, desc] = pending[next++];
-            const resp = await askJev({ ...ctx.state, candidate: desc }, { trade: tradeQuestion('candidate') });
-            const a = resp.answers?.trade;
+            const resp = await askJev({ ...ctx.state, ...extraState, [stateKey]: desc }, { q: question });
+            const a = resp.answers?.q;
             if (!a) continue;
             const value = {
-                jev_score: Math.round((a.score / (Q_TRADE_LEVELS.length - 1)) * 100),
+                jev_score: Math.round((a.score / (levels.length - 1)) * 100),
                 level: a.score,
                 confidence: a.confidence,
-                label: (a.legend?.[String(Math.round(a.score))] || '').split(':')[0],
-                inputs: Object.values(desc), // exactly what Jev read about this option
+                label: legendText(a.legend?.[String(Math.round(a.score))]).split(':')[0],
+                inputs: Object.values(desc), // exactly what Jev read about this item
             };
             results.set(sig, value);
-            scoreCache.set(`${T}|${latestExpiry || ''}|${sig}`, { at: Date.now(), value });
+            scoreCache.set(cacheKey(sig), { at: Date.now(), value });
         }
     }
     await Promise.all(Array.from({ length: Math.min(TRADE_CONCURRENCY, pending.length) }, worker));
@@ -326,6 +345,57 @@ export async function getOptionJevScores(ticker, latestExpiry, options) {
         if (r) for (const code of v.codes) out[code] = r;
     }
     return out;
+}
+
+// ─── Jev roll score (Roll Finder) ─────────────────────────────────────────
+// Structured levels (concrete situations) — plain one-line levels left Jev split across 3–4 levels
+// (confidence ≈ 0); these gave 0.67–0.92 on live SOXL rolls. Whether to roll at all (e.g. 80% captured →
+// just close) is a rule in code, not asked here: comparing actions is multi-step reasoning Jev handles poorly.
+export const Q_ROLL_LEVELS = [
+    { what: 'Bad roll: it pays a net debit, or moves the strike closer to the stock price.', examples: ['The roll costs money: a net debit to switch.'] },
+    { what: 'Weak roll: a small credit with little added safety.', examples: ['A small net credit and the same strike.'] },
+    { what: 'Fair roll: a credit, but with one clear drawback such as thin trading, earnings before expiry, or a high chance of finishing in the money.', examples: [] },
+    { what: 'Strong roll: a moderate or large credit and a strike that is equal or lower and beyond the expected move.', examples: [] },
+    { what: 'Ideal roll: a large credit, a clearly lower strike far below the stock price, liquid, no earnings before expiry.', examples: [] },
+];
+const Q_ROLL = {
+    type: 'score',
+    instructions: 'We are rolling a short put: buying back our current put and selling the new put described in `roll`. How good is this roll for a cash-secured put seller who accepts assignment, given `company`?',
+    criteria: Q_ROLL_LEVELS,
+};
+
+/** Words for one roll candidate. Every threshold lives here, in code. */
+export function describeRoll(c) {
+    const opt = describeOption(c);
+    const d = {
+        net: c.net_credit < 0 ? 'The roll costs money: a net debit to switch.'
+            : c.net_ann_pct == null || c.net_ann_pct < 10 ? 'The roll collects a small net credit for the extra time.'
+                : c.net_ann_pct < 25 ? 'The roll collects a moderate net credit for the extra time.'
+                    : 'The roll collects a large net credit for the extra time.',
+        strike: c.strike_drop_pct <= 0.01 ? 'The new put keeps the same strike.'
+            : c.strike_drop_pct < 5 ? 'The new put lowers the strike slightly.'
+                : c.strike_drop_pct < 12 ? 'The new put lowers the strike meaningfully.'
+                    : 'The new put lowers the strike a lot.',
+        time: c.extra_days < 21 ? 'The roll adds under three weeks of time.'
+            : c.extra_days <= 45 ? 'The roll adds about one more month.'
+                : 'The roll adds about two more months.',
+        strike_distance: opt.strike_distance,
+        assignment_chance: opt.assignment_chance,
+        earnings: opt.earnings,
+        liquidity: opt.liquidity,
+        capital: c.fits_capital === false ? 'The new put needs more collateral than we have available.' : null,
+    };
+    return Object.fromEntries(Object.entries(d).filter(([, v]) => v != null));
+}
+
+export async function getRollJevScores(ticker, latestExpiry, candidates) {
+    return scoreByDescription(ticker, latestExpiry, candidates, {
+        describe: describeRoll,
+        stateKey: 'roll',
+        question: Q_ROLL,
+        levels: Q_ROLL_LEVELS,
+        cacheTag: 'roll',
+    });
 }
 
 /** Run a list of tickers with limited concurrency; failures come back as { ticker, error }. */
