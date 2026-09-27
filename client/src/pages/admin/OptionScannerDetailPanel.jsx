@@ -235,6 +235,8 @@ function Metric({ label, children }) {
 export function OptionScannerDetailPanel({
     row,
     aiContext,
+    jevScore,
+    jevStatus,
     aiWeight = 1,
     onClose,
     levelsState,
@@ -319,6 +321,33 @@ export function OptionScannerDetailPanel({
                             <Metric label="Open interest">{row.open_interest != null ? Number(row.open_interest).toLocaleString() : '—'}</Metric>
                             <Metric label="Volume">{row.volume != null ? Number(row.volume).toLocaleString() : '—'}</Metric>
                         </div>
+                    </section>
+
+                    <section>
+                        <h4 className="text-xs font-semibold text-[#0D2654] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <Brain className="w-3.5 h-3.5 text-[#F06010]" /> Jev trade score
+                        </h4>
+                        {jevScore ? (
+                            <div className="space-y-2 text-xs">
+                                <div className="flex items-baseline gap-3">
+                                    <span className={`text-2xl font-bold ${jevScore.jev_score >= 60 ? 'text-green-600' : jevScore.jev_score >= 40 ? 'text-yellow-600' : 'text-red-500'}`}>{jevScore.jev_score}</span>
+                                    <span className="font-semibold text-[#0D2654]">{jevScore.label}</span>
+                                    <span className="text-gray-400" title="How concentrated Jev's answer is (1.0 = certain)">conf {jevScore.confidence?.toFixed(2)}</span>
+                                    <span className="text-gray-400">vs quant {row.score}</span>
+                                </div>
+                                {jevScore.confidence < 0.5 && <p className="text-gray-500">Jev is split between levels on this one — treat as a weak signal.</p>}
+                                <div>
+                                    <p className="text-gray-500 mb-1">What Jev read about this option (plus the company, headlines and earnings):</p>
+                                    <ul className="list-disc pl-5 space-y-0.5 text-gray-700">
+                                        {(jevScore.inputs || []).map((t, i) => <li key={i}>{t}</li>)}
+                                    </ul>
+                                </div>
+                            </div>
+                        ) : jevStatus === 'loading' ? (
+                            <p className="text-xs text-gray-500">Asking Jev…</p>
+                        ) : (
+                            <p className="text-xs text-gray-400">{jevStatus || 'Not available.'}</p>
+                        )}
                     </section>
 
                     <section>

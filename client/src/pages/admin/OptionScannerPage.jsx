@@ -32,6 +32,7 @@ function deltaColor(delta) {
 
 const HUNT_COLUMNS = [
     { key: 'final_score', label: 'Score', sub: 'Quant' },
+    { key: 'jev_score', label: 'Jev', sub: 'AI score' },
     { key: 'ticker', label: 'Symbol', sub: 'Stock $' },
     { key: 'strike', label: 'Strike', sub: 'Disc%' },
     { key: 'days_to_expiry', label: 'DTE', sub: '→80%' },
@@ -47,6 +48,16 @@ function parseTargets(text) {
         .split(/[,\s]+/)
         .map(Number)
         .filter(n => Number.isFinite(n) && n > 0);
+}
+
+// Fields describeOption() needs on the server — keeps the request small.
+const JEV_FIELDS = ['option_code', 'managed_ann_pct', 'sigma_otm', 'iv_hv_ratio', 'delta', 'earnings_before_expiry', 'spread_pct', 'open_interest', 'cost_vs_ma200_pct'];
+
+function jevColor(score) {
+    if (score == null) return 'text-gray-400';
+    if (score >= 60) return 'text-green-600 font-semibold';
+    if (score >= 40) return 'text-yellow-600 font-semibold';
+    return 'text-red-500 font-semibold';
 }
 
 function AiBadge({ ctx }) {
@@ -83,6 +94,8 @@ export function OptionScannerPage() {
     });
     const [presetKey, setPresetKey] = useState('30-60');
     const [aiContext, setAiContext] = useState({});
+    const [jevScores, setJevScores] = useState({});   // option_code -> { jev_score, label, confidence, inputs }
+    const [jevStatus, setJevStatus] = useState({});   // ticker -> 'loading' | error message
     const [aiWeight, setAiWeight] = useState(1);
     const [hideVetoed, setHideVetoed] = useState(true);
     const [hideUnfit, setHideUnfit] = useState(false);
@@ -180,7 +193,8 @@ export function OptionScannerPage() {
                 const note = !ctx || ctx.loading || ctx.error ? null
                     : ctx.veto ? `VETO: ${ctx.veto_reasons.join('; ')}`
                         : ctx.warnings.length ? ctx.warnings.join('; ') : 'ok';
-                return { ...r, ai_note: note };
+                const js = jevScores[r.option_code];
+                return { ...r, ai_note: js ? `${note || '—'}; Jev score ${js.jev_score} (${js.label})` : note };
             });
             const response = await scannerApi.analyze(rows, scanResults.stock_prices || {}, params);
             const data = response.data || {};
@@ -203,6 +217,23 @@ export function OptionScannerPage() {
         const ctx = res?.data?.contexts?.[0];
         const error = res?.error || ctx?.error || (!ctx ? 'No AI context' : null);
         setAiContext(c => ({ ...c, [ticker]: error ? { error } : ctx }));
+    }
+
+    async function loadJevScores(ticker, latestExpiry, rows, gen) {
+        setJevStatus(st => ({ ...st, [ticker]: 'loading' }));
+        const options = rows.map(r => Object.fromEntries(JEV_FIELDS.map(k => [k, r[k]])));
+        const res = await scannerApi.jevScores(ticker, latestExpiry, options);
+        if (scanGenRef.current !== gen) return;
+        if (res.error) {
+            setJevStatus(st => ({ ...st, [ticker]: res.error }));
+            return;
+        }
+        setJevScores(s => ({ ...s, ...(res.data?.scores || {}) }));
+        setJevStatus(st => {
+            const next = { ...st };
+            delete next[ticker];
+            return next;
+        });
     }
 
     function applyPreset(key) {
@@ -230,6 +261,8 @@ export function OptionScannerPage() {
         setAiError(null);
         setSelectedCode(null);
         setAiContext({});
+        setJevScores({});
+        setJevStatus({});
         setScanProgress({ current: 0, total: tickers.length, ticker: null });
         const scanParams = { ...params, expiryTargets: parseTargets(params.expiryTargets) };
 
@@ -257,6 +290,7 @@ export function OptionScannerPage() {
                 if (tickerRows.length > 0) {
                     const latestExpiry = tickerRows.reduce((m, r) => (r.expiry > m ? r.expiry : m), '');
                     loadAiContext(ticker, latestExpiry, gen);
+                    loadJevScores(ticker, latestExpiry, tickerRows, gen);
                 }
                 merged.stock_prices = { ...merged.stock_prices, ...(data.stock_prices || {}) };
                 merged.debug = { ...merged.debug, ...(data.debug || {}) };
@@ -302,7 +336,11 @@ export function OptionScannerPage() {
         }
     }
 
-    const rawResults = (scanResults?.results || []).map(r => ({ ...r, final_score: finalScore(r, aiContext[r.ticker], aiWeight) }));
+    const rawResults = (scanResults?.results || []).map(r => ({
+        ...r,
+        final_score: finalScore(r, aiContext[r.ticker], aiWeight),
+        jev_score: jevScores[r.option_code]?.jev_score ?? null,
+    }));
     const hiddenCounts = { veto: 0, unfit: 0, earnings: 0 };
     const visible = rawResults.filter(r => {
         const ctx = aiContext[r.ticker];
@@ -594,6 +632,22 @@ export function OptionScannerPage() {
                                                             )}
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
+                                                            {(() => {
+                                                                const js = jevScores[row.option_code];
+                                                                const st = jevStatus[row.ticker];
+                                                                if (js) {
+                                                                    return (
+                                                                        <div title={`${js.label} · confidence ${js.confidence?.toFixed(2)}`}>
+                                                                            <span className={`${jevColor(js.jev_score)} text-base`}>{js.jev_score}</span>
+                                                                            <div className="text-[10px] text-gray-400">{js.label}</div>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                if (st === 'loading') return <span className="text-[10px] text-gray-400 animate-pulse">Jev…</span>;
+                                                                return <span className="text-[10px] text-gray-400" title={st || ''}>—</span>;
+                                                            })()}
+                                                        </td>
+                                                        <td className="px-3 py-3 align-top whitespace-nowrap">
                                                             <div className="font-semibold text-[#0D2654]">{row.ticker}</div>
                                                             <div className="text-[10px] text-gray-500">{formatCurrency(row.stock_price)}</div>
                                                         </td>
@@ -651,6 +705,8 @@ export function OptionScannerPage() {
                             <OptionScannerDetailPanel
                                 row={selectedRow}
                                 aiContext={aiContext[selectedRow.ticker]}
+                                jevScore={jevScores[selectedRow.option_code]}
+                                jevStatus={jevStatus[selectedRow.ticker]}
                                 aiWeight={aiWeight}
                                 onClose={() => setSelectedCode(null)}
                                 levelsState={tickerLevels[selectedRow.ticker]}

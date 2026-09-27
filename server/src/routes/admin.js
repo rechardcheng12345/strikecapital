@@ -15,7 +15,7 @@ import { scanPutOptions, fetchStockPrices } from '../services/scannerService.js'
 import { resolveScanTickers, enrichScanRow } from '../services/scanScore.js';
 import { getVolatilityStats, getEarningsDate } from '../services/marketContext.js';
 import { getPortfolioSnapshot, portfolioFit } from '../services/portfolioFit.js';
-import { jevConfigured, getAiContextForTickers, getTickerAiContext, AI_POLICY } from '../services/jevService.js';
+import { jevConfigured, getAiContextForTickers, getTickerAiContext, getOptionJevScores, AI_POLICY } from '../services/jevService.js';
 import { getRollWatchList, findRollCandidates } from '../services/rollFinder.js';
 import { fetchYahooLevels } from '../services/priceService.js';
 import { env } from '../config/env.js';
@@ -1269,6 +1269,20 @@ router.post('/scanner/context', authenticate, requireAdmin, async (req, res, nex
         if (items.length === 0) return res.status(400).json({ error: 'tickers is required' });
         const contexts = await getAiContextForTickers(items);
         res.json({ contexts, policy: AI_POLICY });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Jev trade-quality score per option (second opinion next to the quant score).
+// Body: { ticker, latest_expiry, options: [scan rows] }
+router.post('/scanner/jev-scores', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        if (!jevConfigured()) return res.status(503).json({ error: 'TYPESAFE_API_KEY is not configured.' });
+        const { ticker, latest_expiry, options } = req.body || {};
+        if (!ticker || !Array.isArray(options)) return res.status(400).json({ error: 'ticker and options are required' });
+        const scores = await getOptionJevScores(String(ticker), latest_expiry || null, options.slice(0, 200));
+        res.json({ scores });
     } catch (error) {
         next(error);
     }

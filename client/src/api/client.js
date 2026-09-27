@@ -181,6 +181,7 @@ export const scannerApi = {
     addRule: (rule_text, action) => api.post('/admin/scanner/rules', { rule_text, action }),
     updateRule: (id, patch) => api.put(`/admin/scanner/rules/${id}`, patch),
     deleteRule: (id) => api.delete(`/admin/scanner/rules/${id}`),
+    jevScores: (ticker, latest_expiry, options) => api.post('/admin/scanner/jev-scores', { ticker, latest_expiry, options }),
     getRollWatch: () => api.get('/admin/scanner/roll-watch'),
     findRolls: (positionId, opts = {}) => api.post(`/admin/scanner/rolls/${positionId}`, opts),
 };
