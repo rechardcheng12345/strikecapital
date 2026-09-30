@@ -98,7 +98,7 @@ export async function quotePut({ ticker, strike, expiration_date }) {
 async function resolveFill({ ticker, strike, expiration_date, price, fallback_price }) {
     if (price != null) return { price: Number(price), source: 'manual' };
     const q = await quotePut({ ticker, strike, expiration_date });
-    if (q?.price > 0) return { price: q.price, source: q.source };
+    if (q?.price > 0) return { price: q.price, source: q.source, bid: q.bid, ask: q.ask };
     if (fallback_price > 0) return { price: Number(fallback_price), source: 'scanner' };
     throw new SimError('No live quote for that contract (check the strike and expiry exist, and that OpenD / the scanner proxy is running). Enter a fill price to trade anyway.');
 }
@@ -214,7 +214,7 @@ export async function openPut(portfolioId, input, trx = null) {
         const [id] = await t('sim_positions').insert({
             portfolio_id: p.id, position_type: 'option', ticker, strike, expiration_date, contracts,
             entry_price: fill.price, entry_source: fill.source, entry_fees: fees, open_date: nyClock().date,
-            current_price: fill.price, price_source: fill.source, price_updated_at: new Date(),
+            current_price: fill.price, current_bid: fill.bid ?? null, current_ask: fill.ask ?? null, price_source: fill.source, price_updated_at: new Date(),
             rolled_from_id: input.rolled_from_id || null, entry_context: context, notes: input.notes || null,
         });
         await t('sim_transactions').insert({
@@ -349,6 +349,74 @@ async function snapshotPortfolio(p, spy) {
     else await db('sim_snapshots').insert({ portfolio_id: p.id, snap_date, ...row });
 }
 
+async function openPositions(portfolioId = null) {
+    const q = db('sim_positions as s')
+        .join('sim_portfolios as p', 'p.id', 's.portfolio_id')
+        .where('s.status', 'OPEN').where('p.is_active', true)
+        .select('s.*');
+    if (portfolioId) q.where('s.portfolio_id', portfolioId);
+    return (await q).map(normPosition);
+}
+
+/**
+ * Mark open puts at the live Moomoo mid (bid/ask; last trade when a side is missing) and refresh the
+ * underlying / assigned-share prices from Yahoo. Returns the underlying prices for expiry settlement.
+ */
+async function markPositions(open, { quotePuts = true } = {}) {
+    const puts = open.filter((x) => x.position_type === 'option');
+    const out = { marked: 0, unquoted: 0, underlying: new Map() };
+    if (puts.length && quotePuts) {
+        const quotes = await fetchOptionQuotes(puts.map((x) => ({ id: x.id, ticker: x.ticker, strike_price: x.strike, expiration_date: x.expiration_date })));
+        const quoted = new Set();
+        const now = new Date();
+        for (const q of quotes) {
+            const { price, source } = quoteMid({ bid: q.bid, ask: q.ask, last: q.option_price });
+            if (!(price > 0)) continue;
+            for (const id of q.positionIds || []) {
+                quoted.add(id);
+                await db('sim_positions').where({ id }).update({
+                    current_price: price, current_bid: q.bid ?? null, current_ask: q.ask ?? null,
+                    price_source: source, price_updated_at: now,
+                });
+            }
+        }
+        out.marked = quoted.size;
+        out.unquoted = puts.length - quoted.size;
+    }
+    const prices = await Promise.all([...new Set(open.map((x) => x.ticker))].map(async (sym) => [sym, (await fetchYahooPrice(sym))?.price]));
+    for (const [sym, px] of prices) if (px > 0) out.underlying.set(sym, px);
+    for (const x of open) {
+        const px = out.underlying.get(x.ticker);
+        if (!px) continue;
+        const patch = { underlying_price: px };
+        if (x.position_type === 'stock') Object.assign(patch, { current_price: px, price_source: 'yahoo', price_updated_at: new Date() });
+        await db('sim_positions').where({ id: x.id }).update(patch);
+    }
+    return out;
+}
+
+// Pages poll for live prices; several tabs must not each hit the proxy, so a mark is reused for a few seconds.
+const LIVE_MIN_GAP_MS = 15000;
+const lastLiveMark = new Map(); // portfolioId | 'all' → { at, promise }
+
+/** Mark one portfolio (or all active ones) at live prices, at most once per LIVE_MIN_GAP_MS. */
+export async function markLive(portfolioId = null) {
+    const key = portfolioId || 'all';
+    const prev = lastLiveMark.get(key) || lastLiveMark.get('all');
+    if (prev && Date.now() - prev.at < LIVE_MIN_GAP_MS) return prev.promise;
+    const promise = (async () => {
+        const r = await markPositions(await openPositions(portfolioId));
+        return { marked: r.marked, unquoted: r.unquoted, marked_at: new Date().toISOString() };
+    })();
+    lastLiveMark.set(key, { at: Date.now(), promise });
+    try {
+        return await promise;
+    } catch (err) {
+        lastLiveMark.delete(key);
+        throw err;
+    }
+}
+
 let running = false;
 
 /**
@@ -360,45 +428,13 @@ export async function refreshSimulation({ force = false } = {}) {
     running = true;
     const result = { marked: 0, unquoted: 0, expired: 0, assigned: 0, snapshots: 0, market_open: isMarketOpen() };
     try {
-        const open = (await db('sim_positions as s')
-            .join('sim_portfolios as p', 'p.id', 's.portfolio_id')
-            .where('s.status', 'OPEN').where('p.is_active', true)
-            .select('s.*')).map(normPosition);
-        const puts = open.filter((x) => x.position_type === 'option');
+        const open = await openPositions();
+        const marks = await markPositions(open, { quotePuts: force || result.market_open });
+        result.marked = marks.marked;
+        result.unquoted = marks.unquoted;
 
-        if (puts.length && (force || result.market_open)) {
-            const quotes = await fetchOptionQuotes(puts.map((x) => ({ id: x.id, ticker: x.ticker, strike_price: x.strike, expiration_date: x.expiration_date })));
-            const quoted = new Set();
-            for (const q of quotes) {
-                const { price, source } = quoteMid({ bid: q.bid, ask: q.ask, last: q.option_price });
-                if (!(price > 0)) continue;
-                for (const id of q.positionIds || []) {
-                    quoted.add(id);
-                    await db('sim_positions').where({ id }).update({
-                        current_price: price, current_bid: q.bid ?? null, current_ask: q.ask ?? null,
-                        price_source: source, price_updated_at: new Date(),
-                    });
-                }
-            }
-            result.marked = quoted.size;
-            result.unquoted = puts.length - quoted.size;
-        }
-
-        const underlying = new Map();
-        for (const sym of [...new Set(open.map((x) => x.ticker))]) {
-            const px = (await fetchYahooPrice(sym))?.price;
-            if (px > 0) underlying.set(sym, px);
-        }
-        for (const x of open) {
-            const px = underlying.get(x.ticker);
-            if (!px) continue;
-            const patch = { underlying_price: px };
-            if (x.position_type === 'stock') Object.assign(patch, { current_price: px, price_source: 'yahoo', price_updated_at: new Date() });
-            await db('sim_positions').where({ id: x.id }).update(patch);
-        }
-
-        for (const x of puts.filter((pp) => isExpiryDue(pp.expiration_date))) {
-            const px = underlying.get(x.ticker);
+        for (const x of open.filter((pp) => pp.position_type === 'option' && isExpiryDue(pp.expiration_date))) {
+            const px = marks.underlying.get(x.ticker);
             if (!px) continue; // retried on the next run
             const outcome = await settleExpiry(x, px);
             result[outcome === 'assigned' ? 'assigned' : 'expired']++;

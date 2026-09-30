@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { Search, Plus, X, ScanLine, AlertTriangle, ChevronDown, ChevronUp, Sparkles, Square, Brain, Ban, CalendarClock, Wallet } from 'lucide-react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
+import { Search, Plus, X, ScanLine, AlertTriangle, ChevronDown, ChevronUp, Sparkles, Square, Brain, Ban, CalendarClock, Wallet, FlaskConical } from 'lucide-react';
 import { scannerApi, positionApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,6 +9,7 @@ import { OptionScannerDetailPanel } from './OptionScannerDetailPanel';
 import { ScannerRulesCard } from './ScannerRulesCard';
 import { RollWatchCard } from './RollWatchCard';
 import { SCAN_PRESETS, FIT_LABELS, finalScore, scoreColor, formatExpiry } from './scannerShared';
+import { OpenTradeModal, scannerPrefill } from './simShared';
 
 function formatCurrency(v) {
     if (v == null) return '—';
@@ -41,6 +42,7 @@ const HUNT_COLUMNS = [
     { key: 'sigma_otm', label: 'Cushion', sub: 'σ · |Δ|' },
     { key: 'iv_hv_ratio', label: 'IV/HV', sub: 'IV' },
     { key: 'flags', label: 'Flags', sortable: false },
+    { key: 'sim', label: 'Sim', sub: 'paper trade', sortable: false },
 ];
 
 function parseTargets(text) {
@@ -115,6 +117,7 @@ export function OptionScannerPage() {
     const [aiFormat, setAiFormat] = useState(null);
     const [aiError, setAiError] = useState(null);
     const [selectedCode, setSelectedCode] = useState(null);
+    const [paperRow, setPaperRow] = useState(null);
     const [tickerLevels, setTickerLevels] = useState({});
     const scanGenRef = useRef(0);
     const levelsRef = useRef({});
@@ -357,6 +360,10 @@ export function OptionScannerPage() {
     });
 
     const selectedRow = results.find(r => r.option_code === selectedCode) || null;
+    const paperPrefill = useMemo(
+        () => (paperRow ? scannerPrefill(paperRow, paperRow.final_score, jevScores[paperRow.option_code]) : null),
+        [paperRow, jevScores],
+    );
 
     function handleRowClick(row) {
         setSelectedCode(prev => prev === row.option_code ? null : row.option_code);
@@ -693,6 +700,16 @@ export function OptionScannerPage() {
                                                                 )}
                                                             </div>
                                                         </td>
+                                                        <td className="px-3 py-3 align-top">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); setPaperRow(row); }}
+                                                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium border border-[#0D2654]/40 text-[#0D2654] hover:bg-[#0D2654] hover:text-white transition-colors"
+                                                                title="Paper trade this put in a simulation portfolio"
+                                                            >
+                                                                <FlaskConical className="w-3.5 h-3.5" /> Sim
+                                                            </button>
+                                                        </td>
                                                     </tr>
                                                 );
                                             })}
@@ -717,6 +734,7 @@ export function OptionScannerPage() {
                                 onAddToMonitoring={handleAddToMonitoring}
                             />
                         )}
+                        <OpenTradeModal isOpen={!!paperRow} onClose={() => setPaperRow(null)} prefill={paperPrefill} />
                     </div>
 
                     {(aiAnalysis || aiError || analyzing) && (

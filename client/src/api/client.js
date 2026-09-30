@@ -200,8 +200,9 @@ export const investorApi = {
 };
 // Paper-trading portfolios (admin only)
 export const simApi = {
-    listPortfolios: () => api.get('/sim/portfolios'),
-    getPortfolio: (id) => api.get(`/sim/portfolios/${id}`),
+    // live=true marks open positions at the live Moomoo mid before returning
+    listPortfolios: (live = false) => api.get(`/sim/portfolios${live ? '?live=1' : ''}`),
+    getPortfolio: (id, live = false) => api.get(`/sim/portfolios/${id}${live ? '?live=1' : ''}`),
     createPortfolio: (data) => api.post('/sim/portfolios', data),
     updatePortfolio: (id, data) => api.put(`/sim/portfolios/${id}`, data),
     deletePortfolio: (id) => api.delete(`/sim/portfolios/${id}`),

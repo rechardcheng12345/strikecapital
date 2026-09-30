@@ -68,6 +68,19 @@ export function EquityChart({ series, spy, height = 300 }) {
     );
 }
 
+/** "Live" badge: when open positions were last marked at Moomoo prices by this page's polling. */
+export function LiveBadge({ live, fetching }) {
+    if (!live) return null;
+    if (live.error) return <span className="text-xs text-red-600">Live prices unavailable: {live.error}</span>;
+    return (
+        <span className="inline-flex items-center gap-1.5 text-xs text-gray-500" title={`${live.marked} marked${live.unquoted ? `, ${live.unquoted} without a quote` : ''}`}>
+            <span className={`w-2 h-2 rounded-full ${live.unquoted ? 'bg-yellow-500' : 'bg-green-500'} ${fetching ? 'animate-pulse' : ''}`} />
+            Live · {new Date(live.marked_at).toLocaleTimeString()}
+            {live.unquoted ? ` · ${live.unquoted} without quote` : ''}
+        </span>
+    );
+}
+
 export function Stat({ label, value, sub, className = '' }) {
     return (
         <div className="border border-[#0D2654]/10 bg-white px-4 py-3">
@@ -78,25 +91,47 @@ export function Stat({ label, value, sub, className = '' }) {
     );
 }
 
-/** Live bid / ask / mid preview; `onQuote` gets the quote so the parent can show it. */
-function QuotePreview({ ticker, strike, expiration_date, onQuote }) {
-    const [state, setState] = useState({ loading: false, quote: null, error: null });
-    const ready = ticker && strike > 0 && /^\d{4}-\d{2}-\d{2}$/.test(expiration_date || '');
-    const load = async () => {
-        setState({ loading: true, quote: null, error: null });
-        const res = await simApi.quote({ ticker, strike: Number(strike), expiration_date });
-        setState({ loading: false, quote: res.data || null, error: res.error || null });
-        onQuote?.(res.data || null);
-    };
+function useDebounced(value, ms = 400) {
+    const [v, setV] = useState(value);
+    useEffect(() => {
+        const t = setTimeout(() => setV(value), ms);
+        return () => clearTimeout(t);
+    }, [value, ms]);
+    return v;
+}
+
+/** Live Moomoo quote for a put, refreshed every 15s while `enabled`. */
+export function useLiveQuote({ ticker, strike, expiration_date }, enabled = true) {
+    const key = useDebounced(`${String(ticker || '').toUpperCase()}|${Number(strike) || ''}|${expiration_date || ''}`);
+    const [t, k, e] = key.split('|');
+    const valid = !!t && Number(k) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(e);
+    const q = useApiQuery({
+        queryKey: ['sim', 'quote', key],
+        queryFn: () => simApi.quote({ ticker: t, strike: Number(k), expiration_date: e }),
+        enabled: enabled && valid,
+        refetchInterval: 15000,
+        retry: false,
+        staleTime: 0,
+    });
+    return { quote: q.data || null, loading: q.isFetching && !q.data, error: q.error?.message || null, updatedAt: q.dataUpdatedAt, valid };
+}
+
+export function LiveQuote({ state, label = 'Live quote' }) {
+    if (!state.valid) return <p className="text-xs text-gray-400">{label}: enter ticker, strike and expiry.</p>;
+    if (state.loading) return <p className="text-xs text-gray-400 animate-pulse">{label}: fetching from Moomoo…</p>;
+    if (state.error) return <p className="text-xs text-red-600">{label}: {state.error}</p>;
+    if (!state.quote) return null;
+    const q = state.quote;
     return (
-        <div className="flex items-center gap-3 text-sm">
-            <Button type="button" variant="secondary" size="sm" onClick={load} disabled={!ready} loading={state.loading}>Get live quote</Button>
-            {state.quote && (
-                <span className="text-gray-700">
-                    Bid {money(state.quote.bid)} · Ask {money(state.quote.ask)} · <strong>{state.quote.source === 'mid' ? 'Mid' : 'Last'} {money(state.quote.price)}</strong>
-                </span>
-            )}
-            {state.error && <span className="text-red-600">{state.error}</span>}
+        <div className="text-sm bg-green-50 border border-green-200 px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> {label}
+            </span>
+            <span>Bid <strong>{money(q.bid)}</strong></span>
+            <span>Ask <strong>{money(q.ask)}</strong></span>
+            <span>{q.source === 'mid' ? 'Mid' : 'Last'} <strong className="text-[#0D2654]">{money(q.price)}</strong></span>
+            {q.delta != null && <span className="text-gray-500">Δ {Math.abs(q.delta).toFixed(2)}</span>}
+            <span className="text-xs text-gray-400">{state.updatedAt ? new Date(state.updatedAt).toLocaleTimeString() : ''}</span>
         </div>
     );
 }
@@ -110,7 +145,6 @@ export function OpenTradeModal({ isOpen, onClose, portfolioId = null, prefill = 
     const { data: list } = useApiQuery({ queryKey: ['sim', 'portfolios'], queryFn: simApi.listPortfolios, enabled: isOpen && !portfolioId });
     const active = (list?.portfolios || []).filter((p) => p.is_active);
     const [form, setForm] = useState({});
-    const [quote, setQuote] = useState(null);
     const [error, setError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
@@ -125,9 +159,12 @@ export function OpenTradeModal({ isOpen, onClose, portfolioId = null, prefill = 
             price: '',
             notes: '',
         });
-        setQuote(null);
         setError(null);
-    }, [isOpen, portfolioId, prefill]);
+        // Reset only when the form opens — prefill can change underneath (e.g. Jev scores arriving) while typing.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]);
+    const live = useLiveQuote({ ticker: form.ticker, strike: form.strike, expiration_date: form.expiration_date }, isOpen);
+    const quote = live.quote;
     useEffect(() => {
         if (isOpen && !portfolioId && !form.portfolio_id && active.length === 1) setForm((f) => ({ ...f, portfolio_id: active[0].id }));
     }, [isOpen, portfolioId, active, form.portfolio_id]);
@@ -183,15 +220,18 @@ export function OpenTradeModal({ isOpen, onClose, portfolioId = null, prefill = 
                     <Input label="Expiry" type="date" value={form.expiration_date || ''} onChange={set('expiration_date')} />
                     <Input label="Contracts" type="number" min={1} value={form.contracts} onChange={set('contracts')} />
                 </div>
-                <QuotePreview ticker={form.ticker} strike={Number(form.strike)} expiration_date={form.expiration_date} onQuote={setQuote} />
+                <LiveQuote state={live} label="Moomoo live" />
                 <Input
-                    label="Fill price per share (leave blank = live mid)"
+                    label="Fill price per share (leave blank = live Moomoo mid at the moment you submit)"
                     type="number" step="0.01" min={0} value={form.price} onChange={set('price')}
                     placeholder={prefill?.fallback_price ? `Scanner mid ${Number(prefill.fallback_price).toFixed(2)} is used if no live quote` : 'Live mid'}
                 />
                 {fillPx > 0 && Number(form.strike) > 0 && (
                     <div className="text-sm bg-[#0D2654]/5 px-3 py-2 space-y-0.5">
-                        <p>Premium ≈ <strong>{money(fillPx * 100 * contracts)}</strong> · Collateral <strong>{money(Number(form.strike) * 100 * contracts)}</strong></p>
+                        <p>
+                            {form.price !== '' ? `Fill at your price ${money(fillPx)}` : quote ? `Fills at the live mid (now ${money(fillPx)})` : `No live quote — fills at the scanner mid ${money(fillPx)}`}
+                            {' · '}Premium ≈ <strong>{money(fillPx * 100 * contracts)}</strong> · Collateral <strong>{money(Number(form.strike) * 100 * contracts)}</strong>
+                        </p>
                         {chosen && <p className="text-gray-500">Free cash now {money(chosen.free_cash)} → after ≈ {money(chosen.free_cash + fillPx * 100 * contracts - Number(form.strike) * 100 * contracts)}</p>}
                     </div>
                 )}
@@ -205,10 +245,9 @@ export function OpenTradeModal({ isOpen, onClose, portfolioId = null, prefill = 
     );
 }
 
-/** "Paper trade" button for a scanner row. */
-export function PaperTradeButton({ row, finalScore, jevScore }) {
-    const [open, setOpen] = useState(false);
-    const prefill = useMemo(() => row && ({
+/** Paper-trade prefill from a scanner row, keeping the scores the trade was taken on. */
+export function scannerPrefill(row, finalScore, jevScore) {
+    return row && ({
         ticker: row.ticker,
         strike: row.strike,
         expiration_date: String(row.expiry || '').slice(0, 10),
@@ -229,7 +268,13 @@ export function PaperTradeButton({ row, finalScore, jevScore }) {
             stock_price: row.stock_price ?? null,
             earnings_before_expiry: row.earnings_before_expiry ?? null,
         },
-    }), [row, finalScore, jevScore]);
+    });
+}
+
+/** "Paper trade" button for a scanner row. */
+export function PaperTradeButton({ row, finalScore, jevScore }) {
+    const [open, setOpen] = useState(false);
+    const prefill = useMemo(() => scannerPrefill(row, finalScore, jevScore), [row, finalScore, jevScore]);
     if (!row) return null;
     return (
         <>

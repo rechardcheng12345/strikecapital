@@ -6,7 +6,7 @@ import { FlaskConical, Plus, RefreshCw } from 'lucide-react';
 import { simApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { Button, Input, Modal, Badge, EmptyState, ErrorAlert, SkeletonCard } from '../../components/ui';
-import { EquityChart, money, pct, signColor, OpenTradeModal } from './simShared';
+import { EquityChart, money, pct, signColor, OpenTradeModal, LiveBadge } from './simShared';
 
 function PortfolioFormModal({ isOpen, onClose }) {
     const queryClient = useQueryClient();
@@ -85,7 +85,8 @@ export function SimulationPage() {
     const [createOpen, setCreateOpen] = useState(false);
     const [tradeOpen, setTradeOpen] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-    const { data, isLoading, isError, error, refetch } = useApiQuery({ queryKey: ['sim', 'portfolios'], queryFn: simApi.listPortfolios });
+    // Marks every open position at the live Moomoo mid on load and every 30s while the page is open
+    const { data, isLoading, isError, error, refetch, isFetching } = useApiQuery({ queryKey: ['sim', 'portfolios', 'live'], queryFn: () => simApi.listPortfolios(true), refetchInterval: 30000 });
     const portfolios = data?.portfolios || [];
 
     const { series, spy } = useMemo(() => {
@@ -109,7 +110,8 @@ export function SimulationPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Simulation</h1>
-                    <p className="text-sm text-gray-500">Paper-trade strategies at the bid/ask mid. Nothing here touches the live fund.</p>
+                    <p className="text-sm text-gray-500">Paper-trade strategies at the live Moomoo bid/ask mid. Nothing here touches the live fund.</p>
+                    <LiveBadge live={data?.live} fetching={isFetching} />
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={refresh} loading={refreshing}><RefreshCw className="w-4 h-4 mr-1.5" />Refresh prices</Button>

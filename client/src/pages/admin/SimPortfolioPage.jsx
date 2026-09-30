@@ -6,7 +6,7 @@ import { ArrowLeft, RefreshCw, Settings, Plus } from 'lucide-react';
 import { simApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { Button, Input, Modal, Badge, ErrorAlert, Skeleton } from '../../components/ui';
-import { EquityChart, Stat, money, pct, signColor, shortDate, OpenTradeModal } from './simShared';
+import { EquityChart, Stat, money, pct, signColor, shortDate, OpenTradeModal, LiveBadge, LiveQuote, useLiveQuote } from './simShared';
 
 const REASON_LABEL = { bought_to_close: 'Bought to close', expired: 'Expired', assigned: 'Assigned', rolled: 'Rolled', sold: 'Sold' };
 const TX_LABEL = { sell_to_open: 'Sell to open', buy_to_close: 'Buy to close', expired: 'Expired', assigned: 'Assigned', sell_stock: 'Sell stock' };
@@ -24,6 +24,7 @@ function CloseModal({ position, onClose }) {
         setPrice('');
         setError(null);
     }, [position]);
+    const liveQ = useLiveQuote({ ticker: position?.ticker, strike: position?.strike, expiration_date: position?.expiration_date }, !!position && position.position_type === 'option');
     if (!position) return null;
     const isStock = position.position_type === 'stock';
     const submit = async () => {
@@ -43,8 +44,9 @@ function CloseModal({ position, onClose }) {
                     {contractLabel(position)} · entry {money(position.entry_price)} · last mark {money(position.current_price)}
                     {!isStock && position.current_bid != null && <> (bid {money(position.current_bid)} / ask {money(position.current_ask)})</>}
                 </p>
+                {!isStock && <LiveQuote state={liveQ} label="Moomoo live" />}
                 <Input
-                    label={isStock ? 'Sale price per share (blank = latest Yahoo price)' : 'Buy-back price per share (blank = live mid)'}
+                    label={isStock ? 'Sale price per share (blank = latest Yahoo price)' : 'Buy-back price per share (blank = live Moomoo mid at the moment you submit)'}
                     type="number" step="0.01" min={0} value={price} onChange={(e) => setPrice(e.target.value)}
                 />
                 <div className="flex justify-end gap-2">
@@ -65,6 +67,8 @@ function RollModal({ position, onClose }) {
         if (position) setForm({ strike: position.strike, expiration_date: '', contracts: position.contracts, close_price: '', price: '' });
         setError(null);
     }, [position]);
+    const closeQ = useLiveQuote({ ticker: position?.ticker, strike: position?.strike, expiration_date: position?.expiration_date }, !!position);
+    const newQ = useLiveQuote({ ticker: position?.ticker, strike: form.strike, expiration_date: form.expiration_date }, !!position);
     if (!position) return null;
     const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
     const submit = async () => {
@@ -87,12 +91,18 @@ function RollModal({ position, onClose }) {
             <div className="space-y-4">
                 {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3">{error}</div>}
                 <p className="text-sm text-gray-600">Buys the current put back and sells the new one, both at the live mid unless you type a price.</p>
+                <LiveQuote state={closeQ} label="Current put" />
                 <Input label="Buy-back price per share (blank = live mid)" type="number" step="0.01" min={0} value={form.close_price ?? ''} onChange={set('close_price')} placeholder={position.current_price != null ? `Last mark ${position.current_price}` : ''} />
                 <div className="grid grid-cols-3 gap-3">
                     <Input label="New strike ($)" type="number" step="0.5" value={form.strike ?? ''} onChange={set('strike')} />
                     <Input label="New expiry" type="date" value={form.expiration_date ?? ''} onChange={set('expiration_date')} />
                     <Input label="Contracts" type="number" min={1} value={form.contracts ?? ''} onChange={set('contracts')} />
                 </div>
+                <LiveQuote state={newQ} label="New put" />
+                {closeQ.quote && newQ.quote && (() => {
+                    const net = newQ.quote.price * 100 * (Number(form.contracts) || position.contracts) - closeQ.quote.price * 100 * position.contracts;
+                    return <p className="text-sm">Net {net >= 0 ? 'credit' : 'debit'} at live mids (before fees): <strong className={signColor(net)}>{money(net)}</strong></p>;
+                })()}
                 <Input label="New put fill price per share (blank = live mid)" type="number" step="0.01" min={0} value={form.price ?? ''} onChange={set('price')} />
                 <div className="flex justify-end gap-2">
                     <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
@@ -210,7 +220,8 @@ function Section({ title, children, action }) {
 export function SimPortfolioPage() {
     const { id } = useParams();
     const queryClient = useQueryClient();
-    const { data, isLoading, isError, error, refetch } = useApiQuery({ queryKey: ['sim', 'portfolio', id], queryFn: () => simApi.getPortfolio(id) });
+    // Marks open positions at the live Moomoo mid on load and every 30s while the page is open
+    const { data, isLoading, isError, error, refetch, isFetching } = useApiQuery({ queryKey: ['sim', 'portfolio', id], queryFn: () => simApi.getPortfolio(id, true), refetchInterval: 30000 });
     const [tradeOpen, setTradeOpen] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [closing, setClosing] = useState(null);
@@ -229,7 +240,7 @@ export function SimPortfolioPage() {
     if (isLoading) return <div className="space-y-4"><Skeleton height={40} /><Skeleton height={300} /></div>;
     if (isError) return <ErrorAlert message={error?.message} onRetry={refetch} />;
 
-    const { portfolio: p, totals: t, stats: s, open_positions: open, closed_positions: closed, transactions, snapshots } = data;
+    const { portfolio: p, totals: t, stats: s, open_positions: open, closed_positions: closed, transactions, snapshots, live } = data;
     const series = [{ key: 'value', name: p.name, points: snapshots.map((x) => ({ date: x.snap_date, value: x.total_value })) }];
     const spy = snapshots.map((x) => ({ date: x.snap_date, value: x.spy_price }));
 
@@ -247,6 +258,7 @@ export function SimPortfolioPage() {
                     </div>
                     {p.description && <p className="text-sm text-gray-500">{p.description}</p>}
                     <p className="text-xs text-gray-400 mt-0.5">Started with {money(p.starting_cash)} · {t.days_running} day(s) · fees {money(p.fee_per_contract)}/contract</p>
+                    <LiveBadge live={live} fetching={isFetching} />
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={refresh} loading={refreshing}><RefreshCw className="w-4 h-4 mr-1.5" />Refresh prices</Button>

@@ -89,6 +89,6 @@ app.listen(env.port, () => {
     // Start expiry alert job (check every 60 minutes)
     startExpiryAlertJob(60);
     // Paper-trading: mark open positions at the mid, settle expiries, daily snapshots
-    startSimulationJob(30);
+    startSimulationJob(10);
 });
 export default app;

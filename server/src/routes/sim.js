@@ -5,7 +5,7 @@ import { validate } from '../middleware/validate.js';
 import { AppError } from '../middleware/errorHandler.js';
 import {
     listPortfolios, getPortfolio, createPortfolio, updatePortfolio, deletePortfolio,
-    quotePut, openPut, closePosition, rollPosition, refreshSimulation,
+    quotePut, openPut, closePosition, rollPosition, refreshSimulation, markLive,
 } from '../services/simService.js';
 
 // Paper-trading portfolios — admin only, separate from the live fund.
@@ -51,9 +51,25 @@ const wrap = (fn) => async (req, res, next) => {
     }
 };
 
-router.get('/portfolios', wrap(async (req, res) => res.json({ portfolios: await listPortfolios() })));
+// ?live=1 marks open positions at the live Moomoo mid first (throttled), so pages can poll for real prices.
+async function liveMark(req, portfolioId = null) {
+    if (req.query.live !== '1') return null;
+    try {
+        return await markLive(portfolioId);
+    } catch (err) {
+        return { error: err.message };
+    }
+}
+
+router.get('/portfolios', wrap(async (req, res) => {
+    const live = await liveMark(req);
+    res.json({ portfolios: await listPortfolios(), live });
+}));
 router.post('/portfolios', validate(portfolioSchema), wrap(async (req, res) => res.status(201).json(await createPortfolio(req.body, req.user.id))));
-router.get('/portfolios/:id', wrap(async (req, res) => res.json(await getPortfolio(Number(req.params.id)))));
+router.get('/portfolios/:id', wrap(async (req, res) => {
+    const live = await liveMark(req, Number(req.params.id));
+    res.json({ ...(await getPortfolio(Number(req.params.id))), live });
+}));
 router.put('/portfolios/:id', validate(updatePortfolioSchema), wrap(async (req, res) => res.json(await updatePortfolio(Number(req.params.id), req.body))));
 router.delete('/portfolios/:id', wrap(async (req, res) => {
     await deletePortfolio(Number(req.params.id));
