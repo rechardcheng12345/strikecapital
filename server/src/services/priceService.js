@@ -176,6 +176,20 @@ async function refreshStockPrices(symbols) {
  * Refresh option prices + stock prices for all open/monitoring option positions.
  * Each external call is wrapped in try-catch so a single failure never causes a 500.
  */
+/**
+ * Live option quotes (last, bid, ask, IV, delta) for [{ id, ticker, strike_price, expiration_date }] —
+ * via the scanner proxy when configured, else local OpenD. Empty when neither is reachable.
+ */
+export async function fetchOptionQuotes(positions) {
+    if (!positions?.length) return [];
+    try {
+        return env.scannerProxyUrl ? await callProxyForQuotes(positions) : await getOptionQuotes(positions);
+    } catch (err) {
+        console.warn('[PriceService] Option quotes unavailable:', err.message);
+        return [];
+    }
+}
+
 export async function refreshAllPrices() {
     try {
         // Single DB call upfront — includes current_price so the cache fallback needs no second query

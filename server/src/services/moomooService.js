@@ -378,6 +378,8 @@ export async function getOptionQuotes(positions) {
                 positionIds: posInfo.positionIds,
                 option_code: code,
                 option_price: snap.basic?.curPrice ?? 0,
+                bid: snap.basic?.bidPrice ?? null,
+                ask: snap.basic?.askPrice ?? null,
                 prev_close: snap.basic?.lastClosePrice ?? 0,
                 implied_volatility: snap.optionExData?.impliedVolatility ?? null,
                 delta: snap.optionExData?.delta ?? null,

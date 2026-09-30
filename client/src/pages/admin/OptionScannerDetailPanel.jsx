@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, PlusCircle, CheckCircle, Brain, Ban, ExternalLink } from 'lucide-react';
 import { FIT_LABELS, finalScore, formatExpiry } from './scannerShared';
+import { PaperTradeButton } from './simShared';
 
 function formatCurrency(v) {
     if (v == null) return '—';
@@ -448,6 +449,7 @@ export function OptionScannerDetailPanel({
                                 ? <><PlusCircle className="w-4 h-4 animate-pulse" /> Adding…</>
                                 : <><PlusCircle className="w-4 h-4" /> Add to Monitoring</>}
                     </button>
+                    <PaperTradeButton row={row} finalScore={finalScore(row, aiContext, aiWeight)} jevScore={jevScore} />
                 </div>
             </aside>
         </>

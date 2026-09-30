@@ -198,3 +198,16 @@ export const investorApi = {
     markNotificationRead: (id) => api.put(`/investor/notifications/${id}/read`),
     markAllNotificationsRead: () => api.put('/investor/notifications/read-all'),
 };
+// Paper-trading portfolios (admin only)
+export const simApi = {
+    listPortfolios: () => api.get('/sim/portfolios'),
+    getPortfolio: (id) => api.get(`/sim/portfolios/${id}`),
+    createPortfolio: (data) => api.post('/sim/portfolios', data),
+    updatePortfolio: (id, data) => api.put(`/sim/portfolios/${id}`, data),
+    deletePortfolio: (id) => api.delete(`/sim/portfolios/${id}`),
+    quote: (data) => api.post('/sim/quote', data),
+    openPut: (portfolioId, data) => api.post(`/sim/portfolios/${portfolioId}/positions`, data),
+    closePosition: (id, data = {}) => api.post(`/sim/positions/${id}/close`, data),
+    rollPosition: (id, data) => api.post(`/sim/positions/${id}/roll`, data),
+    refresh: () => api.post('/sim/refresh', {}),
+};

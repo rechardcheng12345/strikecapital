@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -50,5 +51,17 @@ const config = {
         },
     },
 };
-config.staging = config.production;
+// Staging always reads .env.staging, whatever NODE_ENV is — `knex --env staging` must never reach the live DB.
+const stagingFile = path.resolve(__dirname, '..', '.env.staging');
+const stagingEnv = fs.existsSync(stagingFile) ? dotenv.parse(fs.readFileSync(stagingFile)) : {};
+config.staging = {
+    ...config.production,
+    connection: {
+        host: stagingEnv.DB_HOST,
+        port: parseInt(stagingEnv.DB_PORT || '3306'),
+        database: stagingEnv.DB_NAME,
+        user: stagingEnv.DB_USER,
+        password: stagingEnv.DB_PASSWORD,
+    },
+};
 export default config;

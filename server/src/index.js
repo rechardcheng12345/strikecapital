@@ -19,8 +19,10 @@ import positionRoutes from './routes/positions.js';
 import fundRoutes from './routes/fund.js';
 import adminRoutes from './routes/admin.js';
 import investorRoutes from './routes/investor.js';
+import simRoutes from './routes/sim.js';
 // Import services
 import { startExpiryAlertJob } from './services/notificationEngine.js';
+import { startSimulationJob } from './services/simService.js';
 const app = express();
 // Create directories if needed
 const uploadsDir = path.join(process.cwd(), 'uploads');
@@ -63,6 +65,7 @@ app.use('/api/positions', positionRoutes);
 app.use('/api/fund', fundRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/investor', investorRoutes);
+app.use('/api/sim', simRoutes);
 // Health check
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -85,5 +88,7 @@ app.listen(env.port, () => {
     console.log(`API Docs: http://localhost:${env.port}/api/docs`);
     // Start expiry alert job (check every 60 minutes)
     startExpiryAlertJob(60);
+    // Paper-trading: mark open positions at the mid, settle expiries, daily snapshots
+    startSimulationJob(30);
 });
 export default app;
