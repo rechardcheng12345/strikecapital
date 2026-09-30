@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const envFile = NODE_ENV === 'production' ? '.env.production' : '.env';
+const envFile = { production: '.env.production', staging: '.env.staging' }[NODE_ENV] || '.env';
 dotenv.config({ path: path.resolve(__dirname, '..', envFile) });
 const config = {
     development: {
@@ -50,4 +50,5 @@ const config = {
         },
     },
 };
+config.staging = config.production;
 export default config;

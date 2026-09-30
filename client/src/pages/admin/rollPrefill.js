@@ -2,6 +2,7 @@
 export function rollPrefillFromCandidate(c, result) {
     const close = result.close;
     return {
+        close_premium: Number(close.per_share),
         strike_price: c.strike,
         premium_received: c.new_credit,
         contracts: result.position.contracts,

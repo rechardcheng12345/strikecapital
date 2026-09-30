@@ -46,8 +46,11 @@ export function pctOnDate(periods, userId, date) {
  * ownership in force *before* that add; only the change after the last snapshot uses the ownership on
  * `asOf` (the record date for realized P&L, today for open positions). So new money never shares in
  * profit that was already earned when it arrived — even if the position closes later.
+ *
+ * `pctBefore` (optional) overrides the ownership on `asOf` — used for realized P&L that was booked before
+ * a capital add dated on or before its record date (see pctBeforeForRecord).
  */
-export function positionShareForInvestor({ amount, asOf, periods, userId, marks = [] }) {
+export function positionShareForInvestor({ amount, asOf, periods, userId, marks = [], pctBefore = null }) {
     const total = Number(amount) || 0;
     const applicable = (marks || [])
         .filter((m) => m.movedOn <= asOf)
@@ -59,15 +62,32 @@ export function positionShareForInvestor({ amount, asOf, periods, userId, marks 
         share += (mark - prev) * ((Number(m.pctBefore?.[userId]) || 0) / 100);
         prev = mark;
     }
-    share += (total - prev) * (pctOnDate(periods, userId, asOf) / 100);
+    const pct = pctBefore ? (Number(pctBefore[userId]) || 0) : pctOnDate(periods, userId, asOf);
+    share += (total - prev) * (pct / 100);
     return share;
 }
 
 /**
- * Fund realized $ × the investor's ownership, record by record.
- * records: [{ recordDate, amount, positionId? }]; marksByPosition: Map(positionId → marks) — optional.
+ * Realized P&L records only carry a date, so one booked earlier on the day of a capital add (or after a
+ * backdated add's date) would otherwise be split by the new ownership. `adds` are capital adds that noted the
+ * last pnl_records id at the time: [{ id, movedOn, lastPnlRecordId, pctBefore }]. A record booked before
+ * such an add whose date the add covers belongs to the ownership in force when it was booked — the
+ * pct_before of the first add made after it. Returns that map, or null when the ownership by date applies.
  */
-export function realizedShareForInvestor(periods, records, userId, marksByPosition = null) {
+export function pctBeforeForRecord(recordId, recordDate, adds = []) {
+    if (recordId == null) return null;
+    const first = (adds || [])
+        .filter((a) => a.lastPnlRecordId != null && recordId <= a.lastPnlRecordId && a.movedOn <= recordDate)
+        .sort((a, b) => a.id - b.id)[0];
+    return first ? first.pctBefore : null;
+}
+
+/**
+ * Fund realized $ × the investor's ownership, record by record.
+ * records: [{ id?, recordDate, amount, positionId? }]; marksByPosition: Map(positionId → marks) — optional;
+ * adds: see pctBeforeForRecord — optional.
+ */
+export function realizedShareForInvestor(periods, records, userId, marksByPosition = null, adds = []) {
     let sum = 0;
     for (const rec of records || []) {
         sum += positionShareForInvestor({
@@ -76,6 +96,7 @@ export function realizedShareForInvestor(periods, records, userId, marksByPositi
             periods,
             userId,
             marks: marksByPosition?.get(rec.positionId) || [],
+            pctBefore: pctBeforeForRecord(rec.id, rec.recordDate, adds),
         });
     }
     return Math.round(sum * 100) / 100;

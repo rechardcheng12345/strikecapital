@@ -105,6 +105,7 @@ const resolvePositionSchema = z.object({
 });
 const rollPositionSchema = z.object({
     ticker: z.string().optional(),
+    close_premium: z.number().min(0, 'Buy-back price must be non-negative'),
     strike_price: z.number().positive(),
     premium_received: z.number().positive(),
     contracts: z.number().int().min(1).optional(),
@@ -407,7 +408,7 @@ router.post('/:id/resolve', authenticate, requireAdmin, validate(resolvePosition
 router.post('/:id/roll', authenticate, requireAdmin, validate(rollPositionSchema), async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { ticker, strike_price, premium_received, contracts: newContracts, expiration_date, notes, commission = 0, platform_fee = 0 } = req.body;
+        const { ticker, close_premium, strike_price, premium_received, contracts: newContracts, expiration_date, notes, commission = 0, platform_fee = 0 } = req.body;
         const oldPosition = await db('positions').where({ id }).first();
         if (!oldPosition) {
             throw new AppError('Position not found', 404);
@@ -440,14 +441,26 @@ router.post('/:id/roll', authenticate, requireAdmin, validate(rollPositionSchema
             notes: notes || null,
             created_by: req.user.id,
         });
-        // Resolve old position
+        // Resolve old position — buying it back realizes its P&L (gross, like /resolve; fees are netted on read)
+        const closeDate = new Date().toISOString().split('T')[0];
+        const realized_pnl = Math.round((parseFloat(oldPosition.premium_received) - close_premium * oldPosition.contracts * 100) * 100) / 100;
         await db('positions')
             .where({ id })
             .update({
             status: 'RESOLVED',
             resolution_type: 'rolled',
-            close_date: new Date().toISOString().split('T')[0],
+            close_premium,
+            close_date: closeDate,
+            realized_pnl,
             rolled_to_id: newPosition.id,
+        });
+        await db('pnl_records').insert({
+            position_id: parseInt(id, 10),
+            pnl_amount: realized_pnl,
+            pnl_type: 'realized',
+            record_date: closeDate,
+            description: `Position rolled to #${newPosition.id}`,
+            created_by: req.user.id,
         });
         await logAudit({
             userId: req.user.id,
@@ -455,12 +468,13 @@ router.post('/:id/roll', authenticate, requireAdmin, validate(rollPositionSchema
             entityType: 'position',
             entityId: parseInt(id, 10),
             oldValues: { position_id: parseInt(id, 10) },
-            newValues: { new_position_id: newPosition.id, strike_price, premium_received, expiration_date },
+            newValues: { new_position_id: newPosition.id, close_premium, realized_pnl, strike_price, premium_received, expiration_date },
             ipAddress: req.ip,
         });
         res.status(201).json({
             message: 'Position rolled successfully',
             old_position_id: parseInt(id, 10),
+            realized_pnl,
             new_position: newPosition,
         });
     }

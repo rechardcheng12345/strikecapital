@@ -81,20 +81,38 @@ export async function loadMarksByPosition() {
     return map;
 }
 
+/** Capital adds that noted the last realized record at the time — see pctBeforeForRecord. */
+export async function loadAddsWithRecordCutoff() {
+    if (!(await marksSupported())) return [];
+    const rows = await db('capital_movements').whereNotNull('undo_info').select('id', 'moved_on', 'undo_info');
+    const adds = [];
+    for (const r of rows) {
+        let info = {};
+        try {
+            info = JSON.parse(r.undo_info || '{}');
+        } catch {
+            info = {};
+        }
+        if (info.last_pnl_record_id == null) continue;
+        adds.push({ id: r.id, movedOn: ymd(r.moved_on), lastPnlRecordId: Number(info.last_pnl_record_id), pctBefore: info.pct_before || {} });
+    }
+    return adds;
+}
+
 export async function loadPnlRecords() {
     const rows = await db('pnl_records')
         .join('positions', 'pnl_records.position_id', 'positions.id')
-        .select('pnl_records.position_id', 'pnl_records.record_date', 'pnl_records.pnl_amount', 'positions.commission', 'positions.platform_fee');
+        .select('pnl_records.id', 'pnl_records.position_id', 'pnl_records.record_date', 'pnl_records.pnl_amount', 'positions.commission', 'positions.platform_fee');
     return rows.map((r) => {
         const fees = (parseFloat(r.commission) || 0) + (parseFloat(r.platform_fee) || 0);
         const recordDate = r.record_date instanceof Date
             ? r.record_date.toISOString().slice(0, 10)
             : String(r.record_date).slice(0, 10);
-        return { positionId: r.position_id, recordDate, amount: parseFloat(r.pnl_amount) - fees };
+        return { id: r.id, positionId: r.position_id, recordDate, amount: parseFloat(r.pnl_amount) - fees };
     });
 }
 
-/** Everything needed to split fund P&L for one investor: their periods (with userId) + snapshots. */
+/** Everything needed to split fund P&L for one investor: their periods (with userId), snapshots and add cut-offs. */
 export async function loadShareContext(userId) {
     const rows = await db('ownership_periods').where({ user_id: userId }).orderBy('start_on');
     const periods = rows.map((p) => ({
@@ -103,14 +121,14 @@ export async function loadShareContext(userId) {
         endOn: p.end_on ? ymd(p.end_on) : null,
         ownershipPct: parseFloat(p.ownership_pct),
     }));
-    return { periods, marksByPosition: await loadMarksByPosition() };
+    return { periods, marksByPosition: await loadMarksByPosition(), adds: await loadAddsWithRecordCutoff() };
 }
 
 export async function investorRealizedShare(userId) {
-    const { periods, marksByPosition } = await loadShareContext(userId);
+    const { periods, marksByPosition, adds } = await loadShareContext(userId);
     if (periods.length === 0) return 0;
     const records = await loadPnlRecords();
-    return realizedShareForInvestor(periods, records, userId, marksByPosition);
+    return realizedShareForInvestor(periods, records, userId, marksByPosition, adds);
 }
 
 /** Investor's share of today's unrealized P&L, honouring snapshots taken at capital adds. */
@@ -135,6 +153,13 @@ export async function addCapital({ userId, amount, movedOn, note, createdBy }) {
     const on = ymd(movedOn);
 
     return db.transaction(async (trx) => {
+        // Ownership periods are a chain: an add dated before the latest one would overlap it.
+        const latest = await trx('capital_movements').orderBy('moved_on', 'desc').first();
+        if (latest && on < ymd(latest.moved_on)) {
+            const err = new Error(`Date must be on or after the latest capital movement (${ymd(latest.moved_on)})`);
+            err.status = 400;
+            throw err;
+        }
         const settings = await trx('fund_settings').first();
         const contributed = parseFloat(settings?.total_fund_capital || '0') || 0;
         const realized = await sumFundRealizedPnl();
@@ -144,6 +169,8 @@ export async function addCapital({ userId, amount, movedOn, note, createdBy }) {
         const openPeriods = await trx('ownership_periods').whereNull('end_on');
         const withMarks = await marksSupported(trx);
         const openPnl = withMarks ? await openPositionUnrealized(trx) : [];
+        // Realized P&L booked up to now stays with the current owners even if its date is on/after `on`.
+        const lastRecord = withMarks ? await trx('pnl_records').max('id as id').first() : null;
         const pctBefore = Object.fromEntries(openPeriods.map((p) => [p.user_id, parseFloat(p.ownership_pct) || 0]));
         const sleeves = openPeriods.map((p) => ({
             userId: p.user_id,
@@ -225,6 +252,7 @@ export async function addCapital({ userId, amount, movedOn, note, createdBy }) {
                 pct_before: pctBefore,
                 allocation: allocationUndo,
                 prev_total_capital: contributed,
+                last_pnl_record_id: lastRecord?.id ?? 0,
             });
         }
         const [movementId] = await trx('capital_movements').insert(movementRow);

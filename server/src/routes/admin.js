@@ -121,9 +121,17 @@ router.get('/dashboard/stats', async (req, res, next) => {
             const since = lastMove.moved_on instanceof Date
                 ? lastMove.moved_on.toISOString().slice(0, 10)
                 : String(lastMove.moved_on).slice(0, 10);
+            // Records booked before the add stay with the previous period even when dated the same day.
+            let cutoff = null;
+            try {
+                cutoff = JSON.parse(lastMove.undo_info || '{}').last_pnl_record_id ?? null;
+            } catch {
+                cutoff = null;
+            }
             const sinceRow = await db('pnl_records')
                 .join('positions', 'pnl_records.position_id', 'positions.id')
                 .where('pnl_records.record_date', '>=', since)
+                .modify((q) => { if (cutoff != null) q.where('pnl_records.id', '>', cutoff); })
                 .select(db.raw('SUM(pnl_records.pnl_amount - COALESCE(positions.commission, 0) - COALESCE(positions.platform_fee, 0)) as total'))
                 .first();
             const sincePnl = parseFloat(sinceRow?.total || '0') || 0;

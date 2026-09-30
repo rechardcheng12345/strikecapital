@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
     "server:dev": "cross-env NODE_ENV=development nodemon server/src/index.js",
+    "dev:staging": "concurrently \"npm run server:staging\" \"npm run client:dev\"",
+    "server:staging": "cross-env NODE_ENV=staging nodemon server/src/index.js",
     "server:prod": "cross-env NODE_ENV=production node server/src/index.js",
     "client": "cd client && npm start",
     "client:dev": "cd client && npm run dev",
@@ -25,6 +27,8 @@
     "db:rollback": "knex migrate:rollback --knexfile server/knexfile.js",
     "db:seed": "knex seed:run --knexfile server/knexfile.js",
     "db:seed:make": "knex seed:make --knexfile server/knexfile.js",
+    "db:migrate:staging": "cross-env NODE_ENV=staging knex migrate:latest --knexfile server/knexfile.js",
+    "db:clone-staging": "node scripts/clone-db.mjs .env .env.staging",
     "scanner-proxy": "node server/scanner-proxy.js"
   },
   "dependencies": {

@@ -115,6 +115,7 @@ export function PositionDetailPage() {
     // Roll form
     const [rollForm, setRollForm] = useState({
         ticker: '',
+        close_premium: undefined,
         strike_price: 0,
         premium_received: 0,
         contracts: 1,
@@ -132,6 +133,7 @@ export function PositionDetailPage() {
         if (position) {
             setRollForm({
                 ticker: position.ticker,
+                close_premium: position.current_price != null ? parseFloat(position.current_price) : undefined,
                 strike_price: position.strike_price,
                 premium_received: 0,
                 contracts: position.contracts,
@@ -601,6 +603,13 @@ export function PositionDetailPage() {
                 </div>)}
 
               <Input label="Ticker" value={rollForm.ticker} onChange={(e) => setRollForm((f) => ({ ...f, ticker: e.target.value.toUpperCase() }))}/>
+
+              <div>
+                <Input label="Buy-back Price per Share ($)" type="number" step="0.01" min={0} value={rollForm.close_premium ?? ''} onChange={(e) => setRollForm((f) => ({ ...f, close_premium: e.target.value === '' ? undefined : parseFloat(e.target.value) }))}/>
+                {rollForm.close_premium != null && (<p className="mt-1 text-xs text-gray-500">
+                    Current leg realized P&L: {formatCurrency(parseFloat(position.premium_received) - rollForm.close_premium * position.contracts * 100)} (before fees)
+                  </p>)}
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="New Strike Price ($)" type="number" step="0.01" value={rollForm.strike_price || ''} onChange={(e) => setRollForm((f) => ({ ...f, strike_price: parseFloat(e.target.value) || 0 }))}/>

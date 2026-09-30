@@ -3,7 +3,7 @@ import { db } from '../config/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { investorRealizedShare, investorUnrealizedShare, loadShareContext } from '../services/capitalAccountService.js';
-import { positionShareForInvestor } from '../services/capitalAccount.js';
+import { positionShareForInvestor, pctBeforeForRecord } from '../services/capitalAccount.js';
 import { calculateProfitCapturedPct } from '../services/pnlEngine.js';
 const router = Router();
 // All investor routes require authentication
@@ -217,13 +217,13 @@ router.get('/pnl', async (req, res, next) => {
             .orderBy('pnl_records.record_date', 'desc');
         // Same basis as the dashboard: ownership in force on each record's date, plus snapshots taken
         // at capital adds. Accounts without ownership periods fall back to Alloc %.
-        const { periods, marksByPosition } = await loadShareContext(userId);
+        const { periods, marksByPosition, adds } = await loadShareContext(userId);
         const shared = records.map((r) => {
             const fees = (parseFloat(r.commission) || 0) + (parseFloat(r.platform_fee) || 0);
             const net = parseFloat(r.pnl_amount) - fees;
             const d = r.record_date instanceof Date ? r.record_date.toISOString().slice(0, 10) : String(r.record_date).slice(0, 10);
             const share = periods.length
-                ? positionShareForInvestor({ amount: net, asOf: d, periods, userId, marks: marksByPosition.get(r.position_id) || [] })
+                ? positionShareForInvestor({ amount: net, asOf: d, periods, userId, marks: marksByPosition.get(r.position_id) || [], pctBefore: pctBeforeForRecord(r.id, d, adds) })
                 : net * allocationPct;
             return {
                 position_id: r.position_id,
