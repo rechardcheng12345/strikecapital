@@ -62,6 +62,7 @@ async function loadAlert(id) {
     return normAlert(a);
 }
 
+// 424, not 502/503: the host replaces gateway-error bodies with its own HTML page, hiding the message.
 async function fetchPutChain(tickers, minDays, maxDays) {
     if (!env.scannerProxyUrl) return getPutChain(tickers, minDays, maxDays);
     const resp = await fetch(`${env.scannerProxyUrl}/chain`, {
@@ -70,9 +71,9 @@ async function fetchPutChain(tickers, minDays, maxDays) {
         body: JSON.stringify({ tickers, minDays, maxDays }),
         signal: AbortSignal.timeout(10 * 60 * 1000), // ~10 chain requests per 30s on Moomoo's side
     });
-    if (resp.status === 404) throw new AlertError('The scanner proxy has no /chain endpoint yet — update scanner-proxy/index.js on the OpenD PC and restart it.', 502);
+    if (resp.status === 404) throw new AlertError('The scanner proxy has no /chain endpoint yet — update scanner-proxy/index.js on the OpenD PC and restart it.', 424);
     const data = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new AlertError(`Scanner proxy: ${data.error || resp.status}`, 502);
+    if (!resp.ok) throw new AlertError(`Scanner proxy: ${data.error || resp.status}`, 424);
     return data;
 }
 

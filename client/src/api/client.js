@@ -75,7 +75,17 @@ async function apiRequest(endpoint, options = {}, isRetry = false) {
                 return { error: 'Session expired. Please log in again.' };
             }
         }
-        const data = await response.json();
+        // A host / gateway error page (e.g. 502/504 HTML) isn't JSON — report the status instead of "network error".
+        let data;
+        try {
+            data = await response.json();
+        }
+        catch {
+            if (response.status >= 502 && response.status <= 504) {
+                return { error: `The server timed out or couldn't be reached (HTTP ${response.status}). Please try again.` };
+            }
+            return { error: `Unexpected server response (HTTP ${response.status}).` };
+        }
         if (!response.ok) {
             if (data.errors && Array.isArray(data.errors)) {
                 const errorMessages = data.errors
