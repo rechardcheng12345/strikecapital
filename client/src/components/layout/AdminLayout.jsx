@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Transition } from '@headlessui/react';
-import { LayoutDashboard, TrendingUp, Users, BarChart3, ShieldAlert, ScrollText, Megaphone, Settings, Menu, X, LogOut, Wallet, ScanLine, FlaskConical, } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Users, BarChart3, ShieldAlert, ScrollText, Megaphone, Settings, Menu, X, LogOut, Wallet, ScanLine, FlaskConical, BellRing, Radar, ChevronDown, } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 const adminNavItems = [
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -10,7 +10,12 @@ const adminNavItems = [
     { path: '/admin/pnl', icon: BarChart3, label: 'P&L Analytics' },
     { path: '/admin/risk', icon: ShieldAlert, label: 'Risk Dashboard' },
     { path: '/admin/funds', icon: Wallet, label: 'Account Funds' },
-    { path: '/admin/scanner', icon: ScanLine, label: 'Option Scanner' },
+    {
+        label: 'Options Finding', icon: Radar, children: [
+            { path: '/admin/scanner', icon: ScanLine, label: 'Option Scanner' },
+            { path: '/admin/option-alerts', icon: BellRing, label: 'Option Alerts' },
+        ],
+    },
     { path: '/admin/simulation', icon: FlaskConical, label: 'Simulation' },
     { path: '/admin/audit', icon: ScrollText, label: 'Audit Trail' },
     { path: '/admin/announcements', icon: Megaphone, label: 'Announcements' },
@@ -21,8 +26,15 @@ export function AdminLayout() {
     const navigate = useNavigate();
     const { user, logout } = useAuthStore();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [openGroups, setOpenGroups] = useState({});
     useEffect(() => {
         setIsMobileMenuOpen(false);
+        // Open the group holding the current page (e.g. arriving on /admin/scanner from a link)
+        for (const item of adminNavItems) {
+            if (item.children?.some((c) => location.pathname.startsWith(c.path))) {
+                setOpenGroups((g) => (g[item.label] ? g : { ...g, [item.label]: true }));
+            }
+        }
     }, [location.pathname]);
     const isActive = (path, exact) => {
         if (exact)
@@ -47,10 +59,27 @@ export function AdminLayout() {
 
       {/* Nav */}
       <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto">
-        {adminNavItems.map((item) => (<Link key={item.path} to={item.path} className={navLinkClasses(item.path, item.exact)}>
-            <item.icon className="w-5 h-5"/>
-            <span className="font-medium text-sm">{item.label}</span>
-          </Link>))}
+        {adminNavItems.map((item) => {
+            if (!item.children) {
+                return (<Link key={item.path} to={item.path} className={navLinkClasses(item.path, item.exact)}>
+                <item.icon className="w-5 h-5"/>
+                <span className="font-medium text-sm">{item.label}</span>
+              </Link>);
+            }
+            const open = !!openGroups[item.label];
+            const childActive = item.children.some((c) => isActive(c.path));
+            return (<div key={item.label}>
+              <button type="button" onClick={() => setOpenGroups((g) => ({ ...g, [item.label]: !open }))} aria-expanded={open} className={`w-full flex items-center space-x-3 px-4 py-2.5 transition-colors border-l-2 ${childActive && !open ? 'border-[#F06010] text-white bg-white/5' : 'border-transparent text-gray-300 hover:bg-white/5 hover:text-white'}`}>
+                <item.icon className="w-5 h-5"/>
+                <span className="font-medium text-sm flex-1 text-left">{item.label}</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`}/>
+              </button>
+              {open && item.children.map((c) => (<Link key={c.path} to={c.path} className={`${navLinkClasses(c.path, c.exact)} pl-11`}>
+                  <c.icon className="w-4 h-4"/>
+                  <span className="font-medium text-sm">{c.label}</span>
+                </Link>))}
+            </div>);
+        })}
       </nav>
 
       {/* User */}

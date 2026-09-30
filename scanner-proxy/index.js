@@ -247,8 +247,8 @@ function bsPutPrice(S, K, T, sigma, r) {
 // ─── Scanner Logic ────────────────────────────────────────────────────────────
 const expiryCache = new Map();
 
-async function getValidExpiryDates(ticker) {
-    if (expiryCache.has(ticker)) return expiryCache.get(ticker);
+async function getValidExpiryDates(ticker, { fresh = false } = {}) {
+    if (!fresh && expiryCache.has(ticker)) return expiryCache.get(ticker);
 
     const Req = protoRoot.lookupType('Qot_GetOptionExpirationDate.Request');
     const body = Req.encode(Req.create({
@@ -269,7 +269,21 @@ async function getValidExpiryDates(ticker) {
     return dates;
 }
 
+// Moomoo allows ~10 option-chain requests per 30s; space them out so long checks don't get rejected.
+const chainCalls = [];
+async function paceChainRequest() {
+    const now = Date.now();
+    while (chainCalls.length && now - chainCalls[0] > 30000) chainCalls.shift();
+    if (chainCalls.length >= 9) {
+        const wait = 30000 - (now - chainCalls[0]) + 250;
+        await new Promise((r) => setTimeout(r, wait));
+        return paceChainRequest();
+    }
+    chainCalls.push(Date.now());
+}
+
 async function getOptionChain(ticker, expiryDate) {
+    await paceChainRequest();
     const ChainReq = protoRoot.lookupType('Qot_GetOptionChain.Request');
     const body = ChainReq.encode(ChainReq.create({
         c2s: {
@@ -322,6 +336,57 @@ async function getSnapshots(securityList) {
         results.push(...(result.s2c?.snapshotList || []));
     }
     return results;
+}
+
+/**
+ * Every put listed for the tickers with an expiry between minDays and maxDays away, with its snapshot:
+ * quote, greeks, open interest and Moomoo's listing date (listTime). Expiry lists are fetched fresh so
+ * newly listed expiries are seen. Used by Option Alerts.
+ */
+async function getPutChain(tickers, minDays, maxDays) {
+    const today = new Date(new Date().toISOString().slice(0, 10));
+    const rows = [];
+    const expiries = {};
+    const errors = {};
+    for (const raw of tickers) {
+        const ticker = String(raw).trim().toUpperCase();
+        try {
+            const dates = await getValidExpiryDates(ticker, { fresh: true });
+            const inWindow = dates.filter((d) => {
+                const days = Math.round((new Date(d) - today) / 86400000);
+                return days >= minDays && days <= maxDays;
+            });
+            expiries[ticker] = inWindow;
+            for (const expiry of inWindow) {
+                const chain = await getOptionChain(ticker, expiry);
+                if (!chain.length) continue;
+                const byCode = new Map(chain.map((c) => [c.code, c]));
+                const snaps = await getSnapshots(chain.map((c) => ({ market: c.market, code: c.code })));
+                for (const snap of snaps) {
+                    const code = snap.basic?.security?.code;
+                    const c = byCode.get(code);
+                    if (!c) continue;
+                    rows.push({
+                        ticker,
+                        option_code: code,
+                        expiry,
+                        strike: c.strikePrice || snap.optionExData?.strikePrice || 0,
+                        bid: snap.basic?.bidPrice ?? null,
+                        ask: snap.basic?.askPrice ?? null,
+                        last: snap.basic?.curPrice ?? null,
+                        volume: Number(snap.basic?.volume) || 0,
+                        open_interest: snap.optionExData?.openInterest ?? null,
+                        implied_volatility: snap.optionExData?.impliedVolatility ?? null,
+                        delta: snap.optionExData?.delta ?? null,
+                        list_time: snap.basic?.listTime || null,
+                    });
+                }
+            }
+        } catch (err) {
+            errors[ticker] = err.message;
+        }
+    }
+    return { rows, expiries, errors };
 }
 
 // Keep the listed expiry nearest to each target DTE (e.g. [30,45,60]) instead of every weekly in the
@@ -777,6 +842,22 @@ app.post('/quotes', async (req, res) => {
     } catch (err) {
         console.error('[ScannerProxy] /quotes error:', err.message);
         res.status(500).json({ error: err.message, quotes: [] });
+    }
+});
+
+app.post('/chain', async (req, res) => {
+    try {
+        const { tickers, minDays = 0, maxDays = 60 } = req.body || {};
+        if (!Array.isArray(tickers) || !tickers.length) {
+            return res.status(400).json({ error: 'tickers array is required' });
+        }
+        if (!(await ensureConnected())) {
+            return res.status(503).json({ error: 'Moomoo OpenD unavailable', rows: [], expiries: {}, errors: {} });
+        }
+        res.json(await getPutChain(tickers, Number(minDays), Number(maxDays)));
+    } catch (err) {
+        console.error('[ScannerProxy] /chain error:', err.message);
+        res.status(500).json({ error: err.message, rows: [], expiries: {}, errors: {} });
     }
 });
 

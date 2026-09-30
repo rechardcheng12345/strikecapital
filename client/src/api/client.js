@@ -212,3 +212,13 @@ export const simApi = {
     rollPosition: (id, data) => api.post(`/sim/positions/${id}/roll`, data),
     refresh: () => api.post('/sim/refresh', {}),
 };
+// Option Alerts — newly listed puts in a DTE window (admin only)
+export const optionAlertApi = {
+    list: () => api.get('/option-alerts'),
+    get: (id) => api.get(`/option-alerts/${id}`),
+    create: (data) => api.post('/option-alerts', data),
+    update: (id, data) => api.put(`/option-alerts/${id}`, data),
+    delete: (id) => api.delete(`/option-alerts/${id}`),
+    check: (id) => api.post(`/option-alerts/${id}/check`, {}),
+    setDismissed: (contractId, dismissed) => api.put(`/option-alerts/contracts/${contractId}/dismiss`, { dismissed }),
+};

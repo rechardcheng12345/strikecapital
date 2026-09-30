@@ -175,9 +175,9 @@ function baseSymbol(ticker) {
  * Get valid option expiry dates for a ticker, cached per session.
  */
 const expiryCache = new Map();
-export async function getValidExpiryDates(ticker) {
+export async function getValidExpiryDates(ticker, { fresh = false } = {}) {
     ticker = baseSymbol(ticker);
-    if (expiryCache.has(ticker)) return expiryCache.get(ticker);
+    if (!fresh && expiryCache.has(ticker)) return expiryCache.get(ticker);
 
     const Req = protoRoot.lookupType('Qot_GetOptionExpirationDate.Request');
     const body = Req.encode(Req.create({
@@ -226,7 +226,20 @@ function findClosestExpiry(validDates, targetDate) {
  * @param {string} expiryDate - e.g. "2026-03-21" (YYYY-MM-DD)
  * @returns {Array<{code: string, market: number, strikePrice: number}>}
  */
+// Moomoo allows ~10 option-chain requests per 30s; space them out so long checks don't get rejected.
+const chainCalls = [];
+async function paceChainRequest() {
+    const now = Date.now();
+    while (chainCalls.length && now - chainCalls[0] > 30000) chainCalls.shift();
+    if (chainCalls.length >= 9) {
+        await new Promise((r) => setTimeout(r, 30000 - (now - chainCalls[0]) + 250));
+        return paceChainRequest();
+    }
+    chainCalls.push(Date.now());
+}
+
 export async function getOptionChain(ticker, expiryDate) {
+    await paceChainRequest();
     const ChainReq = protoRoot.lookupType('Qot_GetOptionChain.Request');
     const body = ChainReq.encode(ChainReq.create({
         c2s: {
@@ -285,6 +298,57 @@ export async function getSnapshots(securityList) {
         results.push(...(result.s2c?.snapshotList || []));
     }
     return results;
+}
+
+/**
+ * Every put listed for the tickers with an expiry between minDays and maxDays away, with its snapshot:
+ * quote, greeks, open interest and Moomoo's listing date (listTime). Expiry lists are fetched fresh so
+ * newly listed expiries are seen. Same shape as the scanner proxy's POST /chain (Option Alerts).
+ */
+export async function getPutChain(tickers, minDays, maxDays) {
+    if (!(await ensureConnected())) throw new Error('Moomoo OpenD unavailable');
+    const today = new Date(new Date().toISOString().slice(0, 10));
+    const rows = [];
+    const expiries = {};
+    const errors = {};
+    for (const raw of tickers) {
+        const ticker = baseSymbol(String(raw));
+        try {
+            const dates = await getValidExpiryDates(ticker, { fresh: true });
+            const inWindow = dates.filter((d) => {
+                const days = Math.round((new Date(d) - today) / 86400000);
+                return days >= minDays && days <= maxDays;
+            });
+            expiries[ticker] = inWindow;
+            for (const expiry of inWindow) {
+                const chain = await getOptionChain(ticker, expiry);
+                if (!chain.length) continue;
+                const byCode = new Map(chain.map((c) => [c.code, c]));
+                for (const snap of await getSnapshots(chain.map((c) => ({ market: c.market, code: c.code })))) {
+                    const code = snap.basic?.security?.code;
+                    const c = byCode.get(code);
+                    if (!c) continue;
+                    rows.push({
+                        ticker,
+                        option_code: code,
+                        expiry,
+                        strike: c.strikePrice || snap.optionExData?.strikePrice || 0,
+                        bid: snap.basic?.bidPrice ?? null,
+                        ask: snap.basic?.askPrice ?? null,
+                        last: snap.basic?.curPrice ?? null,
+                        volume: Number(snap.basic?.volume) || 0,
+                        open_interest: snap.optionExData?.openInterest ?? null,
+                        implied_volatility: snap.optionExData?.impliedVolatility ?? null,
+                        delta: snap.optionExData?.delta ?? null,
+                        list_time: snap.basic?.listTime || null,
+                    });
+                }
+            }
+        } catch (err) {
+            errors[ticker] = err.message;
+        }
+    }
+    return { rows, expiries, errors };
 }
 
 /**
