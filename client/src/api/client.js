@@ -221,6 +221,9 @@ export const simApi = {
     closePosition: (id, data = {}) => api.post(`/sim/positions/${id}/close`, data),
     rollPosition: (id, data) => api.post(`/sim/positions/${id}/roll`, data),
     refresh: () => api.post('/sim/refresh', {}),
+    quoteSpread: (data) => api.post('/sim/quote-spread', data),
+    openSpreads: (portfolioId, data) => api.post(`/sim/portfolios/${portfolioId}/spreads`, data),
+    checkExits: () => api.post('/sim/check-exits', {}),
 };
 // Option Alerts — newly listed puts in a DTE window (admin only)
 export const optionAlertApi = {
@@ -231,4 +234,8 @@ export const optionAlertApi = {
     delete: (id) => api.delete(`/option-alerts/${id}`),
     check: (id) => api.post(`/option-alerts/${id}/check`, {}),
     setDismissed: (contractId, dismissed) => api.put(`/option-alerts/contracts/${contractId}/dismiss`, { dismissed }),
+};
+// 0DTE credit-spread scan (admin only)
+export const zeroDteApi = {
+    scan: (data) => api.post('/zero-dte/scan', data),
 };

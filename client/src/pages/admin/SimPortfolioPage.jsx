@@ -8,11 +8,21 @@ import { useApiQuery } from '../../hooks/useApiQuery';
 import { Button, Input, Modal, Badge, ErrorAlert, Skeleton } from '../../components/ui';
 import { EquityChart, Stat, money, pct, signColor, shortDate, OpenTradeModal, LiveBadge, LiveQuote, useLiveQuote } from './simShared';
 
-const REASON_LABEL = { bought_to_close: 'Bought to close', expired: 'Expired', assigned: 'Assigned', rolled: 'Rolled', sold: 'Sold' };
-const TX_LABEL = { sell_to_open: 'Sell to open', buy_to_close: 'Buy to close', expired: 'Expired', assigned: 'Assigned', sell_stock: 'Sell stock' };
+const REASON_LABEL = { bought_to_close: 'Bought to close', expired: 'Expired', assigned: 'Assigned', rolled: 'Rolled', sold: 'Sold', stopped: 'Stopped out', settled: 'Settled' };
+const TX_LABEL = { sell_to_open: 'Sell to open', buy_to_close: 'Buy to close', expired: 'Expired', assigned: 'Assigned', sell_stock: 'Sell stock', settled: 'Settled' };
+const EXIT_RULE_LABEL = { touch: 'close on touch of the short strike', loss2x: 'close at 2× credit loss', hold: 'hold to expiry' };
 
 function contractLabel(p) {
-    return p.position_type === 'stock' ? `${p.ticker} · ${p.shares} sh` : `${p.ticker} $${p.strike}P ${shortDate(p.expiration_date)}`;
+    if (p.position_type === 'stock') return `${p.ticker} · ${p.shares} sh`;
+    if (p.position_type === 'spread') return `${p.ticker} ${p.strike}/${p.long_strike}${p.option_type === 'call' ? 'C' : 'P'} ${shortDate(p.expiration_date)}`;
+    return `${p.ticker} $${p.strike}P ${shortDate(p.expiration_date)}`;
+}
+
+/** How far the underlying is from a spread's short strike, as % of the price (negative = through it). */
+function cushion(x) {
+    if (x.position_type !== 'spread' || !(x.underlying_price > 0)) return null;
+    const d = x.option_type === 'call' ? x.strike - x.underlying_price : x.underlying_price - x.strike;
+    return (d / x.underlying_price) * 100;
 }
 
 function CloseModal({ position, onClose }) {
@@ -27,6 +37,7 @@ function CloseModal({ position, onClose }) {
     const liveQ = useLiveQuote({ ticker: position?.ticker, strike: position?.strike, expiration_date: position?.expiration_date }, !!position && position.position_type === 'option');
     if (!position) return null;
     const isStock = position.position_type === 'stock';
+    const isSpread = position.position_type === 'spread';
     const submit = async () => {
         setSubmitting(true);
         const res = await simApi.closePosition(position.id, price !== '' ? { price: Number(price) } : {});
@@ -44,9 +55,10 @@ function CloseModal({ position, onClose }) {
                     {contractLabel(position)} · entry {money(position.entry_price)} · last mark {money(position.current_price)}
                     {!isStock && position.current_bid != null && <> (bid {money(position.current_bid)} / ask {money(position.current_ask)})</>}
                 </p>
-                {!isStock && <LiveQuote state={liveQ} label="Moomoo live" />}
+                {!isStock && !isSpread && <LiveQuote state={liveQ} label="Moomoo live" />}
+                {isSpread && <p className="text-xs text-gray-500">Buys back the short leg and sells the long leg. Credit {money(position.entry_price)} · max loss {money(position.max_loss)}.</p>}
                 <Input
-                    label={isStock ? 'Sale price per share (blank = latest Yahoo price)' : 'Buy-back price per share (blank = live Moomoo mid at the moment you submit)'}
+                    label={isStock ? 'Sale price per share (blank = latest Yahoo price)' : isSpread ? 'Closing debit per share (blank = live Moomoo mids at the moment you submit)' : 'Buy-back price per share (blank = live Moomoo mid at the moment you submit)'}
                     type="number" step="0.01" min={0} value={price} onChange={(e) => setPrice(e.target.value)}
                 />
                 <div className="flex justify-end gap-2">
@@ -123,6 +135,7 @@ function SettingsModal({ isOpen, onClose, portfolio, hasTrades }) {
     useEffect(() => {
         if (isOpen && portfolio) {
             setForm({
+                spread_exit_rule: portfolio.spread_exit_rule || 'touch',
                 name: portfolio.name, description: portfolio.description || '', starting_cash: portfolio.starting_cash,
                 fee_per_contract: portfolio.fee_per_contract, fee_per_stock_trade: portfolio.fee_per_stock_trade, is_active: portfolio.is_active,
             });
@@ -137,6 +150,7 @@ function SettingsModal({ isOpen, onClose, portfolio, hasTrades }) {
         const res = await simApi.updatePortfolio(portfolio.id, {
             name: form.name, description: form.description, starting_cash: Number(form.starting_cash),
             fee_per_contract: Number(form.fee_per_contract) || 0, fee_per_stock_trade: Number(form.fee_per_stock_trade) || 0, is_active: form.is_active,
+            spread_exit_rule: form.spread_exit_rule,
         });
         setBusy(false);
         if (res.error) return setError(res.error);
@@ -163,6 +177,15 @@ function SettingsModal({ isOpen, onClose, portfolio, hasTrades }) {
                 <div className="grid grid-cols-2 gap-3">
                     <Input label="Fee per contract ($)" type="number" step="0.01" min={0} value={form.fee_per_contract ?? ''} onChange={set('fee_per_contract')} />
                     <Input label="Fee per stock trade ($)" type="number" step="0.01" min={0} value={form.fee_per_stock_trade ?? ''} onChange={set('fee_per_stock_trade')} />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Spread exit rule</label>
+                    <select value={form.spread_exit_rule ?? 'touch'} onChange={set('spread_exit_rule')} className="block w-full px-3 py-2 border border-gray-300 rounded-lg sm:text-sm">
+                        <option value="touch">Close when the price touches the short strike</option>
+                        <option value="loss2x">Close when the loss reaches 2× the credit</option>
+                        <option value="hold">Hold to expiry</option>
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">Checked every minute during US market hours.</p>
                 </div>
                 <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={!!form.is_active} onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))} />
@@ -257,7 +280,7 @@ export function SimPortfolioPage() {
                         {!p.is_active && <Badge variant="gray">Paused</Badge>}
                     </div>
                     {p.description && <p className="text-sm text-gray-500">{p.description}</p>}
-                    <p className="text-xs text-gray-400 mt-0.5">Started with {money(p.starting_cash)} · {t.days_running} day(s) · fees {money(p.fee_per_contract)}/contract</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Started with {money(p.starting_cash)} · {t.days_running} day(s) · fees {money(p.fee_per_contract)}/contract · spreads: {EXIT_RULE_LABEL[p.spread_exit_rule] || 'close on touch'}</p>
                     <LiveBadge live={live} fetching={isFetching} />
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -276,6 +299,7 @@ export function SimPortfolioPage() {
                 <Stat label="Unrealized P&L" value={money(t.unrealized)} className={signColor(t.unrealized)} />
                 <Stat label="Win rate" value={s.win_rate_pct != null ? pct(s.win_rate_pct, 0) : '—'} sub={`${s.wins} won · ${s.losses} lost`} />
                 <Stat label="Premium captured" value={pct(s.premium_captured_pct, 1)} sub={s.avg_days_held != null ? `avg ${s.avg_days_held} days held` : null} />
+                {s.wins_per_loss != null && <Stat label="Wins lost per loss" value={s.wins_per_loss.toFixed(1)} sub="one average loss wipes out this many average wins" className={s.wins_per_loss > 10 ? 'text-red-600' : ''} />}
             </div>
 
             <Section title="Value vs SPY (indexed to 100)">
@@ -297,7 +321,10 @@ export function SimPortfolioPage() {
                             <td className={td} title={x.price_updated_at ? `Updated ${new Date(x.price_updated_at).toLocaleString()}` : ''}>{money(x.current_price)}</td>
                             <td className={td}>{money(x.underlying_price)}</td>
                             <td className={`${td} ${signColor(x.unrealized_pnl)}`}>{money(x.unrealized_pnl)}</td>
-                            <td className={td}>{x.profit_captured_pct != null ? pct(x.profit_captured_pct, 0) : '—'}</td>
+                            <td className={td}>
+                                {x.profit_captured_pct != null ? pct(x.profit_captured_pct, 0) : '—'}
+                                {cushion(x) != null && <div className={`text-[10px] ${cushion(x) <= 0.15 ? 'text-red-600 font-semibold' : 'text-gray-400'}`}>{cushion(x).toFixed(2)}% to short</div>}
+                            </td>
                             <td className="px-2 py-2 text-right whitespace-nowrap space-x-1">
                                 <Button variant="outline" size="sm" onClick={() => setClosing(x)}>{x.position_type === 'stock' ? 'Sell' : 'Close'}</Button>
                                 {x.position_type === 'option' && <Button variant="outline" size="sm" onClick={() => setRolling(x)}>Roll</Button>}
@@ -328,7 +355,7 @@ export function SimPortfolioPage() {
                                     <td className={td}>{shortDate(x.close_date)}</td>
                                     <td className={td}>{money(x.entry_price)}</td>
                                     <td className={td}>{money(x.close_price)}</td>
-                                    <td className="px-2 py-2 text-right whitespace-nowrap">{REASON_LABEL[x.close_reason] || x.close_reason}</td>
+                                    <td className="px-2 py-2 text-right whitespace-nowrap" title={x.close_note || ''}>{REASON_LABEL[x.close_reason] || x.close_reason}</td>
                                     <td className={`${td} font-semibold ${signColor(x.realized_pnl)}`}>{money(x.realized_pnl)}</td>
                                 </tr>
                             ))}

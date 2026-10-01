@@ -238,13 +238,13 @@ async function paceChainRequest() {
     chainCalls.push(Date.now());
 }
 
-export async function getOptionChain(ticker, expiryDate) {
+export async function getOptionChain(ticker, expiryDate, optionType = 2) { // 1 = call, 2 = put
     await paceChainRequest();
     const ChainReq = protoRoot.lookupType('Qot_GetOptionChain.Request');
     const body = ChainReq.encode(ChainReq.create({
         c2s: {
             owner: { market: 11, code: ticker.toUpperCase() },
-            type: 2, // OptionType_Put
+            type: optionType,
             beginTime: expiryDate,
             endTime: expiryDate,
         },
@@ -262,11 +262,12 @@ export async function getOptionChain(ticker, expiryDate) {
     const options = [];
     for (const chain of (result.s2c?.optionChain || [])) {
         for (const opt of (chain.option || [])) {
-            if (opt.put?.basic?.security) {
+            const leg = optionType === 1 ? opt.call : opt.put;
+            if (leg?.basic?.security) {
                 options.push({
-                    code: opt.put.basic.security.code,
-                    market: opt.put.basic.security.market,
-                    strikePrice: opt.put.optionExData?.strikePrice ?? 0,
+                    code: leg.basic.security.code,
+                    market: leg.basic.security.market,
+                    strikePrice: leg.optionExData?.strikePrice ?? 0,
                 });
             }
         }
@@ -351,6 +352,60 @@ export async function getPutChain(tickers, minDays, maxDays) {
     return { rows, expiries, errors };
 }
 
+/** Real-time stock / ETF snapshots: price, today's open / high / low, previous close (market 11 = US). */
+export async function getStockSnapshots(tickers) {
+    if (!(await ensureConnected())) throw new Error('Moomoo OpenD unavailable');
+    const list = [...new Set(tickers.map((t) => String(t).trim().toUpperCase()))].map((code) => ({ market: 11, code }));
+    const snaps = await getSnapshots(list);
+    return snaps.map((s) => ({
+        ticker: s.basic?.security?.code,
+        price: s.basic?.curPrice ?? null,
+        open: s.basic?.openPrice ?? null,
+        high: s.basic?.highPrice ?? null,
+        low: s.basic?.lowPrice ?? null,
+        prev_close: s.basic?.lastClosePrice ?? null,
+        update_time: s.basic?.updateTime ?? null,
+    }));
+}
+
+/**
+ * Calls and puts for one expiry (default: today in New York, else the next listed) with strikes in
+ * [strikeLow, strikeHigh], plus the underlying snapshot. Used by the 0DTE spread scan.
+ */
+export async function getZeroDteChain(ticker, { expiry = null, strikeLow = 0, strikeHigh = Infinity } = {}) {
+    if (!(await ensureConnected())) throw new Error('Moomoo OpenD unavailable');
+    const T = String(ticker).trim().toUpperCase();
+    const nyToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
+    let dates = await getValidExpiryDates(T);
+    if (!dates.some((d) => d >= nyToday)) dates = await getValidExpiryDates(T, { fresh: true });
+    const exp = expiry || dates.filter((d) => d >= nyToday).sort()[0];
+    if (!exp) throw new Error(`No listed expiry for ${T}`);
+    const [underlying] = await getStockSnapshots([T]);
+    const out = { ticker: T, expiry: exp, underlying: underlying || null, calls: [], puts: [] };
+    for (const [type, key] of [[1, 'calls'], [2, 'puts']]) {
+        const chain = (await getOptionChain(T, exp, type)).filter((c) => c.strikePrice >= strikeLow && c.strikePrice <= strikeHigh);
+        if (!chain.length) continue;
+        const byCode = new Map(chain.map((c) => [c.code, c]));
+        for (const snap of await getSnapshots(chain.map((c) => ({ market: c.market, code: c.code })))) {
+            const c = byCode.get(snap.basic?.security?.code);
+            if (!c) continue;
+            out[key].push({
+                option_code: c.code,
+                strike: c.strikePrice,
+                bid: snap.basic?.bidPrice ?? null,
+                ask: snap.basic?.askPrice ?? null,
+                last: snap.basic?.curPrice ?? null,
+                delta: snap.optionExData?.delta ?? null,
+                implied_volatility: snap.optionExData?.impliedVolatility ?? null,
+                open_interest: snap.optionExData?.openInterest ?? null,
+                volume: Number(snap.basic?.volume) || 0,
+            });
+        }
+        out[key].sort((a, b) => a.strike - b.strike);
+    }
+    return out;
+}
+
 /**
  * Fetch option quotes for positions.
  * For each position (ticker + strike + expiry), finds the matching option contract
@@ -390,9 +445,10 @@ export async function getOptionQuotes(positions) {
                 continue;
             }
 
-            const key = `${symbol}|${expiry}`;
+            const type = pos.option_type === 'call' ? 1 : 2;
+            const key = `${symbol}|${expiry}|${type}`;
             if (!groups.has(key)) {
-                groups.set(key, { ticker: symbol, expiry, positions: [] });
+                groups.set(key, { ticker: symbol, expiry, type, positions: [] });
             }
             groups.get(key).positions.push({ ...pos, resolvedExpiry: expiry });
         }
@@ -402,7 +458,7 @@ export async function getOptionQuotes(positions) {
         const optionMap = new Map(); // code -> { ticker, strike_price, expiration_date, positionIds: [] }
 
         for (const [, group] of groups) {
-            const chain = await getOptionChain(group.ticker, group.expiry);
+            const chain = await getOptionChain(group.ticker, group.expiry, group.type);
             for (const pos of group.positions) {
                 const strike = parseFloat(pos.strike_price);
                 const match = chain.find(opt => Math.abs(opt.strikePrice - strike) < 0.01);
@@ -414,6 +470,7 @@ export async function getOptionQuotes(positions) {
                             ticker: pos.ticker,
                             strike_price: strike,
                             expiration_date: posExpiry,
+                            option_type: group.type === 1 ? 'call' : 'put',
                             positionIds: [],
                         });
                     }
@@ -440,6 +497,7 @@ export async function getOptionQuotes(positions) {
                 strike_price: posInfo.strike_price,
                 expiration_date: posInfo.expiration_date,
                 positionIds: posInfo.positionIds,
+                option_type: posInfo.option_type,
                 option_code: code,
                 option_price: snap.basic?.curPrice ?? 0,
                 bid: snap.basic?.bidPrice ?? null,

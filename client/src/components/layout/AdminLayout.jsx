@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Transition } from '@headlessui/react';
-import { LayoutDashboard, TrendingUp, Users, BarChart3, ShieldAlert, ScrollText, Megaphone, Settings, Menu, X, LogOut, Wallet, ScanLine, FlaskConical, BellRing, Radar, ChevronDown, } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Users, BarChart3, ShieldAlert, ScrollText, Megaphone, Settings, Menu, X, LogOut, Wallet, ScanLine, FlaskConical, BellRing, Radar, ChevronDown, Timer, } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 const adminNavItems = [
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -14,6 +14,7 @@ const adminNavItems = [
         label: 'Options Finding', icon: Radar, children: [
             { path: '/admin/scanner', icon: ScanLine, label: 'Option Scanner' },
             { path: '/admin/option-alerts', icon: BellRing, label: 'Option Alerts' },
+            { path: '/admin/zero-dte', icon: Timer, label: '0DTE Spreads' },
         ],
     },
     { path: '/admin/simulation', icon: FlaskConical, label: 'Simulation' },

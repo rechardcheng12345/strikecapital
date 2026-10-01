@@ -1,5 +1,5 @@
 import { db } from '../config/database.js';
-import { getOptionQuotes } from './moomooService.js';
+import { getOptionQuotes, getStockSnapshots, getZeroDteChain } from './moomooService.js';
 import { env } from '../config/env.js';
 
 function baseSymbol(ticker) {
@@ -79,6 +79,7 @@ async function callProxyForQuotes(positions) {
             ticker: p.ticker,
             strike_price: p.strike_price,
             expiration_date: p.expiration_date,
+            option_type: p.option_type || 'put',
         }));
         const resp = await fetch(`${env.scannerProxyUrl}/quotes`, {
             method: 'POST',
@@ -188,6 +189,62 @@ export async function fetchOptionQuotes(positions) {
         console.warn('[PriceService] Option quotes unavailable:', err.message);
         return [];
     }
+}
+
+async function callProxy(path, body, timeoutMs = 60000) {
+    const resp = await fetch(`${env.scannerProxyUrl}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(env.scannerProxySecret ? { 'x-proxy-secret': env.scannerProxySecret } : {}) },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (resp.status === 404) {
+        const err = new Error(`The scanner proxy has no ${path} endpoint yet — update scanner-proxy/index.js on the OpenD PC and restart it.`);
+        err.status = 424;
+        throw err;
+    }
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+        const err = new Error(`Scanner proxy ${path}: ${data.error || resp.status}`);
+        err.status = 424;
+        throw err;
+    }
+    return data;
+}
+
+/**
+ * Real-time stock prices with today's open / high / low from Moomoo (proxy or local OpenD).
+ * Falls back to Yahoo (price only, open/high/low from the daily bar) when Moomoo can't be reached.
+ */
+export async function fetchStockQuotes(tickers) {
+    try {
+        const quotes = env.scannerProxyUrl ? (await callProxy('/stock-quotes', { tickers }, 20000)).quotes : await getStockSnapshots(tickers);
+        if (quotes?.length) return quotes.map((q) => ({ ...q, source: 'moomoo' }));
+    } catch (err) {
+        console.warn('[PriceService] Moomoo stock quotes unavailable, using Yahoo:', err.message);
+    }
+    return Promise.all(tickers.map(async (t) => {
+        try {
+            const resp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(t)}?interval=1d&range=1d`, {
+                headers: { 'User-Agent': 'Mozilla/5.0 StrikeCapital/1.0' },
+                signal: AbortSignal.timeout(10000),
+            });
+            const r = (await resp.json())?.chart?.result?.[0];
+            const q = r?.indicators?.quote?.[0] || {};
+            const last = (arr) => (arr || []).filter((v) => v != null).pop() ?? null;
+            return {
+                ticker: t, price: r?.meta?.regularMarketPrice ?? null, open: last(q.open), high: last(q.high), low: last(q.low),
+                prev_close: r?.meta?.chartPreviousClose ?? null, source: 'yahoo',
+            };
+        } catch {
+            return { ticker: t, price: null, open: null, high: null, low: null, prev_close: null, source: 'yahoo' };
+        }
+    }));
+}
+
+/** Calls + puts for one expiry near the money (default today's 0DTE) with the underlying snapshot. */
+export async function fetchZeroDteChain(ticker, opts = {}) {
+    return env.scannerProxyUrl ? callProxy('/odte', { ticker, ...opts }, 90000) : getZeroDteChain(ticker, opts);
 }
 
 export async function refreshAllPrices() {

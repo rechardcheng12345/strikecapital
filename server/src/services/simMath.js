@@ -2,6 +2,9 @@
 // A sim portfolio is a cash-secured-put account: selling a put adds the premium to cash and locks
 // strike × 100 × contracts as collateral; assignment buys the shares with that cash.
 // Conventions match the live fund: an option's P&L is net of its fees, prices are per share.
+// A credit spread (position_type 'spread') is one row: short `strike`, `long_strike`, `option_type`;
+// entry_price is the net credit and current_price the net debit to close, so the put formulas apply
+// unchanged. Its collateral is the width × 100 × contracts the broker holds.
 
 const r2 = (n) => Math.round(n * 100) / 100;
 const num = (v) => (v == null || v === '' ? null : Number(v));
@@ -21,9 +24,50 @@ export function stockFees(portfolio) {
     return r2(Number(portfolio.fee_per_stock_trade) || 0);
 }
 
+export function spreadWidth(pos) {
+    return Math.abs(Number(pos.strike) - Number(pos.long_strike));
+}
+
 export function collateralFor(pos) {
-    if (pos.position_type !== 'option' || pos.status !== 'OPEN') return 0;
+    if (pos.status !== 'OPEN') return 0;
+    if (pos.position_type === 'spread') return spreadWidth(pos) * 100 * Number(pos.contracts);
+    if (pos.position_type !== 'option') return 0;
     return Number(pos.strike) * 100 * Number(pos.contracts);
+}
+
+/** Value per share of a credit spread at expiry (what it costs to settle): 0 … width. */
+export function spreadIntrinsic({ option_type, strike, long_strike }, underlying) {
+    const S = Number(underlying), K = Number(strike), width = Math.abs(K - Number(long_strike));
+    const itm = option_type === 'call' ? S - K : K - S;
+    return Math.round(Math.min(width, Math.max(0, itm)) * 10000) / 10000;
+}
+
+/**
+ * Should an open spread be closed now? Rules (per portfolio):
+ *  'touch'  — the underlying reached the short strike (also caught from today's high/low moving past it
+ *             since entry, so a spike between checks isn't missed)
+ *  'loss2x' — the loss reached 2× the credit (debit to close ≥ 3× credit)
+ *  'hold'   — never; settle at expiry
+ * quote: { price, high, low } of the underlying now; monitor: { entry_high, entry_low } at entry.
+ */
+export function spreadStopReason(pos, rule, quote = {}, monitor = {}) {
+    if (rule === 'touch') {
+        const K = Number(pos.strike);
+        const { price, high, low } = quote;
+        if (pos.option_type === 'call') {
+            if (price != null && price >= K) return `${pos.ticker} at ${price} reached the short call ${K}`;
+            if (high != null && monitor.entry_high != null && high > monitor.entry_high && high >= K) return `${pos.ticker} traded up to ${high}, through the short call ${K}`;
+        } else {
+            if (price != null && price <= K) return `${pos.ticker} at ${price} reached the short put ${K}`;
+            if (low != null && monitor.entry_low != null && low < monitor.entry_low && low <= K) return `${pos.ticker} traded down to ${low}, through the short put ${K}`;
+        }
+        return null;
+    }
+    if (rule === 'loss2x') {
+        const credit = Number(pos.entry_price), debit = Number(pos.current_price);
+        if (credit > 0 && debit - credit >= 2 * credit) return `Loss reached 2× the credit (close at ${debit} vs credit ${credit})`;
+    }
+    return null;
 }
 
 /** Unrealized P&L of an open position, net of its entry fees (0 when it has no price yet). */
@@ -108,7 +152,7 @@ export function tradeStats(positions) {
     const closed = positions.filter((p) => p.status === 'CLOSED' && p.realized_pnl != null);
     const pnls = closed.map((p) => Number(p.realized_pnl));
     const wins = pnls.filter((v) => v > 0), losses = pnls.filter((v) => v < 0);
-    const options = closed.filter((p) => p.position_type === 'option');
+    const options = closed.filter((p) => p.position_type === 'option' || p.position_type === 'spread');
     const held = closed.filter((p) => p.open_date && p.close_date)
         .map((p) => Math.max(0, Math.round((toDate(p.close_date) - toDate(p.open_date)) / DAY)));
     const premium = options.reduce((s, p) => s + Number(p.entry_price) * 100 * Number(p.contracts), 0);
@@ -121,6 +165,8 @@ export function tradeStats(positions) {
         win_rate_pct: closed.length ? r2((wins.length / closed.length) * 100) : null,
         avg_win: avg(wins),
         avg_loss: avg(losses),
+        // How many average wins one average loss wipes out (the key number for small-credit spreads)
+        wins_per_loss: wins.length && losses.length ? r2(Math.abs(avg(losses)) / avg(wins)) : null,
         avg_days_held: held.length ? r2(held.reduce((s, v) => s + v, 0) / held.length) : null,
         premium_captured_pct: premium > 0 ? r2((optionPnl / premium) * 100) : null,
         assignments: options.filter((p) => p.close_reason === 'assigned').length,

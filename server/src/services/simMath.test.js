@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
     quoteMid, optionFees, unrealizedPnl, marketValue, closedPutPnl, closedStockPnl, portfolioTotals,
     maxDrawdownPct, annualizedPct, tradeStats, isExpiryDue, isMarketOpen, expiryOutcome,
+    collateralFor, spreadIntrinsic, spreadStopReason,
 } from './simMath.js';
 
 const pf = { starting_cash: 20000, fee_per_contract: 1.5, fee_per_stock_trade: 1 };
@@ -93,5 +94,46 @@ describe('expiry and market hours (New York time)', () => {
     it('put is assigned when the underlying closes below the strike', () => {
         assert.equal(expiryOutcome(50, 49.99), 'assigned');
         assert.equal(expiryOutcome(50, 50), 'expired');
+    });
+});
+
+describe('credit spreads', () => {
+    const put = { position_type: 'spread', status: 'OPEN', option_type: 'put', ticker: 'SPY', strike: 560, long_strike: 558, contracts: 1, entry_price: 0.12, entry_fees: 2, current_price: 0.05 };
+    const call = { ...put, option_type: 'call', strike: 575, long_strike: 577 };
+    it('collateral is the width', () => {
+        assert.equal(collateralFor(put), 200);
+        assert.equal(collateralFor({ ...put, contracts: 3 }), 600);
+    });
+    it('unrealized and value use credit vs debit to close', () => {
+        assert.equal(unrealizedPnl(put), Math.round(((0.12 - 0.05) * 100 - 2) * 100) / 100);
+        assert.equal(marketValue(put), -5);
+    });
+    it('settlement value at expiry', () => {
+        assert.equal(spreadIntrinsic(put, 565), 0); // above the short put
+        assert.equal(spreadIntrinsic(put, 559.25), 0.75); // between
+        assert.equal(spreadIntrinsic(put, 550), 2); // through the long put → max
+        assert.equal(spreadIntrinsic(call, 574), 0);
+        assert.equal(spreadIntrinsic(call, 576), 1);
+        assert.equal(spreadIntrinsic(call, 590), 2);
+    });
+    it('touch stop: price at the strike, or a new high/low through it since entry', () => {
+        assert.equal(spreadStopReason(put, 'touch', { price: 561 }), null);
+        assert.match(spreadStopReason(put, 'touch', { price: 560 }), /reached the short put/);
+        assert.match(spreadStopReason(put, 'touch', { price: 561, low: 559.8 }, { entry_low: 562 }), /traded down/);
+        assert.equal(spreadStopReason(put, 'touch', { price: 561, low: 559.8 }, { entry_low: 559.8 }), null); // that low was before entry
+        assert.match(spreadStopReason(call, 'touch', { price: 574, high: 575.2 }, { entry_high: 573 }), /traded up/);
+    });
+    it('2× loss stop and hold', () => {
+        assert.equal(spreadStopReason({ ...put, current_price: 0.35 }, 'loss2x'), null);
+        assert.match(spreadStopReason({ ...put, current_price: 0.36 }, 'loss2x'), /2×/);
+        assert.equal(spreadStopReason({ ...put, current_price: 2 }, 'hold', { price: 500 }), null);
+    });
+    it('wins per loss', () => {
+        const s = tradeStats([
+            { status: 'CLOSED', position_type: 'spread', entry_price: 0.1, contracts: 1, realized_pnl: 8 },
+            { status: 'CLOSED', position_type: 'spread', entry_price: 0.1, contracts: 1, realized_pnl: 8 },
+            { status: 'CLOSED', position_type: 'spread', entry_price: 0.1, contracts: 1, realized_pnl: -152 },
+        ]);
+        assert.equal(s.wins_per_loss, 19);
     });
 });

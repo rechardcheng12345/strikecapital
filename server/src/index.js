@@ -21,6 +21,7 @@ import adminRoutes from './routes/admin.js';
 import investorRoutes from './routes/investor.js';
 import simRoutes from './routes/sim.js';
 import optionAlertRoutes from './routes/optionAlerts.js';
+import zeroDteRoutes from './routes/zeroDte.js';
 // Import services
 import { startExpiryAlertJob } from './services/notificationEngine.js';
 import { startSimulationJob } from './services/simService.js';
@@ -68,6 +69,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/investor', investorRoutes);
 app.use('/api/sim', simRoutes);
 app.use('/api/option-alerts', optionAlertRoutes);
+app.use('/api/zero-dte', zeroDteRoutes);
 // Health check
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

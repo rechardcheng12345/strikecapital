@@ -10,7 +10,7 @@ import { EquityChart, money, pct, signColor, OpenTradeModal, LiveBadge } from '.
 
 function PortfolioFormModal({ isOpen, onClose }) {
     const queryClient = useQueryClient();
-    const [form, setForm] = useState({ name: '', description: '', starting_cash: '', fee_per_contract: '', fee_per_stock_trade: '' });
+    const [form, setForm] = useState({ name: '', description: '', starting_cash: '', fee_per_contract: '', fee_per_stock_trade: '', spread_exit_rule: 'touch' });
     const [error, setError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -26,12 +26,13 @@ function PortfolioFormModal({ isOpen, onClose }) {
             starting_cash: Number(form.starting_cash),
             fee_per_contract: Number(form.fee_per_contract) || 0,
             fee_per_stock_trade: Number(form.fee_per_stock_trade) || 0,
+            spread_exit_rule: form.spread_exit_rule,
         });
         setSubmitting(false);
         if (res.error) return setError(res.error);
         toast.success(`Portfolio "${res.data.name}" created`);
         queryClient.invalidateQueries({ queryKey: ['sim'] });
-        setForm({ name: '', description: '', starting_cash: '', fee_per_contract: '', fee_per_stock_trade: '' });
+        setForm({ name: '', description: '', starting_cash: '', fee_per_contract: '', fee_per_stock_trade: '', spread_exit_rule: 'touch' });
         onClose();
     };
     return (
@@ -44,6 +45,15 @@ function PortfolioFormModal({ isOpen, onClose }) {
                 <div className="grid grid-cols-2 gap-3">
                     <Input label="Fee per contract ($)" type="number" step="0.01" min={0} value={form.fee_per_contract} onChange={set('fee_per_contract')} placeholder="commission + platform" />
                     <Input label="Fee per stock trade ($)" type="number" step="0.01" min={0} value={form.fee_per_stock_trade} onChange={set('fee_per_stock_trade')} />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Spread exit rule</label>
+                    <select value={form.spread_exit_rule} onChange={set('spread_exit_rule')} className="block w-full px-3 py-2 border border-gray-300 rounded-lg sm:text-sm">
+                        <option value="touch">Close when the price touches the short strike</option>
+                        <option value="loss2x">Close when the loss reaches 2× the credit</option>
+                        <option value="hold">Hold to expiry</option>
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">Checked every minute during US market hours.</p>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                     <Button type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</Button>

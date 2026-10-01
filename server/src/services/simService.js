@@ -2,13 +2,14 @@
 // expiries (assignment when the underlying closes below the strike) and keeps one snapshot per NY day.
 // Never touches the live fund's tables. Math lives in simMath.js.
 import { db } from '../config/database.js';
-import { fetchOptionQuotes, fetchYahooPrice } from './priceService.js';
+import { fetchOptionQuotes, fetchYahooPrice, fetchStockQuotes } from './priceService.js';
 import {
     quoteMid, optionFees, stockFees, closedPutPnl, closedStockPnl, portfolioTotals, unrealizedPnl,
     maxDrawdownPct, annualizedPct, tradeStats, nyClock, isMarketOpen, isExpiryDue, expiryOutcome,
+    collateralFor, spreadWidth, spreadIntrinsic, spreadStopReason,
 } from './simMath.js';
 
-const NUM_FIELDS = ['strike', 'entry_price', 'entry_fees', 'current_price', 'current_bid', 'current_ask', 'underlying_price', 'close_price', 'exit_fees', 'realized_pnl'];
+const NUM_FIELDS = ['strike', 'long_strike', 'entry_price', 'entry_fees', 'current_price', 'current_bid', 'current_ask', 'underlying_price', 'close_price', 'exit_fees', 'realized_pnl'];
 
 class SimError extends Error {
     constructor(message, status = 400) {
@@ -45,11 +46,16 @@ function normPosition(p) {
     out.open_date = ymd(p.open_date);
     out.close_date = ymd(p.close_date);
     out.entry_context = parseJson(p.entry_context);
+    out.monitor = parseJson(p.monitor);
+    if (out.position_type === 'spread') {
+        out.width = spreadWidth(out);
+        out.max_loss = Math.round(((out.width - out.entry_price) * 100 * out.contracts + out.entry_fees) * 100) / 100;
+    }
     if (out.status === 'OPEN') {
         out.unrealized_pnl = unrealizedPnl(out);
-        if (out.position_type === 'option') {
+        if (out.position_type === 'option' || out.position_type === 'spread') {
             const premium = out.entry_price * 100 * out.contracts;
-            out.collateral = out.strike * 100 * out.contracts;
+            out.collateral = collateralFor(out);
             out.profit_captured_pct = out.current_price != null && premium > 0
                 ? Math.round(((out.entry_price - out.current_price) / out.entry_price) * 10000) / 100
                 : null;
@@ -91,6 +97,34 @@ export async function quotePut({ ticker, strike, expiration_date }) {
         implied_volatility: q.implied_volatility ?? null,
         delta: q.delta ?? null,
         option_code: q.option_code,
+    };
+}
+
+function legMid(q) {
+    return q ? quoteMid({ bid: q.bid, ask: q.ask, last: q.option_price }) : { price: null, source: null };
+}
+
+/**
+ * Live quote for a vertical spread: each leg's bid/ask/mid, the net credit at the mids (short − long),
+ * and the natural credit (short bid − long ask) you'd get crossing the spread.
+ */
+export async function quoteSpread({ ticker, expiration_date, option_type, short_strike, long_strike }) {
+    const T = String(ticker).toUpperCase();
+    const quotes = await fetchOptionQuotes([
+        { id: 's', ticker: T, strike_price: Number(short_strike), expiration_date, option_type },
+        { id: 'l', ticker: T, strike_price: Number(long_strike), expiration_date, option_type },
+    ]);
+    const s = quotes.find((q) => q.positionIds?.includes('s'));
+    const l = quotes.find((q) => q.positionIds?.includes('l'));
+    if (!s || !l) return null;
+    const sm = legMid(s), lm = legMid(l);
+    const leg = (q, m) => ({ bid: q.bid ?? null, ask: q.ask ?? null, mid: m.price, delta: q.delta ?? null, option_code: q.option_code });
+    return {
+        short: leg(s, sm),
+        long: leg(l, lm),
+        credit: sm.price != null && lm.price != null ? Math.round((sm.price - lm.price) * 10000) / 10000 : null,
+        natural_credit: s.bid != null && l.ask != null ? Math.round((s.bid - l.ask) * 10000) / 10000 : null,
+        source: sm.source === 'mid' && lm.source === 'mid' ? 'mid' : 'last',
     };
 }
 
@@ -158,9 +192,9 @@ export async function getPortfolio(id) {
     };
 }
 
-export async function createPortfolio({ name, description, starting_cash, fee_per_contract = 0, fee_per_stock_trade = 0 }, userId) {
+export async function createPortfolio({ name, description, starting_cash, fee_per_contract = 0, fee_per_stock_trade = 0, spread_exit_rule = 'touch' }, userId) {
     const [id] = await db('sim_portfolios').insert({
-        name, description: description || null, starting_cash, fee_per_contract, fee_per_stock_trade, created_by: userId || null,
+        name, description: description || null, starting_cash, fee_per_contract, fee_per_stock_trade, spread_exit_rule, created_by: userId || null,
     });
     await snapshotPortfolio(await loadPortfolio(id), await spyPrice());
     return loadPortfolio(id);
@@ -169,7 +203,7 @@ export async function createPortfolio({ name, description, starting_cash, fee_pe
 export async function updatePortfolio(id, updates) {
     const p = await loadPortfolio(id);
     const patch = {};
-    for (const k of ['name', 'description', 'fee_per_contract', 'fee_per_stock_trade', 'is_active']) {
+    for (const k of ['name', 'description', 'fee_per_contract', 'fee_per_stock_trade', 'is_active', 'spread_exit_rule']) {
         if (updates[k] !== undefined) patch[k] = updates[k];
     }
     if (updates.starting_cash !== undefined && Number(updates.starting_cash) !== p.starting_cash) {
@@ -227,6 +261,102 @@ export async function openPut(portfolioId, input, trx = null) {
     return normPosition(await (trx || db)('sim_positions').where({ id }).first());
 }
 
+function spreadLabel(pos) {
+    return `${pos.ticker} ${pos.expiration_date} ${pos.strike}/${pos.long_strike} ${pos.option_type} spread`;
+}
+
+/**
+ * Sell one vertical credit spread, or an iron condor (a put leg + a call leg, linked by group_id), at the
+ * live mids. legs: [{ option_type, short_strike, long_strike, price? (net credit override) }].
+ * Free cash must cover the width × 100 × contracts the broker holds against each spread.
+ */
+export async function openSpreads(portfolioId, input) {
+    const ticker = String(input.ticker || '').trim().toUpperCase();
+    const contracts = Number(input.contracts) || 1;
+    const expiration_date = ymd(input.expiration_date);
+    const legs = input.legs || [];
+    if (!ticker || !expiration_date || !legs.length) throw new SimError('Ticker, expiry and at least one spread are required');
+    if (legs.length > 2 || (legs.length === 2 && legs[0].option_type === legs[1].option_type)) throw new SimError('Use one put spread and/or one call spread');
+    if (expiration_date < nyClock().date) throw new SimError('That expiry has already passed');
+    const fills = [];
+    for (const leg of legs) {
+        const K = Number(leg.short_strike), L = Number(leg.long_strike);
+        if (leg.option_type === 'put' ? !(L < K) : !(L > K)) {
+            throw new SimError(leg.option_type === 'put'
+                ? 'Put spread: the long (bought) strike must be below the short strike'
+                : 'Call spread: the long (bought) strike must be above the short strike');
+        }
+        let credit, source = 'manual';
+        if (leg.price != null) credit = Number(leg.price);
+        else {
+            const q = await quoteSpread({ ticker, expiration_date, option_type: leg.option_type, short_strike: K, long_strike: L });
+            if (!q || q.credit == null) throw new SimError(`No live quote for the ${leg.option_type} spread ${K}/${L} — check the strikes exist for ${expiration_date}, or enter a credit.`);
+            credit = q.credit;
+            source = q.source;
+        }
+        if (!(credit > 0)) throw new SimError(`The ${leg.option_type} spread ${K}/${L} has no credit (${credit}).`);
+        fills.push({ option_type: leg.option_type, short_strike: K, long_strike: L, credit, source });
+    }
+    const [uq] = await fetchStockQuotes([ticker]);
+    const monitor = JSON.stringify({ entry_price: uq?.price ?? null, entry_high: uq?.high ?? null, entry_low: uq?.low ?? null, source: uq?.source ?? null });
+    const group_id = fills.length > 1 ? `ic-${Date.now()}-${Math.round(Math.random() * 1e6)}` : null;
+
+    const ids = await db.transaction(async (t) => {
+        const p = await loadPortfolio(portfolioId, t);
+        if (!p.is_active) throw new SimError('Portfolio is paused');
+        const { totals } = await totalsFor(p, t);
+        const fees = optionFees(p, contracts * 2); // two legs per spread
+        let freeAfter = totals.free_cash;
+        for (const f of fills) freeAfter += f.credit * 100 * contracts - fees - Math.abs(f.short_strike - f.long_strike) * 100 * contracts;
+        if (freeAfter < -0.005) throw new SimError(`Not enough free cash: free cash after this trade would be $${freeAfter.toFixed(2)}`);
+        const context = input.entry_context ? JSON.stringify(input.entry_context).slice(0, 4000) : null;
+        const out = [];
+        for (const f of fills) {
+            const [id] = await t('sim_positions').insert({
+                portfolio_id: p.id, position_type: 'spread', option_type: f.option_type, ticker,
+                strike: f.short_strike, long_strike: f.long_strike, expiration_date, contracts,
+                entry_price: f.credit, entry_source: f.source, entry_fees: fees, open_date: nyClock().date,
+                current_price: f.credit, price_source: f.source, price_updated_at: new Date(),
+                underlying_price: uq?.price ?? null, group_id, monitor, entry_context: context, notes: input.notes || null,
+            });
+            const premium = Math.round(f.credit * 100 * contracts * 100) / 100;
+            await t('sim_transactions').insert({
+                portfolio_id: p.id, position_id: id, type: 'sell_to_open', amount: premium - fees, fees,
+                description: `Sold ${contracts} ${ticker} ${expiration_date} ${f.short_strike}/${f.long_strike} ${f.option_type} spread @ ${f.credit} (${f.source})`,
+            });
+            out.push(id);
+        }
+        return out;
+    });
+    return (await db('sim_positions').whereIn('id', ids)).map(normPosition);
+}
+
+const CLOSE_TEXT = { stopped: 'Stopped out', expired: 'Expired worthless', settled: 'Settled at expiry', bought_to_close: 'Bought to close' };
+
+/** Close a spread at a net debit (buy back the short, sell the long), clamped to 0 … width. */
+async function closeSpreadRow(t, p, pos, { price, reason, note = null }) {
+    const debit = Math.min(spreadWidth(pos), Math.max(0, Number(price)));
+    const fees = reason === 'expired' || reason === 'settled' ? 0 : optionFees(p, pos.contracts * 2);
+    const realized = closedPutPnl({ entryPrice: pos.entry_price, closePrice: debit, contracts: pos.contracts, entryFees: pos.entry_fees, exitFees: fees });
+    await t('sim_positions').where({ id: pos.id }).update({
+        status: 'CLOSED', close_reason: reason, close_price: debit, exit_fees: fees, close_date: nyClock().date,
+        realized_pnl: realized, current_price: debit, close_note: note, updated_at: t.fn.now(),
+    });
+    const cost = Math.round(debit * 100 * pos.contracts * 100) / 100;
+    await t('sim_transactions').insert({
+        portfolio_id: p.id, position_id: pos.id,
+        type: reason === 'expired' || reason === 'settled' ? reason : 'buy_to_close',
+        amount: -(cost + fees), fees,
+        description: `${CLOSE_TEXT[reason] || reason}: ${spreadLabel(pos)} @ ${debit}${note ? ` — ${note}` : ''}`,
+    });
+    return realized;
+}
+
+async function liveSpreadDebit(pos) {
+    const q = await quoteSpread({ ticker: pos.ticker, expiration_date: pos.expiration_date, option_type: pos.option_type, short_strike: pos.strike, long_strike: pos.long_strike });
+    return q?.credit != null ? Math.max(0, q.credit) : null;
+}
+
 async function loadOpenPosition(positionId, trx = db) {
     const pos = await trx('sim_positions').where({ id: positionId }).first();
     if (!pos) throw new SimError('Position not found', 404);
@@ -268,6 +398,13 @@ export async function closePosition(positionId, { price } = {}) {
                 description: `Sold ${pos.shares} ${pos.ticker} @ ${px}`,
             });
         });
+    } else if (pos.position_type === 'spread') {
+        const debit = price != null ? Number(price) : await liveSpreadDebit(pos);
+        if (debit == null) throw new SimError('No live quote for the spread — enter a closing debit.');
+        await db.transaction(async (t) => {
+            const p = await loadPortfolio(pos.portfolio_id, t);
+            await closeSpreadRow(t, p, pos, { price: debit, reason: 'bought_to_close' });
+        });
     } else {
         const fill = await resolveFill({ ticker: pos.ticker, strike: pos.strike, expiration_date: pos.expiration_date, price, fallback_price: pos.current_price });
         await db.transaction(async (t) => {
@@ -305,6 +442,15 @@ export async function rollPosition(positionId, input) {
 }
 
 async function settleExpiry(pos, underlying) {
+    if (pos.position_type === 'spread') {
+        const value = spreadIntrinsic(pos, underlying);
+        await db.transaction(async (t) => {
+            const p = await loadPortfolio(pos.portfolio_id, t);
+            await closeSpreadRow(t, p, pos, { price: value, reason: value > 0 ? 'settled' : 'expired', note: `${pos.ticker} closed at ${underlying}` });
+            await t('sim_positions').where({ id: pos.id }).update({ underlying_price: underlying });
+        });
+        return value > 0 ? 'settled' : 'expired';
+    }
     const outcome = expiryOutcome(pos.strike, underlying);
     await db.transaction(async (t) => {
         const p = await loadPortfolio(pos.portfolio_id, t);
@@ -359,37 +505,67 @@ async function openPositions(portfolioId = null) {
 }
 
 /**
- * Mark open puts at the live Moomoo mid (bid/ask; last trade when a side is missing) and refresh the
- * underlying / assigned-share prices from Yahoo. Returns the underlying prices for expiry settlement.
+ * Mark open puts and spreads at the live Moomoo mids (bid/ask; last trade when a side is missing) and
+ * refresh the underlying / assigned-share prices (Moomoo real time, Yahoo fallback). Returns the underlying
+ * quotes ({ price, high, low }) for expiry settlement and spread stops.
  */
-async function markPositions(open, { quotePuts = true } = {}) {
-    const puts = open.filter((x) => x.position_type === 'option');
-    const out = { marked: 0, unquoted: 0, underlying: new Map() };
-    if (puts.length && quotePuts) {
-        const quotes = await fetchOptionQuotes(puts.map((x) => ({ id: x.id, ticker: x.ticker, strike_price: x.strike, expiration_date: x.expiration_date })));
-        const quoted = new Set();
-        const now = new Date();
-        for (const q of quotes) {
-            const { price, source } = quoteMid({ bid: q.bid, ask: q.ask, last: q.option_price });
-            if (!(price > 0)) continue;
-            for (const id of q.positionIds || []) {
-                quoted.add(id);
-                await db('sim_positions').where({ id }).update({
-                    current_price: price, current_bid: q.bid ?? null, current_ask: q.ask ?? null,
-                    price_source: source, price_updated_at: now,
-                });
+async function markPositions(open, { quoteOptions = true } = {}) {
+    const priced = open.filter((x) => x.position_type === 'option' || x.position_type === 'spread');
+    const out = { marked: 0, unquoted: 0, underlying: new Map(), quotes: new Map() };
+    if (priced.length && quoteOptions) {
+        const req = [];
+        for (const x of priced) {
+            const base = { ticker: x.ticker, expiration_date: x.expiration_date, option_type: x.option_type || 'put' };
+            if (x.position_type === 'spread') {
+                req.push({ ...base, id: `${x.id}:s`, strike_price: x.strike }, { ...base, id: `${x.id}:l`, strike_price: x.long_strike });
+            } else {
+                req.push({ ...base, id: x.id, strike_price: x.strike });
             }
         }
-        out.marked = quoted.size;
-        out.unquoted = puts.length - quoted.size;
+        const byId = new Map();
+        for (const q of await fetchOptionQuotes(req)) for (const id of q.positionIds || []) byId.set(String(id), q);
+        const now = new Date();
+        for (const x of priced) {
+            let patch = null;
+            if (x.position_type === 'spread') {
+                const sq = byId.get(`${x.id}:s`), lq = byId.get(`${x.id}:l`);
+                const sm = sq && quoteMid({ bid: sq.bid, ask: sq.ask, last: sq.option_price });
+                const lm = lq && quoteMid({ bid: lq.bid, ask: lq.ask, last: lq.option_price });
+                if (sm?.price != null && lm?.price != null) {
+                    const width = spreadWidth(x);
+                    const clamp = (v) => (v == null ? null : Math.round(Math.min(width, Math.max(0, v)) * 10000) / 10000);
+                    patch = {
+                        current_price: clamp(sm.price - lm.price),
+                        current_bid: sq.bid != null && lq.ask != null ? clamp(sq.bid - lq.ask) : null,
+                        current_ask: sq.ask != null && lq.bid != null ? clamp(sq.ask - lq.bid) : null,
+                        price_source: sm.source === 'mid' && lm.source === 'mid' ? 'mid' : 'last',
+                    };
+                }
+            } else {
+                const q = byId.get(String(x.id));
+                const m = q && quoteMid({ bid: q.bid, ask: q.ask, last: q.option_price });
+                if (m?.price > 0) patch = { current_price: m.price, current_bid: q.bid ?? null, current_ask: q.ask ?? null, price_source: m.source };
+            }
+            if (!patch) {
+                out.unquoted++;
+                continue;
+            }
+            out.marked++;
+            await db('sim_positions').where({ id: x.id }).update({ ...patch, price_updated_at: now });
+        }
     }
-    const prices = await Promise.all([...new Set(open.map((x) => x.ticker))].map(async (sym) => [sym, (await fetchYahooPrice(sym))?.price]));
-    for (const [sym, px] of prices) if (px > 0) out.underlying.set(sym, px);
+    const tickers = [...new Set(open.map((x) => x.ticker))];
+    for (const q of tickers.length ? await fetchStockQuotes(tickers) : []) {
+        if (q?.price > 0) {
+            out.underlying.set(q.ticker, q.price);
+            out.quotes.set(q.ticker, q);
+        }
+    }
     for (const x of open) {
         const px = out.underlying.get(x.ticker);
         if (!px) continue;
         const patch = { underlying_price: px };
-        if (x.position_type === 'stock') Object.assign(patch, { current_price: px, price_source: 'yahoo', price_updated_at: new Date() });
+        if (x.position_type === 'stock') Object.assign(patch, { current_price: px, price_source: out.quotes.get(x.ticker)?.source || 'yahoo', price_updated_at: new Date() });
         await db('sim_positions').where({ id: x.id }).update(patch);
     }
     return out;
@@ -429,15 +605,15 @@ export async function refreshSimulation({ force = false } = {}) {
     const result = { marked: 0, unquoted: 0, expired: 0, assigned: 0, snapshots: 0, market_open: isMarketOpen() };
     try {
         const open = await openPositions();
-        const marks = await markPositions(open, { quotePuts: force || result.market_open });
+        const marks = await markPositions(open, { quoteOptions: force || result.market_open });
         result.marked = marks.marked;
         result.unquoted = marks.unquoted;
 
-        for (const x of open.filter((pp) => pp.position_type === 'option' && isExpiryDue(pp.expiration_date))) {
+        for (const x of open.filter((pp) => (pp.position_type === 'option' || pp.position_type === 'spread') && isExpiryDue(pp.expiration_date))) {
             const px = marks.underlying.get(x.ticker);
             if (!px) continue; // retried on the next run
             const outcome = await settleExpiry(x, px);
-            result[outcome === 'assigned' ? 'assigned' : 'expired']++;
+            result[outcome] = (result[outcome] || 0) + 1;
         }
 
         const { weekday } = nyClock();
@@ -454,13 +630,48 @@ export async function refreshSimulation({ force = false } = {}) {
     }
 }
 
+let monitoring = false;
+
+/**
+ * Every minute in market hours: mark open spreads and close any that hit their portfolio's exit rule
+ * (touch of the short strike, 2× credit loss, or hold to expiry) at the live debit.
+ */
+export async function monitorSpreads({ force = false } = {}) {
+    if (monitoring || (!force && !isMarketOpen())) return { skipped: true };
+    monitoring = true;
+    try {
+        const open = (await openPositions()).filter((x) => x.position_type === 'spread');
+        if (!open.length) return { checked: 0, stopped: 0 };
+        const marks = await markPositions(open);
+        const rules = new Map((await db('sim_portfolios').whereIn('id', [...new Set(open.map((x) => x.portfolio_id))]).select('id', 'spread_exit_rule'))
+            .map((r) => [r.id, r.spread_exit_rule || 'touch']));
+        let stopped = 0;
+        for (const x of (await db('sim_positions').whereIn('id', open.map((o) => o.id)).where('status', 'OPEN')).map(normPosition)) {
+            const reason = spreadStopReason(x, rules.get(x.portfolio_id), marks.quotes.get(x.ticker) || {}, x.monitor || {});
+            if (!reason || x.current_price == null) continue;
+            await db.transaction(async (t) => {
+                const p = await loadPortfolio(x.portfolio_id, t);
+                await closeSpreadRow(t, p, x, { price: x.current_price, reason: 'stopped', note: reason });
+            });
+            stopped++;
+        }
+        return { checked: open.length, stopped };
+    } finally {
+        monitoring = false;
+    }
+}
+
 let simInterval = null;
+let monitorInterval = null;
 export function startSimulationJob(intervalMinutes = 30) {
     const tick = () => refreshSimulation().catch((err) => console.warn('[Simulation] refresh failed:', err.message));
-    console.log(`[Simulation] Starting job every ${intervalMinutes} minutes`);
+    console.log(`[Simulation] Starting job every ${intervalMinutes} minutes; spread exits checked every minute in market hours`);
     simInterval = setInterval(tick, intervalMinutes * 60 * 1000);
+    monitorInterval = setInterval(() => monitorSpreads().catch((err) => console.warn('[Simulation] spread monitor failed:', err.message)), 60 * 1000);
 }
 export function stopSimulationJob() {
     if (simInterval) clearInterval(simInterval);
+    if (monitorInterval) clearInterval(monitorInterval);
     simInterval = null;
+    monitorInterval = null;
 }
