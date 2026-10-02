@@ -27,7 +27,7 @@ const runSchema = z.object({
             continuous: toggle.optional(),
         }).optional(),
         limits: z.object({ max_open_puts: z.number().int().min(1).max(100).nullable().optional(), max_units: z.number().int().min(1).max(1000).nullable().optional() }).optional(),
-        expiry: z.object({ min_dte: z.number().int().min(30).max(1200).optional(), max_dte: z.number().int().min(30).max(1300).optional(), calendar: z.enum(['january', 'monthly', 'weekly']).optional() }).optional(),
+        expiry: z.object({ min_dte: z.number().int().min(30).max(1200).optional(), max_dte: z.number().int().min(30).max(1300).optional(), calendar: z.enum(['january', 'monthly', 'weekly']).optional(), calendars: z.array(z.enum(['jan', 'month', 'week'])).min(1).max(3).optional() }).optional(),
         strike: z.object({
             mode: z.enum(['delta', 'pct', 'yield']).optional(),
             delta: z.number().min(0.01).max(0.9).optional(),

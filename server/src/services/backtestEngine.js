@@ -26,7 +26,9 @@ export const DEFAULT_PARAMS = {
     },
     // In real 100-share units: max open puts at once, and max (shares ÷ 100 + open puts). null = no limit.
     limits: { max_open_puts: null, max_units: null },
-    expiry: { min_dte: 400, max_dte: 500, calendar: 'january' }, // january | monthly | weekly
+    // calendars: any combination of 'jan' (3rd Friday of January), 'month' (3rd Friday of Feb–Dec),
+    // 'week' (every other Friday). Older settings used calendar: january | monthly | weekly.
+    expiry: { min_dte: 400, max_dte: 500, calendars: ['jan'] },
     // delta | pct (percent below the price) | yield (the furthest strike, between min_discount_pct and
     // max_discount_pct below the price, whose premium still pays target_annual_pct a year on the strike);
     // min_discount_pct caps every mode at (100 − x)% of the price
@@ -69,7 +71,7 @@ export function mergeParams(p = {}) {
             continuous: { ...d.entry.continuous, ...p.entry?.continuous },
         },
         limits: { ...d.limits, ...p.limits },
-        expiry: { ...d.expiry, ...p.expiry },
+        expiry: { ...d.expiry, ...p.expiry, calendars: expiryTypes(p.expiry) },
         strike: { ...d.strike, ...p.strike },
         exit: {
             ...d.exit, ...p.exit,
@@ -96,6 +98,30 @@ export function strikeStep(K) {
     const raw = Math.max(1e-4, Math.abs(K) * 0.01);
     const mag = 10 ** Math.floor(Math.log10(raw));
     return [1, 2.5, 5, 10].map((m) => m * mag).find((x) => x >= raw - 1e-12);
+}
+
+const LEGACY_CALENDARS = { january: ['jan'], monthly: ['jan', 'month'], weekly: ['jan', 'month', 'week'] };
+
+/** Expiry types to use: explicit `calendars`, else the older single `calendar`, else January only. */
+export function expiryTypes(expiry = {}) {
+    if (Array.isArray(expiry.calendars) && expiry.calendars.length) return [...new Set(expiry.calendars)];
+    return LEGACY_CALENDARS[expiry.calendar] || ['jan'];
+}
+
+/** Every expiry date of the chosen types between the years, ascending. */
+export function expiryDates(fromYear, toYear, types) {
+    const set = new Set(types);
+    const out = [];
+    let d = new Date(Date.UTC(fromYear, 0, 1));
+    while (d.getUTCDay() !== 5) d = new Date(d.getTime() + DAY);
+    for (; d.getUTCFullYear() <= toYear; d = new Date(d.getTime() + 7 * DAY)) {
+        const third = d.getUTCDate() >= 15 && d.getUTCDate() <= 21;
+        const jan = d.getUTCMonth() === 0;
+        if ((third && jan && set.has('jan')) || (third && !jan && set.has('month')) || (!third && set.has('week'))) {
+            out.push(d.toISOString().slice(0, 10));
+        }
+    }
+    return out;
 }
 
 /** Third Friday of a month (standard monthly / LEAPS expiry), as YYYY-MM-DD. */
@@ -141,8 +167,9 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
     if (from < 0) throw new Error('No price data in the chosen range');
     const lastIdx = bars.findLastIndex((b) => b.date <= end);
     const y0 = Number(start.slice(0, 4));
-    const calendar = expiryCalendar(y0, Number(end.slice(0, 4)) + 3, P.expiry.calendar);
-    const monthly = expiryCalendar(y0, Number(end.slice(0, 4)) + 1, P.expiry.calendar === 'weekly' ? 'weekly' : 'monthly');
+    const calendar = expiryDates(y0, Number(end.slice(0, 4)) + 3, P.expiry.calendars);
+    // Covered calls are short-dated: weekly expiries if weeklies are allowed, else every month's
+    const monthly = expiryDates(y0, Number(end.slice(0, 4)) + 1, P.expiry.calendars.includes('week') ? ['jan', 'month', 'week'] : ['jan', 'month']);
     const CC = P.covered_calls;
     const slip = (P.slippage_pct || 0) / 100;
     const fixedContracts = Math.max(1, Math.round(P.contracts || 1));

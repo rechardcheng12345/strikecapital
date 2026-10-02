@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { bsPut, bsCall } from './bsModel.js';
-import { runBacktest, thirdFriday, expiryCalendar, daysBetween } from './backtestEngine.js';
+import { runBacktest, thirdFriday, expiryCalendar, expiryDates, expiryTypes, daysBetween } from './backtestEngine.js';
 
 // Weekday bars from `start` for `n` days with a price path f(i)
 function makeBars(start, n, f) {
@@ -284,5 +284,26 @@ describe('backtest engine', () => {
         const none = runBacktest({ bars, market: market(0.15), params: { ...base, strike: { mode: 'yield', target_annual_pct: 30, min_discount_pct: 30, max_discount_pct: 80 } } });
         assert.equal(none.trades.length, 0);
         assert.ok(none.summary.skipped.low_return > 0);
+    });
+
+    it('expiry types combine; old single choices still work', () => {
+        const jan = expiryDates(2027, 2027, ['jan']);
+        const month = expiryDates(2027, 2027, ['month']);
+        const week = expiryDates(2027, 2027, ['week']);
+        const any = expiryDates(2027, 2027, ['jan', 'month', 'week']);
+        assert.deepEqual(jan, ['2027-01-15']);
+        assert.equal(month.length, 11);
+        assert.equal(week.length + 12, any.length); // weeklies are the non-monthly Fridays
+        assert.equal(any.length, 53); // 2027 has 53 Fridays
+        assert.deepEqual(expiryDates(2027, 2027, ['jan', 'week']), any.filter((d) => !month.includes(d)));
+        assert.deepEqual(expiryTypes({ calendar: 'monthly' }), ['jan', 'month']);
+        assert.deepEqual(expiryTypes({ calendar: 'weekly' }), ['jan', 'month', 'week']);
+        assert.deepEqual(expiryTypes({}), ['jan']);
+        // Legacy and new spellings produce the same backtest
+        const bars = makeBars('2020-01-01', 200, () => 100);
+        const base = { size_mode: 'contracts', strike: { mode: 'pct', pct: 40, min_discount_pct: 0 }, exit: { take_profit_pct: null } };
+        const a = runBacktest({ bars, market: market(), params: { ...base, expiry: { min_dte: 400, max_dte: 500, calendar: 'monthly' } } });
+        const b = runBacktest({ bars, market: market(), params: { ...base, expiry: { min_dte: 400, max_dte: 500, calendars: ['jan', 'month'] } } });
+        assert.deepEqual(a.trades.map((t) => t.expiry), b.trades.map((t) => t.expiry));
     });
 });

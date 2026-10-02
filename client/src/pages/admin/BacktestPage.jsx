@@ -11,7 +11,7 @@ import { money, pct, signColor, shortDate } from './simShared';
 const TICKER = 'SOXL';
 /** Option / strike prices: split-adjusted history goes below $1, so show 4 decimals there. */
 const px = (v) => (v == null ? '—' : Math.abs(v) < 1 ? `$${Number(v).toFixed(4)}` : money(v));
-const DEFAULT_FORM = {
+export const DEFAULT_FORM = {
     name: '',
     start: '2015-01-01',
     end: '',
@@ -24,7 +24,7 @@ const DEFAULT_FORM = {
     dip: false, dip_pct: 30, dip_cooldown: 30,
     continuous: false,
     max_open_puts: '', max_units: '',
-    min_dte: 400, max_dte: 500, calendar: 'january',
+    min_dte: 400, max_dte: 500, cal_jan: true, cal_month: false, cal_week: false,
     strike_mode: 'pct', delta: 0.25, otm_pct: 60, min_discount: 60, max_discount: 80, target_annual: 10,
     min_annual: 0,
     min_put_premium: 0.05,
@@ -43,7 +43,7 @@ const MY_ROUTINE = {
     size_mode: 'contracts', contracts: 1,
     ladder: false, listing: false, dip: false, continuous: true,
     max_open_puts: 1, max_units: 2,
-    min_dte: 35, max_dte: 40, calendar: 'weekly',
+    min_dte: 35, max_dte: 40, cal_jan: true, cal_month: true, cal_week: true,
     strike_mode: 'pct', otm_pct: 35, min_discount: 35,
     min_annual: 0, min_put_premium: 0.05, max_capital: 100,
     tp_on: true, tp: 80, after_tp: 'none', after_expiry: false,
@@ -53,7 +53,7 @@ const MY_ROUTINE = {
 
 const REASON = { sold_at_recovery: 'Sold above cost', take_profit: 'Take profit', early_close: 'Closed early', rolled: 'Rolled', expired: 'Expired', assigned: 'Assigned', called_away: 'Called away', open: 'Open' };
 
-function formToParams(f) {
+export function formToParams(f) {
     const n = (v) => Number(v);
     return {
         start: f.start || undefined,
@@ -72,7 +72,7 @@ function formToParams(f) {
             max_open_puts: f.max_open_puts === '' ? null : n(f.max_open_puts),
             max_units: f.max_units === '' ? null : n(f.max_units),
         },
-        expiry: { min_dte: n(f.min_dte), max_dte: n(f.max_dte), calendar: f.calendar },
+        expiry: { min_dte: n(f.min_dte), max_dte: n(f.max_dte), calendars: [f.cal_jan && 'jan', f.cal_month && 'month', f.cal_week && 'week'].filter(Boolean) },
         strike: { mode: f.strike_mode, delta: n(f.delta), pct: n(f.otm_pct), min_discount_pct: n(f.min_discount) || 0, max_discount_pct: n(f.max_discount) || 80, target_annual_pct: n(f.target_annual) || 10 },
         sell_at_recovery: { enabled: f.assigned_mode === 'recover', above_pct: n(f.recover_pct) },
         covered_calls: {
@@ -95,7 +95,56 @@ function formToParams(f) {
         slippage_pct: n(f.slippage),
     };
 }
-function paramsToForm(p, name = '') {
+const LEGACY_CAL = { january: ['jan'], monthly: ['jan', 'month'], weekly: ['jan', 'month', 'week'] };
+export function calendarFlags(expiry = {}) {
+    const t = Array.isArray(expiry.calendars) && expiry.calendars.length ? expiry.calendars : (LEGACY_CAL[expiry.calendar] || ['jan']);
+    return { cal_jan: t.includes('jan'), cal_month: t.includes('month'), cal_week: t.includes('week') };
+}
+function calendarLabel(f) {
+    if (f.cal_jan && f.cal_month && f.cal_week) return 'Any expiry (every Friday)';
+    const parts = [f.cal_jan && 'January', f.cal_month && 'Other months', f.cal_week && 'Weekly'].filter(Boolean);
+    return parts.length ? parts.join(' + ') : 'Pick at least one';
+}
+
+/** Expiry types as a dropdown of checkboxes — any combination, or Any. */
+function ExpiryTypes({ form, setForm }) {
+    const [open, setOpen] = useState(false);
+    const tog = (k) => setForm((f) => ({ ...f, [k]: !f[k] }));
+    const all = form.cal_jan && form.cal_month && form.cal_week;
+    const none = !form.cal_jan && !form.cal_month && !form.cal_week;
+    const opts = [
+        ['cal_jan', 'January', '3rd Friday of January — typical long-dated listings'],
+        ['cal_month', 'Other months', '3rd Friday of Feb–Dec'],
+        ['cal_week', 'Weekly', 'every other Friday'],
+    ];
+    return (
+        <div className="relative">
+            <button type="button" onClick={() => setOpen((v) => !v)} className={`w-full flex items-center justify-between px-3 py-2 border text-sm bg-white ${none ? 'border-red-400 text-red-600' : 'border-gray-300'}`}>
+                <span>{calendarLabel(form)}</span>
+                <span className="text-gray-400">▾</span>
+            </button>
+            {open && (
+                <>
+                    <button type="button" aria-label="Close" className="fixed inset-0 z-10 cursor-default" onClick={() => setOpen(false)} />
+                    <div className="absolute z-20 mt-1 w-full bg-white border border-gray-300 shadow-lg p-2 space-y-1">
+                        <label className="flex items-center gap-2 px-2 py-1 text-sm font-semibold hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" checked={all} onChange={() => setForm((f) => ({ ...f, cal_jan: !all, cal_month: !all, cal_week: !all }))} /> Any (every Friday)
+                        </label>
+                        <div className="border-t border-gray-100" />
+                        {opts.map(([k, label, hint]) => (
+                            <label key={k} className="flex items-start gap-2 px-2 py-1 text-sm hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" className="mt-0.5" checked={!!form[k]} onChange={() => tog(k)} />
+                                <span>{label}<span className="block text-xs text-gray-400">{hint}</span></span>
+                            </label>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
+
+export function paramsToForm(p, name = '') {
     return {
         ...DEFAULT_FORM,
         name,
@@ -105,7 +154,7 @@ function paramsToForm(p, name = '') {
         dip: !!p.entry?.dip?.enabled, dip_pct: p.entry?.dip?.pct ?? 30, dip_cooldown: p.entry?.dip?.cooldown_days ?? 30,
         continuous: !!p.entry?.continuous?.enabled,
         max_open_puts: p.limits?.max_open_puts ?? '', max_units: p.limits?.max_units ?? '',
-        min_dte: p.expiry?.min_dte ?? 400, max_dte: p.expiry?.max_dte ?? 500, calendar: p.expiry?.calendar || 'january',
+        min_dte: p.expiry?.min_dte ?? 400, max_dte: p.expiry?.max_dte ?? 500, ...calendarFlags(p.expiry),
         strike_mode: p.strike?.mode || 'delta', delta: p.strike?.delta ?? 0.25, otm_pct: p.strike?.pct ?? 30, min_discount: p.strike?.min_discount_pct ?? 0, max_discount: p.strike?.max_discount_pct ?? 80, target_annual: p.strike?.target_annual_pct ?? 10,
         assigned_mode: p.sell_at_recovery?.enabled ? 'recover' : p.covered_calls?.enabled ? 'calls' : 'hold',
         recover_pct: p.sell_at_recovery?.above_pct ?? 0,
@@ -306,6 +355,7 @@ function StrategyForm({ form, setForm, onRun, running }) {
     const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
     const tog = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
     const noEntry = !form.ladder && !form.listing && !form.dip && !form.continuous;
+    const noExpiry = !form.cal_jan && !form.cal_month && !form.cal_week;
     return (
         <Box title="Strategy — cash-secured puts" right={<PresetsBar form={form} setForm={setForm} />}>
             <div className="space-y-4">
@@ -340,11 +390,7 @@ function StrategyForm({ form, setForm, onRun, running }) {
                             <Input label="Expiry from (days)" type="number" value={form.min_dte} onChange={set('min_dte')} />
                             <Input label="to (days)" type="number" value={form.max_dte} onChange={set('max_dte')} />
                         </div>
-                        <select value={form.calendar} onChange={set('calendar')} className="block w-full px-3 py-2 border border-gray-300 text-sm">
-                            <option value="january">January expiries only (typical long-dated listings)</option>
-                            <option value="monthly">Any month&apos;s expiry (third Friday)</option>
-                            <option value="weekly">Weekly expiries (every Friday)</option>
-                        </select>
+                        <ExpiryTypes form={form} setForm={setForm} />
                         <div className="flex items-center gap-3 text-sm">
                             <label className="flex items-center gap-1"><input type="radio" checked={form.strike_mode === 'delta'} onChange={() => setForm((f) => ({ ...f, strike_mode: 'delta' }))} /> Delta</label>
                             <input type="number" step="0.01" value={form.delta} onChange={set('delta')} disabled={form.strike_mode !== 'delta'} className="w-20 px-2 py-1 border border-gray-300" />
@@ -453,7 +499,7 @@ function StrategyForm({ form, setForm, onRun, running }) {
                     <Input label="Slippage vs price (%)" type="number" step="0.5" value={form.slippage} onChange={set('slippage')} />
                 </div>
                 <div className="flex justify-end">
-                    <Button onClick={onRun} loading={running} disabled={noEntry}><Play className="w-4 h-4 mr-1.5" />Run backtest</Button>
+                    <Button onClick={onRun} loading={running} disabled={noEntry || noExpiry}><Play className="w-4 h-4 mr-1.5" />Run backtest</Button>
                 </div>
             </div>
         </Box>
