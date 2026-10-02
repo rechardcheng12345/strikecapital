@@ -378,3 +378,27 @@ export async function deleteRun(id) {
     const n = await db('bt_runs').where({ id }).del();
     if (!n) throw new BtError('Run not found', 404);
 }
+
+// ─── Saved settings (presets) ─────────────────────────────────
+
+export async function listPresets() {
+    const rows = await db('bt_presets').orderBy('name');
+    return rows.map((r) => ({ id: r.id, name: r.name, params: JSON.parse(r.params), updated_at: r.updated_at }));
+}
+
+/** Save the strategy form under a name; saving an existing name overwrites it. */
+export async function savePreset({ name, params }, userId) {
+    const n = String(name || '').trim();
+    if (!n) throw new BtError('Give the settings a name');
+    const row = { name: n.slice(0, 120), params: JSON.stringify(params || {}), created_by: userId || null, updated_at: db.fn.now() };
+    const existing = await db('bt_presets').where({ name: row.name }).first();
+    if (existing) await db('bt_presets').where({ id: existing.id }).update(row);
+    else await db('bt_presets').insert(row);
+    const saved = await db('bt_presets').where({ name: row.name }).first();
+    return { id: saved.id, name: saved.name, params: JSON.parse(saved.params), overwritten: !!existing };
+}
+
+export async function deletePreset(id) {
+    const n = await db('bt_presets').where({ id }).del();
+    if (!n) throw new BtError('Saved settings not found', 404);
+}

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { dataStatus, startHistoryLoad, recordChains, runAndSave, listRuns, getRun, deleteRun } from '../services/backtestService.js';
+import { dataStatus, startHistoryLoad, recordChains, runAndSave, listRuns, getRun, deleteRun, listPresets, savePreset, deletePreset } from '../services/backtestService.js';
 
 // Backtesting long-dated cash-secured puts — admin only.
 const router = Router();
@@ -83,6 +83,15 @@ router.get('/runs', wrap(async (req, res) => res.json({ runs: await listRuns() }
 router.get('/runs/:id', wrap(async (req, res) => res.json(await getRun(Number(req.params.id)))));
 router.delete('/runs/:id', wrap(async (req, res) => {
     await deleteRun(Number(req.params.id));
+    res.json({ ok: true });
+}));
+
+// Saved strategy settings
+const presetSchema = z.object({ name: z.string().min(1).max(120), params: z.record(z.any()) });
+router.get('/presets', wrap(async (req, res) => res.json({ presets: await listPresets() })));
+router.post('/presets', validate(presetSchema), wrap(async (req, res) => res.status(201).json(await savePreset(req.body, req.user.id))));
+router.delete('/presets/:id', wrap(async (req, res) => {
+    await deletePreset(Number(req.params.id));
     res.json({ ok: true });
 }));
 

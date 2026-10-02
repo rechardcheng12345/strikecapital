@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { History, Play, Download, Trash2, RotateCcw } from 'lucide-react';
+import { History, Play, Download, Trash2, RotateCcw, Save } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ReferenceArea } from 'recharts';
 import { backtestApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
-import { Button, Input } from '../../components/ui';
+import { Button, Input, Modal } from '../../components/ui';
 import { money, pct, signColor, shortDate } from './simShared';
 
 const TICKER = 'SOXL';
@@ -223,12 +223,91 @@ function DataPanel() {
     );
 }
 
+/** Saved settings: pick one to load it into the form; save the form under a name (same name overwrites). */
+function PresetsBar({ form, setForm }) {
+    const queryClient = useQueryClient();
+    const { data } = useApiQuery({ queryKey: ['backtest', 'presets'], queryFn: backtestApi.listPresets });
+    const presets = data?.presets || [];
+    const [selected, setSelected] = useState('');
+    const [saveOpen, setSaveOpen] = useState(false);
+    const [name, setName] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const current = presets.find((p) => String(p.id) === selected);
+
+    const load = (value) => {
+        setSelected(value);
+        setConfirmDelete(false);
+        if (value === 'builtin:routine') {
+            setForm((f) => ({ ...f, ...MY_ROUTINE }));
+            toast.success('Loaded "my 35-day routine"');
+            return;
+        }
+        const p = presets.find((x) => String(x.id) === value);
+        if (p) {
+            setForm({ ...paramsToForm(p.params, p.name), name: form.name });
+            toast.success(`Loaded "${p.name}"`);
+        }
+    };
+    const openSave = () => {
+        setName(current?.name || form.name || '');
+        setSaveOpen(true);
+    };
+    const save = async () => {
+        setBusy(true);
+        const res = await backtestApi.savePreset({ name, params: formToParams(form) });
+        setBusy(false);
+        if (res.error) return toast.error(res.error);
+        toast.success(res.data.overwritten ? `Updated "${res.data.name}"` : `Saved "${res.data.name}"`);
+        setSelected(String(res.data.id));
+        setSaveOpen(false);
+        queryClient.invalidateQueries({ queryKey: ['backtest', 'presets'] });
+    };
+    const remove = async () => {
+        const res = await backtestApi.deletePreset(current.id);
+        if (res.error) return toast.error(res.error);
+        toast.success(`Deleted "${current.name}"`);
+        setSelected('');
+        setConfirmDelete(false);
+        queryClient.invalidateQueries({ queryKey: ['backtest', 'presets'] });
+    };
+    return (
+        <div className="flex items-center gap-2 flex-wrap">
+            <select value={selected} onChange={(e) => load(e.target.value)} className="px-2 py-1.5 border border-gray-300 text-sm max-w-[260px]">
+                <option value="">Saved settings…</option>
+                <option value="builtin:routine">★ My 35-day routine (built in)</option>
+                {presets.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <Button variant="outline" size="sm" onClick={openSave}><Save className="w-4 h-4 mr-1.5" />Save settings</Button>
+            {current && (confirmDelete ? (
+                <>
+                    <Button variant="danger" size="sm" onClick={remove}>Delete &ldquo;{current.name}&rdquo;</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>Keep</Button>
+                </>
+            ) : (
+                <button type="button" title="Delete these saved settings" onClick={() => setConfirmDelete(true)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+            ))}
+            <Modal isOpen={saveOpen} onClose={() => setSaveOpen(false)} title="Save settings">
+                <div className="space-y-4">
+                    <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Jan 300-550d · 60% below · TP80 roll · 2 contracts" />
+                    {presets.some((p) => p.name === name.trim()) && <p className="text-xs text-amber-700">A saved setting with this name exists — saving will overwrite it.</p>}
+                    <p className="text-xs text-gray-500">Saves every field of the form (dates, sizing, entries, strike, exits, assignment, costs). Shared with all admins.</p>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="secondary" size="sm" onClick={() => setSaveOpen(false)}>Cancel</Button>
+                        <Button size="sm" loading={busy} disabled={!name.trim()} onClick={save}>Save</Button>
+                    </div>
+                </div>
+            </Modal>
+        </div>
+    );
+}
+
 function StrategyForm({ form, setForm, onRun, running }) {
     const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
     const tog = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
     const noEntry = !form.ladder && !form.listing && !form.dip && !form.continuous;
     return (
-        <Box title="Strategy — cash-secured puts" right={<Button variant="outline" size="sm" onClick={() => setForm((f) => ({ ...f, ...MY_ROUTINE }))}>Load my 35-day routine</Button>}>
+        <Box title="Strategy — cash-secured puts" right={<PresetsBar form={form} setForm={setForm} />}>
             <div className="space-y-4">
                 <div className="grid sm:grid-cols-4 gap-3">
                     <Input label="Name (optional)" value={form.name} onChange={set('name')} placeholder="e.g. ladder Δ0.25 TP50" />

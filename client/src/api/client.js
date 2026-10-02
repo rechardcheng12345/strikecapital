@@ -248,4 +248,7 @@ export const backtestApi = {
     listRuns: () => api.get('/backtest/runs'),
     getRun: (id) => api.get(`/backtest/runs/${id}`),
     deleteRun: (id) => api.delete(`/backtest/runs/${id}`),
+    listPresets: () => api.get('/backtest/presets'),
+    savePreset: (data) => api.post('/backtest/presets', data),
+    deletePreset: (id) => api.delete(`/backtest/presets/${id}`),
 };
