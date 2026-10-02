@@ -239,3 +239,13 @@ export const optionAlertApi = {
 export const zeroDteApi = {
     scan: (data) => api.post('/zero-dte/scan', data),
 };
+// Backtesting long-dated cash-secured puts (admin only)
+export const backtestApi = {
+    dataStatus: (ticker) => api.get(`/backtest/data/${ticker}`),
+    loadHistory: (ticker) => api.post(`/backtest/data/${ticker}/load`, {}),
+    recordToday: (ticker) => api.post(`/backtest/data/${ticker}/record`, {}),
+    run: (data) => api.post('/backtest/run', data),
+    listRuns: () => api.get('/backtest/runs'),
+    getRun: (id) => api.get(`/backtest/runs/${id}`),
+    deleteRun: (id) => api.delete(`/backtest/runs/${id}`),
+};

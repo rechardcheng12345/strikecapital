@@ -22,9 +22,11 @@ import investorRoutes from './routes/investor.js';
 import simRoutes from './routes/sim.js';
 import optionAlertRoutes from './routes/optionAlerts.js';
 import zeroDteRoutes from './routes/zeroDte.js';
+import backtestRoutes from './routes/backtest.js';
 // Import services
 import { startExpiryAlertJob } from './services/notificationEngine.js';
 import { startSimulationJob } from './services/simService.js';
+import { startChainRecorder } from './services/backtestService.js';
 const app = express();
 // Create directories if needed
 const uploadsDir = path.join(process.cwd(), 'uploads');
@@ -70,6 +72,7 @@ app.use('/api/investor', investorRoutes);
 app.use('/api/sim', simRoutes);
 app.use('/api/option-alerts', optionAlertRoutes);
 app.use('/api/zero-dte', zeroDteRoutes);
+app.use('/api/backtest', backtestRoutes);
 // Health check
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -94,5 +97,7 @@ app.listen(env.port, () => {
     startExpiryAlertJob(60);
     // Paper-trading: mark open positions at the mid, settle expiries, daily snapshots
     startSimulationJob(10);
+    // Backtest data: record each day's real long-dated chain after the close
+    startChainRecorder(30);
 });
 export default app;

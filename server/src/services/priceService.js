@@ -1,5 +1,5 @@
 import { db } from '../config/database.js';
-import { getOptionQuotes, getStockSnapshots, getZeroDteChain } from './moomooService.js';
+import { getOptionQuotes, getStockSnapshots, getZeroDteChain, getPutChain } from './moomooService.js';
 import { env } from '../config/env.js';
 
 function baseSymbol(ticker) {
@@ -240,6 +240,11 @@ export async function fetchStockQuotes(tickers) {
             return { ticker: t, price: null, open: null, high: null, low: null, prev_close: null, source: 'yahoo' };
         }
     }));
+}
+
+/** Every put with an expiry minDays–maxDays away, with quotes (proxy POST /chain or local OpenD). */
+export async function fetchPutChainRows(tickers, minDays, maxDays) {
+    return env.scannerProxyUrl ? callProxy('/chain', { tickers, minDays, maxDays }, 10 * 60 * 1000) : getPutChain(tickers, minDays, maxDays);
 }
 
 /** Calls + puts for one expiry near the money (default today's 0DTE) with the underlying snapshot. */

@@ -19,6 +19,7 @@ const AccountFundsPage = lazy(() => import('./pages/admin/AccountFundsPage').the
 const OptionScannerPage = lazy(() => import('./pages/admin/OptionScannerPage').then(m => ({ default: m.OptionScannerPage })));
 const ZeroDtePage = lazy(() => import('./pages/admin/ZeroDtePage').then(m => ({ default: m.ZeroDtePage })));
 const OptionAlertsPage = lazy(() => import('./pages/admin/OptionAlertsPage').then(m => ({ default: m.OptionAlertsPage })));
+const BacktestPage = lazy(() => import('./pages/admin/BacktestPage').then(m => ({ default: m.BacktestPage })));
 const SimulationPage = lazy(() => import('./pages/admin/SimulationPage').then(m => ({ default: m.SimulationPage })));
 const SimPortfolioPage = lazy(() => import('./pages/admin/SimPortfolioPage').then(m => ({ default: m.SimPortfolioPage })));
 // Lazy load investor pages
@@ -64,6 +65,7 @@ function App() {
           <Route path="/admin/scanner" element={<Suspense fallback={<PageLoader />}><OptionScannerPage /></Suspense>}/>
           <Route path="/admin/zero-dte" element={<Suspense fallback={<PageLoader />}><ZeroDtePage /></Suspense>}/>
           <Route path="/admin/option-alerts" element={<Suspense fallback={<PageLoader />}><OptionAlertsPage /></Suspense>}/>
+          <Route path="/admin/backtest" element={<Suspense fallback={<PageLoader />}><BacktestPage /></Suspense>}/>
           <Route path="/admin/simulation" element={<Suspense fallback={<PageLoader />}><SimulationPage /></Suspense>}/>
           <Route path="/admin/simulation/:id" element={<Suspense fallback={<PageLoader />}><SimPortfolioPage /></Suspense>}/>
           <Route path="/admin/settings" element={<Suspense fallback={<PageLoader />}><AdminSettingsPage /></Suspense>}/>
