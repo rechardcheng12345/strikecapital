@@ -248,4 +248,41 @@ describe('backtest engine', () => {
         for (const c of calls) assert.ok(c.strike >= c.cost_basis * 1.05 - 1e-9 && c.strike <= c.cost_basis * 1.05 + 1, `${c.strike} vs cost ${c.cost_basis}`);
         assert.ok(r.trades.some((x) => x.reason === 'take_profit'));
     });
+
+    it('assigned shares: held (no calls) and sold once the price is back above cost', () => {
+        // Sold at 100 (strike 60), crash to 40 through expiry, recover to 90
+        const bars = makeBars('2020-01-01', 900, (i) => (i < 20 ? 100 : i < 420 ? 40 : Math.min(90, 40 + (i - 420) * 0.5)));
+        const r = runBacktest({ bars, market: market(), params: {
+            size_mode: 'contracts', strike: { mode: 'pct', pct: 40, min_discount_pct: 0 }, expiry: { calendar: 'monthly', min_dte: 400, max_dte: 420 },
+            entry: { ladder: { enabled: true, day: 1 } }, max_capital_pct: 100, starting_cash: 20000, exit: { take_profit_pct: null }, slippage_pct: 2,
+            sell_at_recovery: { enabled: true, above_pct: 0 },
+        } });
+        assert.ok(r.assignments.length >= 1);
+        assert.equal(r.trades.filter((t) => t.type === 'call').length, 0); // no covered calls
+        const sold = r.trades.filter((t) => t.reason === 'sold_at_recovery');
+        assert.ok(sold.length >= 1);
+        for (const t of sold) {
+            assert.ok(t.close_price >= t.cost_basis - 1e-9, `${t.close_price} < cost ${t.cost_basis}`);
+            assert.ok(r.equity.find((e) => e.date === t.closed).stock_value === 0);
+        }
+        assert.equal(r.summary.sold_at_recovery.times, sold.length);
+        assert.ok(r.summary.sold_at_recovery.vs_cost >= 0);
+        for (const e of r.equity) assert.ok(Math.abs(e.equity - (e.cash + e.stock_value - e.option_liability)) < 0.05);
+    });
+
+    it('yield strikes: furthest strike paying the target; closer when premiums are thin; skips when none pays', () => {
+        const bars = makeBars('2020-01-01', 60, () => 100);
+        const base = { size_mode: 'contracts', slippage_pct: 0, min_put_premium: 0, expiry: { min_dte: 400, max_dte: 500, calendar: 'monthly' }, exit: { take_profit_pct: null } };
+        const rich = runBacktest({ bars, market: market(1.0), params: { ...base, strike: { mode: 'yield', target_annual_pct: 10, min_discount_pct: 30, max_discount_pct: 80 } } });
+        const thin = runBacktest({ bars, market: market(0.75), params: { ...base, strike: { mode: 'yield', target_annual_pct: 10, min_discount_pct: 30, max_discount_pct: 80 } } });
+        const kr = rich.trades[0], kt = thin.trades[0];
+        assert.ok(kr && kt);
+        assert.ok(kr.annual_return_pct >= 10 && kt.annual_return_pct >= 10);
+        assert.ok(kr.strike < kt.strike, `rich ${kr.strike} should be further below than thin ${kt.strike}`); // calmer → closer
+        for (const t of [kr, kt]) assert.ok(t.strike >= 20 - 1e-9 && t.strike <= 70 + 1e-9);
+        // The next strike further down would pay less than the target
+        const none = runBacktest({ bars, market: market(0.15), params: { ...base, strike: { mode: 'yield', target_annual_pct: 30, min_discount_pct: 30, max_discount_pct: 80 } } });
+        assert.equal(none.trades.length, 0);
+        assert.ok(none.summary.skipped.low_return > 0);
+    });
 });

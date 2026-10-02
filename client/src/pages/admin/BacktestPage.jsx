@@ -25,13 +25,14 @@ const DEFAULT_FORM = {
     continuous: false,
     max_open_puts: '', max_units: '',
     min_dte: 400, max_dte: 500, calendar: 'january',
-    strike_mode: 'pct', delta: 0.25, otm_pct: 60, min_discount: 60,
+    strike_mode: 'pct', delta: 0.25, otm_pct: 60, min_discount: 60, max_discount: 80, target_annual: 10,
     min_annual: 0,
     min_put_premium: 0.05,
     max_capital: 70,
-    tp_on: true, tp: 30, after_tp: 'roll', roll_discount: 70, after_expiry: false,
+    tp_on: true, tp: 30, after_tp: 'roll', roll_discount: 70, roll_strike: 'pct', after_expiry: false,
     early_on: false, early_remaining: 10, early_min_days: 180,
     roll_on: false, roll_buffer: 5,
+    assigned_mode: 'calls', recover_pct: 0,
     cc_on: true, cc_dte: 30, cc_mode: 'delta', cc_delta: 0.25, cc_pct: 10, cc_floor: true, cc_tp_on: false, cc_tp: 50, cc_min_premium: 0.05,
     fee: 0.65,
     slippage: 2,
@@ -47,10 +48,10 @@ const MY_ROUTINE = {
     min_annual: 0, min_put_premium: 0.05, max_capital: 100,
     tp_on: true, tp: 80, after_tp: 'none', after_expiry: false,
     early_on: false, roll_on: false,
-    cc_on: true, cc_dte: 35, cc_mode: 'cost_pct', cc_pct: 5, cc_floor: true, cc_tp_on: false, cc_min_premium: 0.01,
+    assigned_mode: 'calls', cc_on: true, cc_dte: 35, cc_mode: 'cost_pct', cc_pct: 5, cc_floor: true, cc_tp_on: false, cc_min_premium: 0.01,
 };
 
-const REASON = { take_profit: 'Take profit', early_close: 'Closed early', rolled: 'Rolled', expired: 'Expired', assigned: 'Assigned', called_away: 'Called away', open: 'Open' };
+const REASON = { sold_at_recovery: 'Sold above cost', take_profit: 'Take profit', early_close: 'Closed early', rolled: 'Rolled', expired: 'Expired', assigned: 'Assigned', called_away: 'Called away', open: 'Open' };
 
 function formToParams(f) {
     const n = (v) => Number(v);
@@ -72,9 +73,10 @@ function formToParams(f) {
             max_units: f.max_units === '' ? null : n(f.max_units),
         },
         expiry: { min_dte: n(f.min_dte), max_dte: n(f.max_dte), calendar: f.calendar },
-        strike: { mode: f.strike_mode, delta: n(f.delta), pct: n(f.otm_pct), min_discount_pct: n(f.min_discount) || 0 },
+        strike: { mode: f.strike_mode, delta: n(f.delta), pct: n(f.otm_pct), min_discount_pct: n(f.min_discount) || 0, max_discount_pct: n(f.max_discount) || 80, target_annual_pct: n(f.target_annual) || 10 },
+        sell_at_recovery: { enabled: f.assigned_mode === 'recover', above_pct: n(f.recover_pct) },
         covered_calls: {
-            enabled: f.cc_on, dte: n(f.cc_dte), mode: f.cc_mode, delta: n(f.cc_delta), pct: n(f.cc_pct),
+            enabled: f.assigned_mode === 'calls', dte: n(f.cc_dte), mode: f.cc_mode, delta: n(f.cc_delta), pct: n(f.cc_pct),
             floor_at_cost: f.cc_floor, take_profit_pct: f.cc_tp_on ? n(f.cc_tp) : null, min_premium: n(f.cc_min_premium),
         },
         min_annual_return_pct: n(f.min_annual),
@@ -84,6 +86,7 @@ function formToParams(f) {
             take_profit_pct: f.tp_on ? n(f.tp) : null,
             after_tp: f.after_tp,
             roll_discount_pct: n(f.roll_discount),
+            roll_strike: f.roll_strike,
             after_expiry: f.after_expiry ? 'reenter' : 'none',
             early_close: { enabled: f.early_on, remaining_pct: n(f.early_remaining), min_days_left: n(f.early_min_days) },
             roll_when_tested: { enabled: f.roll_on, buffer_pct: n(f.roll_buffer) },
@@ -103,12 +106,14 @@ function paramsToForm(p, name = '') {
         continuous: !!p.entry?.continuous?.enabled,
         max_open_puts: p.limits?.max_open_puts ?? '', max_units: p.limits?.max_units ?? '',
         min_dte: p.expiry?.min_dte ?? 400, max_dte: p.expiry?.max_dte ?? 500, calendar: p.expiry?.calendar || 'january',
-        strike_mode: p.strike?.mode || 'delta', delta: p.strike?.delta ?? 0.25, otm_pct: p.strike?.pct ?? 30, min_discount: p.strike?.min_discount_pct ?? 0,
+        strike_mode: p.strike?.mode || 'delta', delta: p.strike?.delta ?? 0.25, otm_pct: p.strike?.pct ?? 30, min_discount: p.strike?.min_discount_pct ?? 0, max_discount: p.strike?.max_discount_pct ?? 80, target_annual: p.strike?.target_annual_pct ?? 10,
+        assigned_mode: p.sell_at_recovery?.enabled ? 'recover' : p.covered_calls?.enabled ? 'calls' : 'hold',
+        recover_pct: p.sell_at_recovery?.above_pct ?? 0,
         cc_on: !!p.covered_calls?.enabled, cc_dte: p.covered_calls?.dte ?? 30, cc_mode: p.covered_calls?.mode || 'delta', cc_delta: p.covered_calls?.delta ?? 0.25,
         cc_pct: p.covered_calls?.pct ?? 10, cc_floor: p.covered_calls?.floor_at_cost ?? true, cc_tp_on: p.covered_calls?.take_profit_pct != null,
         cc_tp: p.covered_calls?.take_profit_pct ?? 50, cc_min_premium: p.covered_calls?.min_premium ?? 0.05,
         min_annual: p.min_annual_return_pct ?? 0, min_put_premium: p.min_put_premium ?? 0, max_capital: p.max_capital_pct ?? 70,
-        tp_on: p.exit?.take_profit_pct != null, tp: p.exit?.take_profit_pct ?? 50, after_tp: p.exit?.after_tp || (p.exit?.reenter_after_tp ? 'reenter' : 'none'), roll_discount: p.exit?.roll_discount_pct ?? 70, after_expiry: p.exit?.after_expiry === 'reenter',
+        tp_on: p.exit?.take_profit_pct != null, tp: p.exit?.take_profit_pct ?? 50, after_tp: p.exit?.after_tp || (p.exit?.reenter_after_tp ? 'reenter' : 'none'), roll_discount: p.exit?.roll_discount_pct ?? 70, roll_strike: p.exit?.roll_strike || 'pct', after_expiry: p.exit?.after_expiry === 'reenter',
         early_on: !!p.exit?.early_close?.enabled, early_remaining: p.exit?.early_close?.remaining_pct ?? 10, early_min_days: p.exit?.early_close?.min_days_left ?? 180,
         roll_on: !!p.exit?.roll_when_tested?.enabled, roll_buffer: p.exit?.roll_when_tested?.buffer_pct ?? 5,
         fee: p.fee_per_contract ?? 0.65, slippage: p.slippage_pct ?? 2,
@@ -267,8 +272,15 @@ function StrategyForm({ form, setForm, onRun, running }) {
                             <label className="flex items-center gap-1"><input type="radio" checked={form.strike_mode === 'pct'} onChange={() => setForm((f) => ({ ...f, strike_mode: 'pct' }))} /> % below price</label>
                             <input type="number" value={form.otm_pct} onChange={set('otm_pct')} disabled={form.strike_mode !== 'pct'} className="w-16 px-2 py-1 border border-gray-300" />
                         </div>
+                        <div className="flex items-center gap-2 flex-wrap text-sm">
+                            <label className="flex items-center gap-1"><input type="radio" checked={form.strike_mode === 'yield'} onChange={() => setForm((f) => ({ ...f, strike_mode: 'yield' }))} /> Furthest strike paying ≥</label>
+                            <input type="number" value={form.target_annual} onChange={set('target_annual')} disabled={form.strike_mode !== 'yield'} className="w-16 px-2 py-1 border border-gray-300" />
+                            <span>% a year, no further than</span>
+                            <input type="number" value={form.max_discount} onChange={set('max_discount')} disabled={form.strike_mode !== 'yield'} className="w-14 px-2 py-1 border border-gray-300" />
+                            <span>% below</span>
+                        </div>
                         <div className="grid grid-cols-2 gap-2">
-                            <Input label="Strike at least % below price" type="number" value={form.min_discount} onChange={set('min_discount')} />
+                            <Input label={form.strike_mode === 'yield' ? 'No closer than % below price' : 'Strike at least % below price'} type="number" value={form.min_discount} onChange={set('min_discount')} />
                             <Input label="Min annual return (%)" type="number" value={form.min_annual} onChange={set('min_annual')} />
                         </div>
                         <Input label="Min premium per share ($, real — skip puts not worth selling)" type="number" step="0.01" value={form.min_put_premium} onChange={set('min_put_premium')} />
@@ -289,9 +301,16 @@ function StrategyForm({ form, setForm, onRun, running }) {
                                 </select>
                                 {form.after_tp === 'roll' && (
                                     <>
-                                        <span>with strike</span>
-                                        <input type="number" value={form.roll_discount} onChange={set('roll_discount')} className="w-14 px-2 py-1 border border-gray-300 text-sm" />
-                                        <span>% below the price then</span>
+                                        <select value={form.roll_strike} onChange={set('roll_strike')} className="px-2 py-1 border border-gray-300 text-sm">
+                                            <option value="entry">strike by the entry rule</option>
+                                            <option value="pct">strike a fixed % below</option>
+                                        </select>
+                                        {form.roll_strike === 'pct' && (
+                                            <>
+                                                <input type="number" value={form.roll_discount} onChange={set('roll_discount')} className="w-14 px-2 py-1 border border-gray-300 text-sm" />
+                                                <span>% below the price then</span>
+                                            </>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -311,11 +330,15 @@ function StrategyForm({ form, setForm, onRun, running }) {
                 </div>
 
                 <div className="border border-gray-100 p-3 space-y-2">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                        <Check label="If assigned: sell covered calls on the shares (the wheel)" checked={form.cc_on} onChange={tog('cc_on')} />
-                        <span className="text-xs text-gray-500">{form.cc_on ? 'Calls are model-priced — real history is loaded for puts only.' : 'Off: assigned shares are simply held.'}</span>
+                    <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm">
+                        <span className="text-xs uppercase tracking-wider text-gray-400">If assigned</span>
+                        <label className="flex items-center gap-1"><input type="radio" checked={form.assigned_mode === 'calls'} onChange={() => setForm((f) => ({ ...f, assigned_mode: 'calls', cc_on: true }))} /> Sell covered calls (the wheel)</label>
+                        <label className="flex items-center gap-1"><input type="radio" checked={form.assigned_mode === 'recover'} onChange={() => setForm((f) => ({ ...f, assigned_mode: 'recover', cc_on: false }))} /> Hold, sell the shares when the price is back above my cost +</label>
+                        <input type="number" value={form.recover_pct} onChange={set('recover_pct')} disabled={form.assigned_mode !== 'recover'} className="w-14 px-2 py-1 border border-gray-300" /><span>%</span>
+                        <label className="flex items-center gap-1"><input type="radio" checked={form.assigned_mode === 'hold'} onChange={() => setForm((f) => ({ ...f, assigned_mode: 'hold', cc_on: false }))} /> Just hold</label>
                     </div>
-                    {form.cc_on && (
+                    {form.assigned_mode === 'calls' && <p className="text-xs text-gray-500">Calls are model-priced — real history is loaded for puts only.</p>}
+                    {form.assigned_mode === 'calls' && (
                         <div className="flex items-center gap-3 flex-wrap text-sm">
                             <span>Expiry ≥</span>
                             <input type="number" value={form.cc_dte} onChange={set('cc_dte')} className="w-16 px-2 py-1 border border-gray-300" /><span>days ·</span>
@@ -458,8 +481,11 @@ function Results({ run }) {
                     )}
                 </Box>
             </div>
+            {s.sold_at_recovery?.times > 0 && (
+                <p className="text-sm text-gray-700">Assigned shares sold once back above cost: <strong>{s.sold_at_recovery.times}×</strong>, {money(s.sold_at_recovery.vs_cost)} vs cost.</p>
+            )}
             {run.stock_events?.length > 0 && (
-                <Box title={`Shares called away (${run.stock_events.length})`}>
+                <Box title={`Assigned shares sold (${run.stock_events.length})`}>
                     <table className="w-full text-sm">
                         <thead><tr className="text-xs uppercase tracking-wider text-gray-400 border-b"><th className="text-left py-1">Date</th><th className="text-right">Shares</th><th className="text-right">Sold at</th><th className="text-right">Price then</th><th className="text-right">Cost basis</th><th className="text-right">vs cost</th></tr></thead>
                         <tbody>
@@ -489,7 +515,7 @@ function Results({ run }) {
                             {trades.map((t) => (
                                 <tr key={t.id} className="border-b border-gray-100">
                                     <td className="py-1 px-2 whitespace-nowrap">{t.opened}</td>
-                                    <td className={`px-2 text-right text-xs font-semibold ${t.type === 'call' ? 'text-blue-700' : 'text-[#0D2654]'}`}>{t.type === 'call' ? 'Call' : 'Put'}</td>
+                                    <td className={`px-2 text-right text-xs font-semibold ${t.type === 'call' ? 'text-blue-700' : t.type === 'stock' ? 'text-purple-700' : 'text-[#0D2654]'}`}>{t.type === 'call' ? 'Call' : t.type === 'stock' ? 'Shares' : 'Put'}</td>
                                     <td className="px-2 text-right text-xs text-gray-500">{t.trigger}</td>
                                     <td className={td}>{t.expiry}</td>
                                     <td className={td}>{px(t.strike)}</td>

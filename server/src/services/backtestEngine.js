@@ -27,8 +27,10 @@ export const DEFAULT_PARAMS = {
     // In real 100-share units: max open puts at once, and max (shares ÷ 100 + open puts). null = no limit.
     limits: { max_open_puts: null, max_units: null },
     expiry: { min_dte: 400, max_dte: 500, calendar: 'january' }, // january | monthly | weekly
-    // delta | pct (percent below the price); min_discount_pct caps the strike at (100 − x)% of the price
-    strike: { mode: 'pct', delta: 0.25, pct: 60, min_discount_pct: 60 },
+    // delta | pct (percent below the price) | yield (the furthest strike, between min_discount_pct and
+    // max_discount_pct below the price, whose premium still pays target_annual_pct a year on the strike);
+    // min_discount_pct caps every mode at (100 − x)% of the price
+    strike: { mode: 'pct', delta: 0.25, pct: 60, min_discount_pct: 60, max_discount_pct: 80, target_annual_pct: 10 },
     min_annual_return_pct: 0,
     // Skip puts paying less than this per real share (split-adjusted prices are scaled back first)
     min_put_premium: 0.05,
@@ -40,6 +42,7 @@ export const DEFAULT_PARAMS = {
         // 'none' = wait for the next entry trigger
         after_tp: 'roll',
         roll_discount_pct: 70,
+        roll_strike: 'pct', // 'pct' = roll_discount_pct below the price then | 'entry' = same rule as new entries
         // When a put expires worthless: 'reenter' = sell the next one the same day by the entry rules
         after_expiry: 'none',
         early_close: { enabled: false, remaining_pct: 10, min_days_left: 180 },
@@ -48,6 +51,9 @@ export const DEFAULT_PARAMS = {
     // After assignment: sell calls on the shares (the wheel). Calls are model-priced.
     // mode: delta | pct (above the current price) | cost_pct (above the assignment cost basis)
     covered_calls: { enabled: true, dte: 30, mode: 'delta', delta: 0.25, pct: 10, floor_at_cost: true, take_profit_pct: null, min_premium: 0.05 },
+    // Alternative to covered calls: hold assigned shares and sell them all once the close is back at or above
+    // the cost basis (+ above_pct). When on, covered calls are not sold.
+    sell_at_recovery: { enabled: false, above_pct: 0 },
     fee_per_contract: 0.65,
     slippage_pct: 2,
 };
@@ -71,6 +77,7 @@ export function mergeParams(p = {}) {
             roll_when_tested: { ...d.exit.roll_when_tested, ...p.exit?.roll_when_tested },
         },
         covered_calls: { ...d.covered_calls, ...p.covered_calls },
+        sell_at_recovery: { ...d.sell_at_recovery, ...p.sell_at_recovery },
     };
 }
 
@@ -241,10 +248,31 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
         const dte = daysBetween(date, expiry);
         const T = dte / 365, r = market.rate(date);
         let K;
-        if (roll) {
+        let yieldQuote = null;
+        if (roll && P.exit.roll_strike !== 'entry') {
             const target = S * (1 - roll.discount_pct / 100);
             K = market.snapStrike(date, expiry, target);
             if (K > target) K = Math.floor(target / strikeStep(target)) * strikeStep(target); // stay at least that far below
+        } else if (P.strike.mode === 'yield') {
+            // Walk up from the furthest allowed strike; the first that pays the target annual return wins
+            const lo = S * (1 - (P.strike.max_discount_pct ?? 80) / 100);
+            const hi = S * (1 - (P.strike.min_discount_pct ?? 0) / 100);
+            const step = strikeStep(lo);
+            const tried = new Set();
+            for (let k = Math.ceil(lo / step) * step; k <= hi + 1e-9 && !yieldQuote; k += step) {
+                const cand = market.snapStrike(date, expiry, k);
+                if (!(cand > 0) || cand < lo - 1e-9 || cand > hi + 1e-9 || tried.has(cand)) continue;
+                tried.add(cand);
+                const q = price(date, i, S, cand, expiry);
+                if (q?.price > 0 && ((q.price * (1 - slip)) / cand) * (365 / dte) * 100 >= (P.strike.target_annual_pct ?? 10)) {
+                    K = cand;
+                    yieldQuote = q;
+                }
+            }
+            if (!yieldQuote) {
+                skipped.low_return++;
+                return false;
+            }
         } else {
             K = P.strike.mode === 'pct'
                 ? S * (1 - P.strike.pct / 100)
@@ -257,7 +285,7 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
             skipped.no_price++;
             return false;
         }
-        const q = price(date, i, S, K, expiry);
+        const q = yieldQuote || price(date, i, S, K, expiry);
         if (!(q?.price > 0)) {
             skipped.no_price++;
             return false;
@@ -381,7 +409,29 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
         // Recovery of assigned shares
         for (const a of assignments) if (!a.recovered_on && S >= a.strike) a.recovered_on = date;
 
-        if (CC.enabled && shares >= 100) sellCoveredCalls(i, date, S);
+        // Assigned shares: sell them once back above cost, or sell covered calls on them
+        const SR = P.sell_at_recovery;
+        // The price received after slippage must reach the target, so a sale is never below cost
+        if (SR.enabled && shares > 0 && S * (1 - slip) >= (shareCost / shares) * (1 + (SR.above_pct || 0) / 100)) {
+            const avgCost = shareCost / shares, avgBasis = shareBasis / shares, sold = shares;
+            const proceeds = S * (1 - slip) * sold;
+            cash += proceeds;
+            stockEvents.push({
+                date, type: 'sold_at_recovery', shares: sold, price: p6(S * (1 - slip)), S: p6(S), cost_basis: p6(avgCost),
+                vs_cost: r2(proceeds - avgCost * sold), vs_assignment: r2(proceeds - avgBasis * sold),
+            });
+            trades.push({
+                id: nextId++, type: 'stock', opened: null, expiry: null, strike: p6(avgCost), contracts: sold / 100, entry_price: p6(avgCost),
+                entry_source: 'assigned', S_entry: p6(avgBasis), trigger: 'assigned_shares', closed: date, close_price: p6(S * (1 - slip)),
+                close_source: 'market', reason: 'sold_at_recovery', S_close: p6(S), pnl: r2(proceeds - avgBasis * sold),
+                cost_basis: p6(avgCost),
+            });
+            shares = 0;
+            shareCost = 0;
+            shareBasis = 0;
+        } else if (!SR.enabled && CC.enabled && shares >= 100) {
+            sellCoveredCalls(i, date, S);
+        }
 
         // 4. Entries
         const triggers = [];
@@ -467,8 +517,10 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
         called_away: stockEvents.length,
         expired: callTrades.filter((t) => t.reason === 'expired').length,
         open: calls.length,
-        realized_vs_cost: r2(stockEvents.reduce((a, e) => a + e.vs_cost, 0)),
+        realized_vs_cost: r2(stockEvents.filter((e) => e.type !== 'sold_at_recovery').reduce((a, e) => a + e.vs_cost, 0)),
     };
+    const recov = stockEvents.filter((e) => e.type === 'sold_at_recovery');
+    out.summary.sold_at_recovery = { times: recov.length, vs_cost: r2(recov.reduce((a, e) => a + e.vs_cost, 0)) };
     out.summary.cost_basis_avg = shares ? r2(shareCost / shares) : null;
     out.stock_events = stockEvents;
     return { params: P, ...out };
@@ -491,7 +543,7 @@ function summarize({ P, equity, trades, assignments, skipped, pricing, maxDD, dd
         byYear.push({ year: y, return_pct: r2(((end - prevEnd) / prevEnd) * 100), max_drawdown_pct: r2(dd * 100), end_equity: r2(end) });
         prevEnd = end;
     }
-    const closed = trades.filter((t) => t.reason !== 'open' && t.type !== 'call');
+    const closed = trades.filter((t) => t.reason !== 'open' && t.type === 'put');
     const wins = closed.filter((t) => t.pnl > 0);
     const util = equity.map((e) => (e.equity > 0 ? e.collateral / e.equity : 0));
     const benchmarks = {};
@@ -516,10 +568,10 @@ function summarize({ P, equity, trades, assignments, skipped, pricing, maxDD, dd
             max_drawdown_from: ddPeakDate,
             max_drawdown_to: ddTroughDate,
             trades: closed.length,
-            open_puts: trades.filter((t) => t.reason === 'open' && t.type !== 'call').length,
+            open_puts: trades.filter((t) => t.reason === 'open' && t.type === 'put').length,
             win_rate_pct: closed.length ? r2((wins.length / closed.length) * 100) : null,
             avg_pnl: closed.length ? r2(closed.reduce((s, t) => s + t.pnl, 0) / closed.length) : null,
-            premium_collected: r2(trades.filter((t) => t.type !== 'call').reduce((s, t) => s + t.entry_price * 100 * t.contracts, 0)),
+            premium_collected: r2(trades.filter((t) => t.type === 'put').reduce((s, t) => s + t.entry_price * 100 * t.contracts, 0)),
             assignments: assignments.length,
             shares_held: shares,
             shares_cost: r2(shareCost),
