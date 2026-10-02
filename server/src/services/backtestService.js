@@ -269,7 +269,7 @@ function calFor(cal, years) {
     return years < SHORT_DATED_YEARS && cal.short?.calibrated ? cal.short : cal;
 }
 
-async function buildMarket(T) {
+export async function buildMarket(T) {
     const [md, real, cal] = await Promise.all([marketData(T), loadRealBars(T), getCalibration(T)]);
     const { hv, rate } = md;
     return {

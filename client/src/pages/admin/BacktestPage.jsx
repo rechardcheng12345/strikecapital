@@ -367,9 +367,9 @@ function StrategyForm({ form, setForm, onRun, running }) {
                 </div>
 
                 <div className="grid lg:grid-cols-3 gap-4">
-                    <div className="space-y-2 border border-gray-100 p-3">
+                    <div className="space-y-2 border border-gray-100 p-3 min-w-0">
                         <p className="text-xs uppercase tracking-wider text-gray-400">When to sell (any that fire)</p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Check label="Monthly ladder on day" checked={form.ladder} onChange={tog('ladder')} />
                             <input type="number" min={1} max={28} value={form.ladder_day} onChange={set('ladder_day')} className="w-16 px-2 py-1 border border-gray-300 text-sm" />
                         </div>
@@ -384,14 +384,14 @@ function StrategyForm({ form, setForm, onRun, running }) {
                         <Check label="Keep selling: a new put whenever the limits allow" checked={form.continuous} onChange={tog('continuous')} />
                         {noEntry && <p className="text-xs text-red-600">Pick at least one.</p>}
                     </div>
-                    <div className="space-y-2 border border-gray-100 p-3">
+                    <div className="space-y-2 border border-gray-100 p-3 min-w-0">
                         <p className="text-xs uppercase tracking-wider text-gray-400">Which put</p>
                         <div className="grid grid-cols-2 gap-2">
                             <Input label="Expiry from (days)" type="number" value={form.min_dte} onChange={set('min_dte')} />
                             <Input label="to (days)" type="number" value={form.max_dte} onChange={set('max_dte')} />
                         </div>
                         <ExpiryTypes form={form} setForm={setForm} />
-                        <div className="flex items-center gap-3 text-sm">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                             <label className="flex items-center gap-1"><input type="radio" checked={form.strike_mode === 'delta'} onChange={() => setForm((f) => ({ ...f, strike_mode: 'delta' }))} /> Delta</label>
                             <input type="number" step="0.01" value={form.delta} onChange={set('delta')} disabled={form.strike_mode !== 'delta'} className="w-20 px-2 py-1 border border-gray-300" />
                             <label className="flex items-center gap-1"><input type="radio" checked={form.strike_mode === 'pct'} onChange={() => setForm((f) => ({ ...f, strike_mode: 'pct' }))} /> % below price</label>
@@ -410,23 +410,23 @@ function StrategyForm({ form, setForm, onRun, running }) {
                         </div>
                         <Input label="Min premium per share ($, real — skip puts not worth selling)" type="number" step="0.01" value={form.min_put_premium} onChange={set('min_put_premium')} />
                     </div>
-                    <div className="space-y-2 border border-gray-100 p-3">
+                    <div className="space-y-2 border border-gray-100 p-3 min-w-0">
                         <p className="text-xs uppercase tracking-wider text-gray-400">Exit</p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Check label="Take profit at" checked={form.tp_on} onChange={tog('tp_on')} />
                             <input type="number" value={form.tp} onChange={set('tp')} disabled={!form.tp_on} className="w-16 px-2 py-1 border border-gray-300 text-sm" /><span className="text-sm">% of premium earned</span>
                         </div>
                         {form.tp_on && (
-                            <div className="pl-6 flex items-center gap-2 text-sm">
+                            <div className="pl-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                                 <span>then</span>
-                                <select value={form.after_tp} onChange={set('after_tp')} className="px-2 py-1 border border-gray-300 text-sm">
+                                <select value={form.after_tp} onChange={set('after_tp')} className="px-2 py-1 border border-gray-300 text-sm max-w-full">
                                     <option value="roll">roll to a later expiry</option>
                                     <option value="reenter">sell a new put at today&apos;s strike rule</option>
                                     <option value="none">wait for the next entry</option>
                                 </select>
                                 {form.after_tp === 'roll' && (
                                     <>
-                                        <select value={form.roll_strike} onChange={set('roll_strike')} className="px-2 py-1 border border-gray-300 text-sm">
+                                        <select value={form.roll_strike} onChange={set('roll_strike')} className="px-2 py-1 border border-gray-300 text-sm max-w-full">
                                             <option value="entry">strike by the entry rule</option>
                                             <option value="pct">strike a fixed % below</option>
                                         </select>
@@ -445,7 +445,7 @@ function StrategyForm({ form, setForm, onRun, running }) {
                             <input type="number" value={form.early_remaining} onChange={set('early_remaining')} disabled={!form.early_on} className="w-14 px-2 py-1 border border-gray-300 text-sm" /><span className="text-sm">% left with ≥</span>
                             <input type="number" value={form.early_min_days} onChange={set('early_min_days')} disabled={!form.early_on} className="w-16 px-2 py-1 border border-gray-300 text-sm" /><span className="text-sm">days to go</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Check label="Roll when price within" checked={form.roll_on} onChange={tog('roll_on')} />
                             <input type="number" value={form.roll_buffer} onChange={set('roll_buffer')} disabled={!form.roll_on} className="w-14 px-2 py-1 border border-gray-300 text-sm" /><span className="text-sm">% of strike</span>
                         </div>
@@ -527,9 +527,9 @@ function EquityChart({ run }) {
                     {realFrom && data.length > 0 && realFrom <= data[data.length - 1].date && (
                         <ReferenceArea x1={data.find((d) => d.date >= realFrom)?.date} x2={data[data.length - 1].date} fill="#16A34A" fillOpacity={0.06} label={{ value: 'real prices', fontSize: 10, fill: '#16A34A', position: 'insideTop' }} />
                     )}
-                    <Line type="monotone" dataKey="equity" name="Strategy" stroke="#F06010" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey={key} name={`Hold ${run.meta?.ticker || TICKER}`} stroke="#0D2654" strokeWidth={1.2} dot={false} strokeOpacity={0.6} />
-                    <Line type="monotone" dataKey="SPY_hold" name="Hold SPY" stroke="#9CA3AF" strokeWidth={1.2} strokeDasharray="5 3" dot={false} />
+                    <Line type="monotone" dataKey="equity" name="Strategy" stroke="#F06010" strokeWidth={2} dot={false} isAnimationActive={false} />
+                    <Line type="monotone" dataKey={key} name={`Hold ${run.meta?.ticker || TICKER}`} stroke="#0D2654" strokeWidth={1.2} dot={false} isAnimationActive={false} strokeOpacity={0.6} />
+                    <Line type="monotone" dataKey="SPY_hold" name="Hold SPY" stroke="#9CA3AF" strokeWidth={1.2} strokeDasharray="5 3" dot={false} isAnimationActive={false} />
                 </LineChart>
             </ResponsiveContainer>
             <p className="text-xs text-gray-500 mt-1">Before {realFrom || 'the shaded area'} option prices come from the calibrated model; inside it, from real daily prices where a contract traded.</p>

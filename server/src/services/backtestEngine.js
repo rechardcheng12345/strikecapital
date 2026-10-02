@@ -49,13 +49,19 @@ export const DEFAULT_PARAMS = {
         after_expiry: 'none',
         early_close: { enabled: false, remaining_pct: 10, min_days_left: 180 },
         roll_when_tested: { enabled: false, buffer_pct: 5 },
+        // Buy the put back once it costs `multiple` × the premium received (2 = lose about one premium)
+        stop_loss: { enabled: false, multiple: 2 },
     },
+    // Only open new puts while the close is at or above its ma_days simple moving average
+    trend_filter: { enabled: false, ma_days: 200 },
     // After assignment: sell calls on the shares (the wheel). Calls are model-priced.
     // mode: delta | pct (above the current price) | cost_pct (above the assignment cost basis)
     covered_calls: { enabled: true, dte: 30, mode: 'delta', delta: 0.25, pct: 10, floor_at_cost: true, take_profit_pct: null, min_premium: 0.05 },
     // Alternative to covered calls: hold assigned shares and sell them all once the close is back at or above
     // the cost basis (+ above_pct). When on, covered calls are not sold.
     sell_at_recovery: { enabled: false, above_pct: 0 },
+    // Sell assigned shares (and buy back any calls on them) once the close is pct below their cost
+    share_stop: { enabled: false, pct: 20 },
     fee_per_contract: 0.65,
     slippage_pct: 2,
 };
@@ -77,7 +83,10 @@ export function mergeParams(p = {}) {
             ...d.exit, ...p.exit,
             early_close: { ...d.exit.early_close, ...p.exit?.early_close },
             roll_when_tested: { ...d.exit.roll_when_tested, ...p.exit?.roll_when_tested },
+            stop_loss: { ...d.exit.stop_loss, ...p.exit?.stop_loss },
         },
+        trend_filter: { ...d.trend_filter, ...p.trend_filter },
+        share_stop: { ...d.share_stop, ...p.share_stop },
         covered_calls: { ...d.covered_calls, ...p.covered_calls },
         sell_at_recovery: { ...d.sell_at_recovery, ...p.sell_at_recovery },
     };
@@ -184,7 +193,7 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
     const trades = [];
     const assignments = [];
     const equity = [];
-    const skipped = { no_expiry: 0, low_return: 0, low_premium: 0, capital: 0, no_price: 0, call_low_premium: 0, limit: 0 };
+    const skipped = { no_expiry: 0, low_return: 0, low_premium: 0, capital: 0, no_price: 0, call_low_premium: 0, limit: 0, trend: 0 };
     const pricing = { real: 0, model: 0 };
     let nextId = 1, lastLadderMonth = null, lastDipEntry = null;
     const inWindowPrev = new Set();
@@ -258,11 +267,25 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
         });
     }
 
+    // Trend filter: below its moving average, no new puts of any kind (entries, re-entries, rolls)
+    function trendOk(i, S) {
+        if (!P.trend_filter.enabled) return true;
+        const n = Math.max(2, P.trend_filter.ma_days);
+        if (i + 1 < n) return true;
+        let sum = 0;
+        for (let j = i - n + 1; j <= i; j++) sum += closesUpTo(j);
+        return S >= sum / n;
+    }
+
     /**
      * Sell a put. Normal entries pick the expiry (latest in the window) and strike by the rules; a roll passes
      * `roll` = { discount_pct, contracts, after }: strike that far below today's price, same size, expiry later than `after`.
      */
     function tryEnter(i, date, S, triggers, forcedExpiry = null, equityNow, roll = null) {
+        if (!trendOk(i, S)) {
+            skipped.trend++;
+            return false;
+        }
         const window = calendar.filter((e) => {
             const dte = daysBetween(date, e);
             return dte >= P.expiry.min_dte && dte <= P.expiry.max_dte && (!roll || e > roll.after);
@@ -418,7 +441,9 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
         for (const pos of [...open]) {
             const tp = P.exit.take_profit_pct;
             const left = daysBetween(date, pos.expiry);
-            if (tp != null && pos.mark <= pos.entry_price * (1 - tp / 100)) {
+            if (P.exit.stop_loss.enabled && pos.mark >= pos.entry_price * P.exit.stop_loss.multiple) {
+                closePut(pos, date, S, 'stop_loss', pos.mark, pos.mark_source);
+            } else if (tp != null && pos.mark <= pos.entry_price * (1 - tp / 100)) {
                 closePut(pos, date, S, 'take_profit', pos.mark, pos.mark_source);
                 const then = afterTp(P.exit);
                 if (then === 'roll') {
@@ -458,6 +483,26 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
             shareBasis = 0;
         } else if (!SR.enabled && CC.enabled && shares >= 100) {
             sellCoveredCalls(i, date, S);
+        }
+        const SS = P.share_stop;
+        if (SS.enabled && shares > 0 && S * (1 - slip) <= (shareCost / shares) * (1 - SS.pct / 100)) {
+            for (const c of [...calls]) closePut(c, date, S, 'share_stop', c.mark, c.mark_source);
+            const avgCost = shareCost / shares, avgBasis = shareBasis / shares, sold = shares;
+            const proceeds = S * (1 - slip) * sold;
+            cash += proceeds;
+            stockEvents.push({
+                date, type: 'share_stop', shares: sold, price: p6(S * (1 - slip)), S: p6(S), cost_basis: p6(avgCost),
+                vs_cost: r2(proceeds - avgCost * sold), vs_assignment: r2(proceeds - avgBasis * sold),
+            });
+            trades.push({
+                id: nextId++, type: 'stock', opened: null, expiry: null, strike: p6(avgCost), contracts: sold / 100, entry_price: p6(avgCost),
+                entry_source: 'assigned', S_entry: p6(avgBasis), trigger: 'assigned_shares', closed: date, close_price: p6(S * (1 - slip)),
+                close_source: 'market', reason: 'share_stop', S_close: p6(S), pnl: r2(proceeds - avgBasis * sold),
+                cost_basis: p6(avgCost),
+            });
+            shares = 0;
+            shareCost = 0;
+            shareBasis = 0;
         }
 
         // 4. Entries
@@ -544,7 +589,7 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
         called_away: stockEvents.length,
         expired: callTrades.filter((t) => t.reason === 'expired').length,
         open: calls.length,
-        realized_vs_cost: r2(stockEvents.filter((e) => e.type !== 'sold_at_recovery').reduce((a, e) => a + e.vs_cost, 0)),
+        realized_vs_cost: r2(stockEvents.filter((e) => !e.type).reduce((a, e) => a + e.vs_cost, 0)),
     };
     const recov = stockEvents.filter((e) => e.type === 'sold_at_recovery');
     out.summary.sold_at_recovery = { times: recov.length, vs_cost: r2(recov.reduce((a, e) => a + e.vs_cost, 0)) };
