@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { bsPut, bsCall } from './bsModel.js';
-import { runBacktest, thirdFriday, expiryCalendar, expiryDates, expiryTypes, daysBetween } from './backtestEngine.js';
+import { runBacktest, thirdFriday, expiryCalendar, expiryDates, expiryTypes, expiryType, daysBetween, createStrategy, newStrategyState, mergeParams } from './backtestEngine.js';
 
 // Weekday bars from `start` for `n` days with a price path f(i)
 function makeBars(start, n, f) {
@@ -305,5 +305,56 @@ describe('backtest engine', () => {
         const a = runBacktest({ bars, market: market(), params: { ...base, expiry: { min_dte: 400, max_dte: 500, calendar: 'monthly' } } });
         const b = runBacktest({ bars, market: market(), params: { ...base, expiry: { min_dte: 400, max_dte: 500, calendars: ['jan', 'month'] } } });
         assert.deepEqual(a.trades.map((t) => t.expiry), b.trades.map((t) => t.expiry));
+    });
+});
+
+describe('live strategy step (Simulation strategy portfolios)', () => {
+    const P = (p) => mergeParams({ size_mode: 'contracts', contracts: 1, starting_cash: 20000, max_capital_pct: 100, slippage_pct: 0, fee_per_contract: 0, entry: { ladder: { enabled: false }, continuous: { enabled: true } }, expiry: { min_dte: 30, max_dte: 45, calendars: ['jan', 'month', 'week'] }, strike: { mode: 'pct', pct: 25, min_discount_pct: 25 }, ...p });
+
+    it('classifies listed expiries like the backtest calendar', () => {
+        assert.equal(expiryType('2027-01-15'), 'jan');
+        assert.equal(expiryType('2026-11-20'), 'month');
+        assert.equal(expiryType('2026-11-06'), 'week');
+        assert.equal(expiryType('2026-11-27'), 'week');
+    });
+
+    it('reports a take profit and the new put in the order they happen, at the quoted price', () => {
+        const bars = makeBars('2026-10-01', 3, () => 100);
+        const i = bars.length - 1, today = bars[i].date;
+        const st = newStrategyState(20000);
+        st.open.push({ id: 7, type: 'put', opened: '2026-09-01', expiry: '2026-10-16', strike: 75, contracts: 1, entry_price: 4, mark: 4, trigger: 'continuous' });
+        st.stepped = true;
+        const quotes = { '2026-10-16|75': 1.5, '2026-11-13|75': 3 };
+        const mkt = { ...market(), snapStrike: (_d, _e, K) => Math.floor(K), optionPrice: (_d, _i, _S, K, e) => ({ price: quotes[`${e}|${K}`] ?? null, source: 'real' }) };
+        const actions = [];
+        const strat = createStrategy({ params: P({ entry: { ladder: { enabled: false }, continuous: { enabled: false } }, exit: { take_profit_pct: 50, after_tp: 'reenter' } }), market: mkt, bars, calendar: ['2026-11-13'], monthly: [], st, onAction: (a) => actions.push(a) });
+        assert.ok(daysBetween(today, '2026-11-13') >= 30 && daysBetween(today, '2026-11-13') <= 45, today);
+        strat.step(i, { settle: false });
+        assert.deepEqual(actions.map((a) => a.kind), ['close_put', 'open_put']);
+        assert.equal(actions[0].pos.id, 7);
+        assert.equal(actions[0].reason, 'take_profit');
+        assert.equal(actions[0].price, 1.5);
+        assert.equal(actions[1].pos.expiry, '2026-11-13');
+        assert.equal(actions[1].pos.strike, 75);
+        assert.equal(actions[1].price, 3);
+        assert.equal(st.open.length, 1);
+        assert.equal(st.cash, 20000 - 150 + 300);
+    });
+
+    it('with settle off, an expired put is left to the Simulation; expiredWorthless re-enters', () => {
+        const bars = makeBars('2026-10-01', 3, () => 100);
+        const i = bars.length - 1;
+        const st = newStrategyState(40000);
+        st.stepped = true;
+        st.open.push({ id: 3, type: 'put', opened: '2026-08-01', expiry: '2026-09-18', strike: 120, contracts: 1, entry_price: 4, mark: 20, trigger: 'ladder' });
+        const mkt = { ...market(), snapStrike: (_d, _e, K) => Math.floor(K), optionPrice: (_d, _i, _S, K) => ({ price: K === 75 ? 3 : null, source: 'real' }) };
+        const actions = [];
+        const params = P({ entry: { ladder: { enabled: true, day: 1 }, continuous: { enabled: false } }, exit: { take_profit_pct: null, after_expiry: 'reenter' } });
+        st.lastLadderMonth = bars[i].date.slice(0, 7); // this month's ladder entry already done
+        const strat = createStrategy({ params, market: mkt, bars, calendar: ['2026-11-13'], monthly: [], st, onAction: (a) => actions.push(a) });
+        strat.step(i, { settle: false, expiredWorthless: 1 });
+        assert.equal(st.shares, 0); // no assignment here: the Simulation settles expiries
+        assert.equal(st.open.filter((x) => x.id === 3).length, 1);
+        assert.deepEqual(actions.map((a) => `${a.kind}:${a.pos.trigger}`), ['open_put:after_expiry']);
     });
 });

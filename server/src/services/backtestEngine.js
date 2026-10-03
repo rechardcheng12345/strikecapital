@@ -117,6 +117,13 @@ export function expiryTypes(expiry = {}) {
     return LEGACY_CALENDARS[expiry.calendar] || ['jan'];
 }
 
+/** A date's expiry type, as expiryDates classifies it: 3rd week of January | 3rd week of another month | other week. */
+export function expiryType(date) {
+    const day = Number(date.slice(8, 10));
+    if (day < 15 || day > 21) return 'week';
+    return date.slice(5, 7) === '01' ? 'jan' : 'month';
+}
+
 /** Every expiry date of the chosen types between the years, ascending. */
 export function expiryDates(fromYear, toYear, types) {
     const set = new Set(types);
@@ -160,44 +167,40 @@ export function expiryCalendar(fromYear, toYear, calendar) {
 
 export const daysBetween = (a, b) => Math.round((new Date(`${b}T00:00:00Z`) - new Date(`${a}T00:00:00Z`)) / DAY);
 
+/** Fresh strategy state: cash plus empty books. Everything a strategy remembers between days lives here. */
+export function newStrategyState(cash) {
+    return {
+        cash,
+        // shareCost: what was paid (strikes) — the cost basis; shareBasis: market value at assignment (P&L basis)
+        shares: 0, shareCost: 0, shareBasis: 0,
+        open: [], // puts: { id, opened, expiry, strike, contracts, entry_price, entry_source, S_entry, dte, trigger, mark, mark_source }
+        calls: [], // covered calls, same shape
+        nextId: 1,
+        lastLadderMonth: null,
+        lastDipEntry: null,
+        inWindowPrev: new Set(), // expiries already inside the window (new-listing trigger)
+        stepped: false,
+        ccPremium: 0,
+        trades: [],
+        assignments: [],
+        stockEvents: [], // shares called away / sold
+        skipped: { no_expiry: 0, low_return: 0, low_premium: 0, capital: 0, no_price: 0, call_low_premium: 0, limit: 0, trend: 0 },
+        pricing: { real: 0, model: 0 },
+    };
+}
+
 /**
- * bars: [{ date, close }] ascending (split-adjusted). market: {
- *   rate(date) → decimal; sigma(i, k) → model vol for moneyness k on bar i;
- *   snapStrike(date, expiry, K) → listed strike nearest K; optionPrice(date, i, S, K, expiry) → { price, source };
- *   callPrice(date, i, S, K, expiry) → { price, source } (covered calls);
- *   contractScale(date) → real contracts per backtest contract (1 / later split ratio; optional, default 1)
- * }. Prices are split-adjusted, so before a split one real contract covers several backtest contracts —
- * fees and the covered-call minimum premium are charged per real contract. bench: { [name]: Map(date → close) } for buy-and-hold comparisons.
+ * One strategy's daily decisions, shared by the backtest (runBacktest replays history through `step`) and
+ * the Simulation's automatic portfolios (simStrategyService rebuilds `st` from a live portfolio and steps
+ * today once). P: merged params. bars: [{ date, close }] — step(i) decides on bars[i] (trend / dip look back).
+ * calendar / monthly: candidate put / covered-call expiries, ascending. onAction(a) hears every trade:
+ * { kind: 'open_put' | 'close_put' | 'open_call' | 'close_call' | 'sell_shares', ... }.
  */
-export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
-    const P = mergeParams(rawParams);
-    const start = P.start || bars[0]?.date, end = P.end || bars[bars.length - 1]?.date;
-    const from = bars.findIndex((b) => b.date >= start);
-    if (from < 0) throw new Error('No price data in the chosen range');
-    const lastIdx = bars.findLastIndex((b) => b.date <= end);
-    const y0 = Number(start.slice(0, 4));
-    const calendar = expiryDates(y0, Number(end.slice(0, 4)) + 3, P.expiry.calendars);
-    // Covered calls are short-dated: weekly expiries if weeklies are allowed, else every month's
-    const monthly = expiryDates(y0, Number(end.slice(0, 4)) + 1, P.expiry.calendars.includes('week') ? ['jan', 'month', 'week'] : ['jan', 'month']);
+export function createStrategy({ params: P, market, bars, calendar, monthly, st, onAction = () => {} }) {
     const CC = P.covered_calls;
     const slip = (P.slippage_pct || 0) / 100;
     const fixedContracts = Math.max(1, Math.round(P.contracts || 1));
-
-    let cash = P.starting_cash;
-    // shareCost: what was paid (strikes) — the cost basis; shareBasis: market value at assignment (P&L basis)
-    let shares = 0, shareCost = 0, shareBasis = 0;
-    const open = []; // puts: { id, opened, expiry, strike, contracts, entry_price, entry_source, S_entry, dte, trigger, mark, mark_source }
-    const calls = []; // covered calls, same shape
-    const stockEvents = []; // called away
-    let ccPremium = 0;
-    const trades = [];
-    const assignments = [];
-    const equity = [];
-    const skipped = { no_expiry: 0, low_return: 0, low_premium: 0, capital: 0, no_price: 0, call_low_premium: 0, limit: 0, trend: 0 };
-    const pricing = { real: 0, model: 0 };
-    let nextId = 1, lastLadderMonth = null, lastDipEntry = null;
-    const inWindowPrev = new Set();
-    let peakEquity = -Infinity, maxDD = 0, ddPeakDate = null, ddTroughDate = null, curPeakDate = null;
+    const { open, calls, trades, assignments, stockEvents, skipped, pricing } = st;
     const closesUpTo = (i) => bars[i].close;
 
     const scale = (date) => market.contractScale?.(date) ?? 1;
@@ -205,6 +208,7 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
     const fee = (n, date = today) => (P.fee_per_contract || 0) * n * scale(date);
     const collateral = () => open.reduce((s, p) => s + p.strike * 100 * p.contracts, 0);
     const liability = () => [...open, ...calls].reduce((s, p) => s + p.mark * 100 * p.contracts, 0);
+    const currentEquity = (S) => st.cash + st.shares * S - liability();
     /** Position limits in real 100-share units (split-adjusted counts scaled back). */
     function withinLimits(date, addContracts) {
         const L = P.limits || {};
@@ -212,7 +216,7 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
         const openPutsReal = real(open.reduce((a, p) => a + p.contracts, 0));
         const addReal = real(addContracts);
         if (L.max_open_puts != null && openPutsReal + addReal > L.max_open_puts + 1e-9) return false;
-        if (L.max_units != null && (shares * scale(date)) / 100 + openPutsReal + addReal > L.max_units + 1e-9) return false;
+        if (L.max_units != null && (st.shares * scale(date)) / 100 + openPutsReal + addReal > L.max_units + 1e-9) return false;
         return true;
     }
     const price = (date, i, S, K, expiry) => {
@@ -224,7 +228,7 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
     function closePut(pos, date, S, how, closePx, source) {
         const n = pos.contracts;
         const cost = closePx * (1 + slip);
-        cash -= cost * 100 * n + fee(n);
+        st.cash -= cost * 100 * n + fee(n);
         const pnl = (pos.entry_price - cost) * 100 * n - fee(n) * 2;
         trades.push({
             ...pos, closed: date, close_price: p6(cost), close_source: source, reason: how, S_close: p6(S),
@@ -232,18 +236,29 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
         });
         const list = pos.type === 'call' ? calls : open;
         list.splice(list.indexOf(pos), 1);
+        onAction({ kind: pos.type === 'call' ? 'close_call' : 'close_put', pos, price: closePx, source, reason: how, S });
+    }
+
+    function closePutAtExpiry(pos, date, S, how) {
+        // No fee at expiry / assignment. An assigned put's result includes the loss of buying the shares at
+        // the strike when they were worth S (the shares then live on in the equity at market value).
+        const n = pos.contracts;
+        const assignmentLoss = how === 'assigned' ? (pos.strike - S) * 100 * n : 0;
+        const pnl = pos.entry_price * 100 * n - fee(n) - assignmentLoss;
+        trades.push({ ...pos, closed: date, close_price: 0, close_source: 'expiry', reason: how, S_close: p6(S), pnl: r2(pnl), days_held: daysBetween(pos.opened, date) });
+        open.splice(open.indexOf(pos), 1);
     }
 
     /** Sell calls on shares not yet covered: expiry ≥ cc.dte days out, strike by delta or % above, never below cost if set. */
     function sellCoveredCalls(i, date, S) {
         const covered = calls.reduce((n, c) => n + c.contracts * 100, 0);
-        const n = Math.floor((shares - covered) / 100);
+        const n = Math.floor((st.shares - covered) / 100);
         if (n < 1) return;
         const expiry = monthly.find((e) => daysBetween(date, e) >= CC.dte);
         if (!expiry) return;
         const dte = daysBetween(date, expiry);
         const T = dte / 365, r = market.rate(date);
-        const avgCost = shares ? shareCost / shares : 0;
+        const avgCost = st.shares ? st.shareCost / st.shares : 0;
         let K = CC.mode === 'cost_pct'
             ? avgCost * (1 + CC.pct / 100)
             : CC.mode === 'pct'
@@ -258,13 +273,15 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
             skipped.call_low_premium++;
             return;
         }
-        cash += premium * 100 * n - fee(n);
-        ccPremium += premium * 100 * n;
-        calls.push({
-            id: nextId++, type: 'call', opened: date, expiry, strike: p6(K), contracts: n, entry_price: p6(premium), entry_source: q.source,
+        st.cash += premium * 100 * n - fee(n);
+        st.ccPremium += premium * 100 * n;
+        const pos = {
+            id: st.nextId++, type: 'call', opened: date, expiry, strike: p6(K), contracts: n, entry_price: p6(premium), entry_source: q.source,
             S_entry: p6(S), dte, trigger: 'covered_call', annual_return_pct: r2((premium / S) * (365 / dte) * 100), mark: q.price, mark_source: q.source,
             cost_basis: p6(avgCost),
-        });
+        };
+        calls.push(pos);
+        onAction({ kind: 'open_call', pos, price: q.price, S });
     }
 
     // Trend filter: below its moving average, no new puts of any kind (entries, re-entries, rolls)
@@ -363,21 +380,48 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
             return false;
         }
         const need = K * 100 * n;
-        const free = cash - collateral() + premium * 100 * n - fee(n);
+        const free = st.cash - collateral() + premium * 100 * n - fee(n);
         if (free < need || collateral() + need > (P.max_capital_pct / 100) * equityNow) {
             skipped.capital++;
             return false;
         }
-        cash += premium * 100 * n - fee(n);
-        open.push({
-            id: nextId++, type: 'put', opened: date, expiry, strike: p6(K), contracts: n, entry_price: p6(premium), entry_source: q.source,
+        st.cash += premium * 100 * n - fee(n);
+        const pos = {
+            id: st.nextId++, type: 'put', opened: date, expiry, strike: p6(K), contracts: n, entry_price: p6(premium), entry_source: q.source,
             S_entry: p6(S), dte, trigger: triggers.join('+'), annual_return_pct: r2(annual), mark: q.price, mark_source: q.source,
             rolled_from: roll?.from ?? null,
-        });
+        };
+        open.push(pos);
+        onAction({ kind: 'open_put', pos, price: q.price, S });
         return true;
     }
 
-    for (let i = from; i <= lastIdx; i++) {
+    /** Sell every assigned share at today's price (after slippage); `type` = 'sold_at_recovery' | 'share_stop'. */
+    function sellAllShares(date, S, type) {
+        const avgCost = st.shareCost / st.shares, avgBasis = st.shareBasis / st.shares, sold = st.shares;
+        const proceeds = S * (1 - slip) * sold;
+        st.cash += proceeds;
+        stockEvents.push({
+            date, type, shares: sold, price: p6(S * (1 - slip)), S: p6(S), cost_basis: p6(avgCost),
+            vs_cost: r2(proceeds - avgCost * sold), vs_assignment: r2(proceeds - avgBasis * sold),
+        });
+        trades.push({
+            id: st.nextId++, type: 'stock', opened: null, expiry: null, strike: p6(avgCost), contracts: sold / 100, entry_price: p6(avgCost),
+            entry_source: 'assigned', S_entry: p6(avgBasis), trigger: 'assigned_shares', closed: date, close_price: p6(S * (1 - slip)),
+            close_source: 'market', reason: type, S_close: p6(S), pnl: r2(proceeds - avgBasis * sold),
+            cost_basis: p6(avgCost),
+        });
+        st.shares = 0;
+        st.shareCost = 0;
+        st.shareBasis = 0;
+        onAction({ kind: 'sell_shares', shares: sold, price: S, reason: type, cost_basis: avgCost, S });
+    }
+
+    /**
+     * Decide one day (bars[i]). settle: settle expiries here (the backtest). The Simulation settles expiries
+     * itself, so the live runner passes settle: false and expiredWorthless = puts that expired since its last run.
+     */
+    function step(i, { settle = true, expiredWorthless = 0 } = {}) {
         const { date, close: S } = bars[i];
         today = date;
 
@@ -397,41 +441,45 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
             }
         }
         // 2. Expiry: assignment below the strike (shares join the wheel), else worthless
-        for (const pos of [...open]) {
-            if (date < pos.expiry) continue;
-            if (S < pos.strike) {
-                const n = pos.contracts;
-                cash -= pos.strike * 100 * n;
-                shareCost += pos.strike * 100 * n;
-                shareBasis += S * 100 * n;
-                shares += 100 * n;
-                assignments.push({ date, strike: pos.strike, shares: 100 * n, S: p6(S), depth_pct: r2(((pos.strike - S) / pos.strike) * 100), recovered_on: null });
-                closePutAtExpiry(pos, date, S, 'assigned');
-            } else {
-                closePutAtExpiry(pos, date, S, 'expired');
-                if (P.exit.after_expiry === 'reenter') tryEnter(i, date, S, ['after_expiry'], null, currentEquity(S));
+        if (settle) {
+            for (const pos of [...open]) {
+                if (date < pos.expiry) continue;
+                if (S < pos.strike) {
+                    const n = pos.contracts;
+                    st.cash -= pos.strike * 100 * n;
+                    st.shareCost += pos.strike * 100 * n;
+                    st.shareBasis += S * 100 * n;
+                    st.shares += 100 * n;
+                    assignments.push({ date, strike: pos.strike, shares: 100 * n, S: p6(S), depth_pct: r2(((pos.strike - S) / pos.strike) * 100), recovered_on: null });
+                    closePutAtExpiry(pos, date, S, 'assigned');
+                } else {
+                    closePutAtExpiry(pos, date, S, 'expired');
+                    if (P.exit.after_expiry === 'reenter') tryEnter(i, date, S, ['after_expiry'], null, currentEquity(S));
+                }
             }
-        }
-        // Covered calls at expiry: called away above the strike, else they expire and the shares stay
-        for (const c of [...calls]) {
-            if (date < c.expiry) continue;
-            const n = c.contracts;
-            if (S > c.strike) {
-                const avgCost = shareCost / shares, avgBasis = shareBasis / shares;
-                cash += c.strike * 100 * n;
-                shares -= 100 * n;
-                shareCost -= avgCost * 100 * n;
-                shareBasis -= avgBasis * 100 * n;
-                stockEvents.push({
-                    date, shares: 100 * n, price: c.strike, S: p6(S), cost_basis: p6(avgCost),
-                    vs_cost: r2((c.strike - avgCost) * 100 * n), vs_assignment: r2((c.strike - avgBasis) * 100 * n),
-                });
-                // Option P&L: premium less the intrinsic value given up (the shares were delivered at the strike)
-                trades.push({ ...c, closed: date, close_price: p6(S - c.strike), close_source: 'expiry', reason: 'called_away', S_close: p6(S), pnl: r2(c.entry_price * 100 * n - fee(n) + (c.strike - avgBasis) * 100 * n), days_held: daysBetween(c.opened, date) });
-            } else {
-                trades.push({ ...c, closed: date, close_price: 0, close_source: 'expiry', reason: 'expired', S_close: p6(S), pnl: r2(c.entry_price * 100 * n - fee(n)), days_held: daysBetween(c.opened, date) });
+            // Covered calls at expiry: called away above the strike, else they expire and the shares stay
+            for (const c of [...calls]) {
+                if (date < c.expiry) continue;
+                const n = c.contracts;
+                if (S > c.strike) {
+                    const avgCost = st.shareCost / st.shares, avgBasis = st.shareBasis / st.shares;
+                    st.cash += c.strike * 100 * n;
+                    st.shares -= 100 * n;
+                    st.shareCost -= avgCost * 100 * n;
+                    st.shareBasis -= avgBasis * 100 * n;
+                    stockEvents.push({
+                        date, shares: 100 * n, price: c.strike, S: p6(S), cost_basis: p6(avgCost),
+                        vs_cost: r2((c.strike - avgCost) * 100 * n), vs_assignment: r2((c.strike - avgBasis) * 100 * n),
+                    });
+                    // Option P&L: premium less the intrinsic value given up (the shares were delivered at the strike)
+                    trades.push({ ...c, closed: date, close_price: p6(S - c.strike), close_source: 'expiry', reason: 'called_away', S_close: p6(S), pnl: r2(c.entry_price * 100 * n - fee(n) + (c.strike - avgBasis) * 100 * n), days_held: daysBetween(c.opened, date) });
+                } else {
+                    trades.push({ ...c, closed: date, close_price: 0, close_source: 'expiry', reason: 'expired', S_close: p6(S), pnl: r2(c.entry_price * 100 * n - fee(n)), days_held: daysBetween(c.opened, date) });
+                }
+                calls.splice(calls.indexOf(c), 1);
             }
-            calls.splice(calls.indexOf(c), 1);
+        } else if (P.exit.after_expiry === 'reenter') {
+            for (let k = 0; k < expiredWorthless; k++) tryEnter(i, date, S, ['after_expiry'], null, currentEquity(S));
         }
         if (CC.take_profit_pct != null) {
             for (const c of [...calls]) if (c.mark <= c.entry_price * (1 - CC.take_profit_pct / 100)) closePut(c, date, S, 'take_profit', c.mark, c.mark_source);
@@ -464,88 +512,91 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
         // Assigned shares: sell them once back above cost, or sell covered calls on them
         const SR = P.sell_at_recovery;
         // The price received after slippage must reach the target, so a sale is never below cost
-        if (SR.enabled && shares > 0 && S * (1 - slip) >= (shareCost / shares) * (1 + (SR.above_pct || 0) / 100)) {
-            const avgCost = shareCost / shares, avgBasis = shareBasis / shares, sold = shares;
-            const proceeds = S * (1 - slip) * sold;
-            cash += proceeds;
-            stockEvents.push({
-                date, type: 'sold_at_recovery', shares: sold, price: p6(S * (1 - slip)), S: p6(S), cost_basis: p6(avgCost),
-                vs_cost: r2(proceeds - avgCost * sold), vs_assignment: r2(proceeds - avgBasis * sold),
-            });
-            trades.push({
-                id: nextId++, type: 'stock', opened: null, expiry: null, strike: p6(avgCost), contracts: sold / 100, entry_price: p6(avgCost),
-                entry_source: 'assigned', S_entry: p6(avgBasis), trigger: 'assigned_shares', closed: date, close_price: p6(S * (1 - slip)),
-                close_source: 'market', reason: 'sold_at_recovery', S_close: p6(S), pnl: r2(proceeds - avgBasis * sold),
-                cost_basis: p6(avgCost),
-            });
-            shares = 0;
-            shareCost = 0;
-            shareBasis = 0;
-        } else if (!SR.enabled && CC.enabled && shares >= 100) {
+        if (SR.enabled && st.shares > 0 && S * (1 - slip) >= (st.shareCost / st.shares) * (1 + (SR.above_pct || 0) / 100)) {
+            sellAllShares(date, S, 'sold_at_recovery');
+        } else if (!SR.enabled && CC.enabled && st.shares >= 100) {
             sellCoveredCalls(i, date, S);
         }
         const SS = P.share_stop;
-        if (SS.enabled && shares > 0 && S * (1 - slip) <= (shareCost / shares) * (1 - SS.pct / 100)) {
+        if (SS.enabled && st.shares > 0 && S * (1 - slip) <= (st.shareCost / st.shares) * (1 - SS.pct / 100)) {
             for (const c of [...calls]) closePut(c, date, S, 'share_stop', c.mark, c.mark_source);
-            const avgCost = shareCost / shares, avgBasis = shareBasis / shares, sold = shares;
-            const proceeds = S * (1 - slip) * sold;
-            cash += proceeds;
-            stockEvents.push({
-                date, type: 'share_stop', shares: sold, price: p6(S * (1 - slip)), S: p6(S), cost_basis: p6(avgCost),
-                vs_cost: r2(proceeds - avgCost * sold), vs_assignment: r2(proceeds - avgBasis * sold),
-            });
-            trades.push({
-                id: nextId++, type: 'stock', opened: null, expiry: null, strike: p6(avgCost), contracts: sold / 100, entry_price: p6(avgCost),
-                entry_source: 'assigned', S_entry: p6(avgBasis), trigger: 'assigned_shares', closed: date, close_price: p6(S * (1 - slip)),
-                close_source: 'market', reason: 'share_stop', S_close: p6(S), pnl: r2(proceeds - avgBasis * sold),
-                cost_basis: p6(avgCost),
-            });
-            shares = 0;
-            shareCost = 0;
-            shareBasis = 0;
+            sellAllShares(date, S, 'share_stop');
         }
 
         // 4. Entries
         const triggers = [];
         let forced = null;
         const ym = date.slice(0, 7);
-        if (P.entry.ladder.enabled && ym !== lastLadderMonth && Number(date.slice(8, 10)) >= P.entry.ladder.day) {
+        if (P.entry.ladder.enabled && ym !== st.lastLadderMonth && Number(date.slice(8, 10)) >= P.entry.ladder.day) {
             triggers.push('ladder');
-            lastLadderMonth = ym;
+            st.lastLadderMonth = ym;
         }
         if (P.entry.listing.enabled) {
             for (const e of calendar) {
                 const dte = daysBetween(date, e);
                 const inW = dte >= P.expiry.min_dte && dte <= P.expiry.max_dte;
-                if (inW && !inWindowPrev.has(e) && i > from) {
+                if (inW && !st.inWindowPrev.has(e) && st.stepped) {
                     triggers.push('new_expiry');
                     forced = e;
                 }
-                if (inW) inWindowPrev.add(e);
-                else inWindowPrev.delete(e);
+                if (inW) st.inWindowPrev.add(e);
+                else st.inWindowPrev.delete(e);
             }
-            if (i === from) for (const e of calendar) {
+            if (!st.stepped) for (const e of calendar) {
                 const dte = daysBetween(date, e);
-                if (dte >= P.expiry.min_dte && dte <= P.expiry.max_dte) inWindowPrev.add(e);
+                if (dte >= P.expiry.min_dte && dte <= P.expiry.max_dte) st.inWindowPrev.add(e);
             }
         }
         if (P.entry.dip.enabled) {
             let high = 0;
             for (let j = Math.max(0, i - 251); j <= i; j++) high = Math.max(high, closesUpTo(j));
-            const cooled = !lastDipEntry || daysBetween(lastDipEntry, date) >= P.entry.dip.cooldown_days;
+            const cooled = !st.lastDipEntry || daysBetween(st.lastDipEntry, date) >= P.entry.dip.cooldown_days;
             if (S <= high * (1 - P.entry.dip.pct / 100) && cooled) triggers.push('dip');
         }
         if (P.entry.continuous.enabled && !triggers.length) triggers.push('continuous');
         if (triggers.length) {
             const ok = tryEnter(i, date, S, triggers, forced, currentEquity(S));
-            if (ok && triggers.includes('dip')) lastDipEntry = date;
+            if (ok && triggers.includes('dip')) st.lastDipEntry = date;
         }
+        st.stepped = true;
+    }
 
+    return { step, currentEquity, collateral, liability, fee };
+}
+
+/**
+ * bars: [{ date, close }] ascending (split-adjusted). market: {
+ *   rate(date) → decimal; sigma(i, k) → model vol for moneyness k on bar i;
+ *   snapStrike(date, expiry, K) → listed strike nearest K; optionPrice(date, i, S, K, expiry) → { price, source };
+ *   callPrice(date, i, S, K, expiry) → { price, source } (covered calls);
+ *   contractScale(date) → real contracts per backtest contract (1 / later split ratio; optional, default 1)
+ * }. Prices are split-adjusted, so before a split one real contract covers several backtest contracts —
+ * fees and the covered-call minimum premium are charged per real contract. bench: { [name]: Map(date → close) } for buy-and-hold comparisons.
+ */
+export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
+    const P = mergeParams(rawParams);
+    const start = P.start || bars[0]?.date, end = P.end || bars[bars.length - 1]?.date;
+    const from = bars.findIndex((b) => b.date >= start);
+    if (from < 0) throw new Error('No price data in the chosen range');
+    const lastIdx = bars.findLastIndex((b) => b.date <= end);
+    const y0 = Number(start.slice(0, 4));
+    const calendar = expiryDates(y0, Number(end.slice(0, 4)) + 3, P.expiry.calendars);
+    // Covered calls are short-dated: weekly expiries if weeklies are allowed, else every month's
+    const monthly = expiryDates(y0, Number(end.slice(0, 4)) + 1, P.expiry.calendars.includes('week') ? ['jan', 'month', 'week'] : ['jan', 'month']);
+
+    const st = newStrategyState(P.starting_cash);
+    const strat = createStrategy({ params: P, market, bars, calendar, monthly, st });
+    const equity = [];
+    let peakEquity = -Infinity, maxDD = 0, ddPeakDate = null, ddTroughDate = null, curPeakDate = null;
+
+    for (let i = from; i <= lastIdx; i++) {
+        strat.step(i);
+        const { date, close: S } = bars[i];
         // 5. Equity
-        const eq = currentEquity(S);
+        const eq = strat.currentEquity(S);
         const row = {
-            date, equity: r2(eq), cash: r2(cash), collateral: r2(collateral()), stock_value: r2(shares * S),
-            option_liability: r2(liability()), open_puts: open.length, open_calls: calls.length,
+            date, equity: r2(eq), cash: r2(st.cash), collateral: r2(strat.collateral()), stock_value: r2(st.shares * S),
+            option_liability: r2(strat.liability()), open_puts: st.open.length, open_calls: st.calls.length,
         };
         for (const [name, map] of Object.entries(bench)) {
             const b0 = map.get(bars[from].date), bt = map.get(date);
@@ -564,28 +615,17 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
         }
     }
 
-    function closePutAtExpiry(pos, date, S, how) {
-        // No fee at expiry / assignment. An assigned put's result includes the loss of buying the shares at
-        // the strike when they were worth S (the shares then live on in the equity at market value).
-        const n = pos.contracts;
-        const assignmentLoss = how === 'assigned' ? (pos.strike - S) * 100 * n : 0;
-        const pnl = pos.entry_price * 100 * n - fee(n) - assignmentLoss;
-        trades.push({ ...pos, closed: date, close_price: 0, close_source: 'expiry', reason: how, S_close: p6(S), pnl: r2(pnl), days_held: daysBetween(pos.opened, date) });
-        open.splice(open.indexOf(pos), 1);
-    }
-    function currentEquity(S) {
-        return cash + shares * S - liability();
-    }
-
     // Still-open puts are reported at their last mark
+    const { trades, assignments, skipped, pricing, stockEvents, calls } = st;
     const lastS = bars[lastIdx].close;
-    for (const pos of [...open, ...calls]) trades.push({ ...pos, closed: null, reason: 'open', close_price: p6(pos.mark), pnl: r2((pos.entry_price - pos.mark) * 100 * pos.contracts - fee(pos.contracts)), days_held: daysBetween(pos.opened, bars[lastIdx].date) });
+    const lastDate = bars[lastIdx].date;
+    for (const pos of [...st.open, ...calls]) trades.push({ ...pos, closed: null, reason: 'open', close_price: p6(pos.mark), pnl: r2((pos.entry_price - pos.mark) * 100 * pos.contracts - strat.fee(pos.contracts, lastDate)), days_held: daysBetween(pos.opened, lastDate) });
 
-    const out = summarize({ P, equity, trades, assignments, skipped, pricing, maxDD, ddPeakDate, ddTroughDate, shares, shareCost, lastS });
+    const out = summarize({ P, equity, trades, assignments, skipped, pricing, maxDD, ddPeakDate, ddTroughDate, shares: st.shares, shareCost: st.shareCost, lastS });
     const callTrades = trades.filter((t) => t.type === 'call');
     out.summary.covered_calls = {
         sold: callTrades.length,
-        premium: r2(ccPremium),
+        premium: r2(st.ccPremium),
         called_away: stockEvents.length,
         expired: callTrades.filter((t) => t.reason === 'expired').length,
         open: calls.length,
@@ -593,7 +633,7 @@ export function runBacktest({ bars, market, params: rawParams, bench = {} }) {
     };
     const recov = stockEvents.filter((e) => e.type === 'sold_at_recovery');
     out.summary.sold_at_recovery = { times: recov.length, vs_cost: r2(recov.reduce((a, e) => a + e.vs_cost, 0)) };
-    out.summary.cost_basis_avg = shares ? r2(shareCost / shares) : null;
+    out.summary.cost_basis_avg = st.shares ? r2(st.shareCost / st.shares) : null;
     out.stock_events = stockEvents;
     return { params: P, ...out };
 }

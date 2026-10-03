@@ -224,6 +224,10 @@ export const simApi = {
     quoteSpread: (data) => api.post('/sim/quote-spread', data),
     openSpreads: (portfolioId, data) => api.post(`/sim/portfolios/${portfolioId}/spreads`, data),
     checkExits: () => api.post('/sim/check-exits', {}),
+    // Automatic strategy portfolios: rules + decision log + backtest over the same days; Run now; run time
+    strategy: (id) => api.get(`/sim/portfolios/${id}/strategy`),
+    runStrategy: (id) => api.post(`/sim/portfolios/${id}/strategy/run`, {}),
+    updateStrategy: (id, data) => api.put(`/sim/portfolios/${id}/strategy`, data),
 };
 // Option Alerts — newly listed puts in a DTE window (admin only)
 export const optionAlertApi = {

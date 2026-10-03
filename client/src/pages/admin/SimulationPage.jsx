@@ -2,51 +2,100 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { FlaskConical, Plus, RefreshCw } from 'lucide-react';
-import { simApi } from '../../api/client';
+import { FlaskConical, Plus, RefreshCw, Bot } from 'lucide-react';
+import { simApi, backtestApi } from '../../api/client';
+import { describeStrategy, sgtRange } from '../../lib/strategyText';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { Button, Input, Modal, Badge, EmptyState, ErrorAlert, SkeletonCard } from '../../components/ui';
 import { EquityChart, money, pct, signColor, OpenTradeModal, LiveBadge } from './simShared';
 
+const EMPTY_FORM = { mode: 'manual', preset_id: '', run_at: '15:30', name: '', description: '', starting_cash: '', fee_per_contract: '', fee_per_stock_trade: '', spread_exit_rule: 'touch' };
+
 function PortfolioFormModal({ isOpen, onClose }) {
     const queryClient = useQueryClient();
-    const [form, setForm] = useState({ name: '', description: '', starting_cash: '', fee_per_contract: '', fee_per_stock_trade: '', spread_exit_rule: 'touch' });
+    const [form, setForm] = useState(EMPTY_FORM);
     const [error, setError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+    const auto = form.mode === 'auto';
+    const { data: presetData, isLoading: presetsLoading } = useApiQuery({ queryKey: ['backtest', 'presets'], queryFn: () => backtestApi.listPresets(), enabled: isOpen && auto });
+    const presets = presetData?.presets || [];
+    const preset = presets.find((x) => String(x.id) === String(form.preset_id));
+    const pickPreset = (e) => {
+        const chosen = presets.find((x) => String(x.id) === e.target.value);
+        setForm((f) => ({
+            ...f, preset_id: e.target.value,
+            name: f.name || chosen?.name || '',
+            starting_cash: f.starting_cash || (chosen?.params?.starting_cash ? String(chosen.params.starting_cash) : ''),
+        }));
+    };
     const submit = async (e) => {
         e.preventDefault();
         setError(null);
         if (!form.name.trim()) return setError('Name is required');
         if (!(Number(form.starting_cash) > 0)) return setError('Starting cash must be greater than 0');
+        if (auto && !preset) return setError('Pick the saved backtest setting to follow');
         setSubmitting(true);
-        const res = await simApi.createPortfolio({
+        const common = {
             name: form.name.trim(),
             ...(form.description ? { description: form.description } : {}),
             starting_cash: Number(form.starting_cash),
-            fee_per_contract: Number(form.fee_per_contract) || 0,
             fee_per_stock_trade: Number(form.fee_per_stock_trade) || 0,
-            spread_exit_rule: form.spread_exit_rule,
-        });
+        };
+        const res = await simApi.createPortfolio(auto
+            ? { ...common, preset_id: preset.id, run_at: form.run_at }
+            : { ...common, fee_per_contract: Number(form.fee_per_contract) || 0, spread_exit_rule: form.spread_exit_rule });
         setSubmitting(false);
         if (res.error) return setError(res.error);
         toast.success(`Portfolio "${res.data.name}" created`);
         queryClient.invalidateQueries({ queryKey: ['sim'] });
-        setForm({ name: '', description: '', starting_cash: '', fee_per_contract: '', fee_per_stock_trade: '', spread_exit_rule: 'touch' });
+        setForm(EMPTY_FORM);
         onClose();
     };
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="New paper portfolio">
             <form onSubmit={submit} className="space-y-4">
                 {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3">{error}</div>}
-                <Input label="Name" value={form.name} onChange={set('name')} placeholder="e.g. 30Δ quant score ≥ 70" />
-                <Input label="Strategy notes" value={form.description} onChange={set('description')} placeholder="What rule does this portfolio follow?" />
-                <Input label="Starting cash ($)" type="number" step="0.01" min={0} value={form.starting_cash} onChange={set('starting_cash')} />
-                <div className="grid grid-cols-2 gap-3">
-                    <Input label="Fee per contract ($)" type="number" step="0.01" min={0} value={form.fee_per_contract} onChange={set('fee_per_contract')} placeholder="commission + platform" />
-                    <Input label="Fee per stock trade ($)" type="number" step="0.01" min={0} value={form.fee_per_stock_trade} onChange={set('fee_per_stock_trade')} />
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                    {[['manual', 'Manual', 'I place the trades myself'], ['auto', 'Automatic', 'Follow a saved backtest setting every trading day']].map(([v, label, hint]) => (
+                        <label key={v} className={`border-2 p-2 cursor-pointer ${form.mode === v ? 'border-[#F06010] bg-orange-50' : 'border-gray-200'}`}>
+                            <span className="flex items-center gap-2 font-semibold text-[#0D2654]"><input type="radio" checked={form.mode === v} onChange={() => setForm((f) => ({ ...f, mode: v }))} /> {label}</span>
+                            <span className="block text-xs text-gray-500 mt-0.5">{hint}</span>
+                        </label>
+                    ))}
                 </div>
-                <div>
+                {auto && (
+                    <div className="space-y-2">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Saved backtest setting</label>
+                            <select value={form.preset_id} onChange={pickPreset} className="block w-full px-3 py-2 border border-gray-300 rounded-lg sm:text-sm">
+                                <option value="">{presetsLoading ? 'Loading…' : presets.length ? 'Choose…' : 'No saved settings — save one on the Backtest page'}</option>
+                                {presets.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                            </select>
+                        </div>
+                        {preset && (
+                            <dl className="text-xs bg-gray-50 border border-gray-200 p-2 space-y-1">
+                                {describeStrategy(preset.params).map((r) => (
+                                    <div key={r.label} className="flex gap-2"><dt className="w-20 shrink-0 text-gray-400">{r.label}</dt><dd className="text-gray-700">{r.text}</dd></div>
+                                ))}
+                            </dl>
+                        )}
+                        <div>
+                            <Input label="Runs every trading day at (New York time)" type="time" value={form.run_at} onChange={set('run_at')} />
+                            <p className="mt-1 text-xs text-gray-500">{sgtRange(form.run_at)}. Uses live Moomoo prices, so the scanner proxy must be running. The fee per contract comes from the setting.</p>
+                        </div>
+                    </div>
+                )}
+                <Input label="Name" value={form.name} onChange={set('name')} placeholder={auto ? 'Defaults to the setting name' : 'e.g. 30Δ quant score ≥ 70'} />
+                <Input label="Strategy notes" value={form.description} onChange={set('description')} placeholder={auto ? 'Optional' : 'What rule does this portfolio follow?'} />
+                <Input label="Starting cash ($)" type="number" step="0.01" min={0} value={form.starting_cash} onChange={set('starting_cash')} />
+                {!auto && (
+                    <div className="grid grid-cols-2 gap-3">
+                        <Input label="Fee per contract ($)" type="number" step="0.01" min={0} value={form.fee_per_contract} onChange={set('fee_per_contract')} placeholder="commission + platform" />
+                        <Input label="Fee per stock trade ($)" type="number" step="0.01" min={0} value={form.fee_per_stock_trade} onChange={set('fee_per_stock_trade')} />
+                    </div>
+                )}
+                {!auto && <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Spread exit rule</label>
                     <select value={form.spread_exit_rule} onChange={set('spread_exit_rule')} className="block w-full px-3 py-2 border border-gray-300 rounded-lg sm:text-sm">
                         <option value="touch">Close when the price touches the short strike</option>
@@ -54,7 +103,7 @@ function PortfolioFormModal({ isOpen, onClose }) {
                         <option value="hold">Hold to expiry</option>
                     </select>
                     <p className="mt-1 text-xs text-gray-500">Checked every minute during US market hours.</p>
-                </div>
+                </div>}
                 <div className="flex justify-end gap-2 pt-2">
                     <Button type="button" variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
                     <Button type="submit" size="sm" loading={submitting}>Create</Button>
@@ -72,7 +121,10 @@ function PortfolioCard({ p }) {
                     <h3 className="font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{p.name}</h3>
                     {p.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{p.description}</p>}
                 </div>
-                {!p.is_active && <Badge variant="gray">Paused</Badge>}
+                <div className="flex gap-1 shrink-0">
+                    {p.strategy_type === 'rules' && <Badge variant="blue"><span className="inline-flex items-center gap-1"><Bot className="w-3 h-3" />Auto</span></Badge>}
+                    {!p.is_active && <Badge variant="gray">Paused</Badge>}
+                </div>
             </div>
             <div className="mt-3 flex items-baseline gap-3">
                 <span className="text-2xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{money(p.total_value)}</span>

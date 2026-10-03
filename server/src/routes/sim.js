@@ -8,6 +8,7 @@ import {
     quotePut, openPut, closePosition, rollPosition, refreshSimulation, markLive,
     quoteSpread, openSpreads, monitorSpreads,
 } from '../services/simService.js';
+import { createStrategyPortfolio, runStrategy, strategyOverview, updateStrategy } from '../services/simStrategyService.js';
 
 // Paper-trading portfolios — admin only, separate from the live fund.
 const router = Router();
@@ -20,8 +21,12 @@ const portfolioSchema = z.object({
     fee_per_contract: z.number().min(0).optional(),
     fee_per_stock_trade: z.number().min(0).optional(),
     spread_exit_rule: z.enum(['touch', 'loss2x', 'hold']).optional(),
+    // Automatic strategy: run this saved backtest setting every trading day
+    preset_id: z.number().int().positive().optional(),
+    run_at: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
 });
-const updatePortfolioSchema = portfolioSchema.partial().extend({ is_active: z.boolean().optional() });
+const updatePortfolioSchema = portfolioSchema.omit({ preset_id: true, run_at: true }).partial().extend({ is_active: z.boolean().optional() });
+const strategySchema = z.object({ run_at: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/) });
 const quoteSchema = z.object({
     ticker: z.string().min(1),
     strike: z.number().positive(),
@@ -85,7 +90,10 @@ router.get('/portfolios', wrap(async (req, res) => {
     const live = await liveMark(req);
     res.json({ portfolios: await listPortfolios(), live });
 }));
-router.post('/portfolios', validate(portfolioSchema), wrap(async (req, res) => res.status(201).json(await createPortfolio(req.body, req.user.id))));
+router.post('/portfolios', validate(portfolioSchema), wrap(async (req, res) => {
+    const create = req.body.preset_id ? createStrategyPortfolio : createPortfolio;
+    res.status(201).json(await create(req.body, req.user.id));
+}));
 router.get('/portfolios/:id', wrap(async (req, res) => {
     const live = await liveMark(req, Number(req.params.id));
     res.json({ ...(await getPortfolio(Number(req.params.id))), live });
@@ -116,6 +124,14 @@ router.post('/check-exits', wrap(async (req, res) => res.json(await monitorSprea
 router.post('/portfolios/:id/positions', validate(openSchema), wrap(async (req, res) => res.status(201).json(await openPut(Number(req.params.id), req.body))));
 router.post('/positions/:id/close', validate(closeSchema), wrap(async (req, res) => res.json(await closePosition(Number(req.params.id), req.body))));
 router.post('/positions/:id/roll', validate(rollSchema), wrap(async (req, res) => res.status(201).json(await rollPosition(Number(req.params.id), req.body))));
+
+// Automatic strategy portfolios: rules + decision log + the backtest over the same days; Run now; run time
+router.get('/portfolios/:id/strategy', wrap(async (req, res) => res.json(await strategyOverview(Number(req.params.id)))));
+router.post('/portfolios/:id/strategy/run', wrap(async (req, res) => res.json(await runStrategy(Number(req.params.id), { trigger: 'manual' }))));
+router.put('/portfolios/:id/strategy', validate(strategySchema), wrap(async (req, res) => {
+    await updateStrategy(Number(req.params.id), req.body);
+    res.json(await strategyOverview(Number(req.params.id)));
+}));
 
 // Mark every open paper position now (also outside market hours), settle expiries, snapshot
 router.post('/refresh', wrap(async (req, res) => res.json(await refreshSimulation({ force: true }))));

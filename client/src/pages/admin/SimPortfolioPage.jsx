@@ -7,6 +7,7 @@ import { simApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { Button, Input, Modal, Badge, ErrorAlert, Skeleton } from '../../components/ui';
 import { EquityChart, Stat, money, pct, signColor, shortDate, OpenTradeModal, LiveBadge, LiveQuote, useLiveQuote } from './simShared';
+import { SimStrategyPanel } from './SimStrategyPanel';
 
 const REASON_LABEL = { bought_to_close: 'Bought to close', expired: 'Expired', assigned: 'Assigned', rolled: 'Rolled', sold: 'Sold', stopped: 'Stopped out', settled: 'Settled' };
 const TX_LABEL = { sell_to_open: 'Sell to open', buy_to_close: 'Buy to close', expired: 'Expired', assigned: 'Assigned', sell_stock: 'Sell stock', settled: 'Settled' };
@@ -277,6 +278,7 @@ export function SimPortfolioPage() {
                 <div>
                     <div className="flex items-center gap-2">
                         <h1 className="text-2xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{p.name}</h1>
+                        {p.strategy_type === 'rules' && <Badge variant="blue">Automatic</Badge>}
                         {!p.is_active && <Badge variant="gray">Paused</Badge>}
                     </div>
                     {p.description && <p className="text-sm text-gray-500">{p.description}</p>}
@@ -301,6 +303,8 @@ export function SimPortfolioPage() {
                 <Stat label="Premium captured" value={pct(s.premium_captured_pct, 1)} sub={s.avg_days_held != null ? `avg ${s.avg_days_held} days held` : null} />
                 {s.wins_per_loss != null && <Stat label="Wins lost per loss" value={s.wins_per_loss.toFixed(1)} sub="one average loss wipes out this many average wins" className={s.wins_per_loss > 10 ? 'text-red-600' : ''} />}
             </div>
+
+            {p.strategy_type === 'rules' && p.rules?.params && <SimStrategyPanel portfolio={p} snapshots={snapshots} />}
 
             <Section title="Value vs SPY (indexed to 100)">
                 <EquityChart series={series} spy={spy} height={260} />

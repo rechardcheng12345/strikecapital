@@ -37,6 +37,7 @@ function normPortfolio(p) {
         fee_per_stock_trade: Number(p.fee_per_stock_trade),
         is_active: !!p.is_active,
         rules: parseJson(p.rules),
+        rules_state: parseJson(p.rules_state),
     };
 }
 function normPosition(p) {
@@ -192,9 +193,11 @@ export async function getPortfolio(id) {
     };
 }
 
-export async function createPortfolio({ name, description, starting_cash, fee_per_contract = 0, fee_per_stock_trade = 0, spread_exit_rule = 'touch' }, userId) {
+/** rules (optional): an automatic strategy — { preset_id, preset_name, ticker, run_at, params } (see simStrategyService). */
+export async function createPortfolio({ name, description, starting_cash, fee_per_contract = 0, fee_per_stock_trade = 0, spread_exit_rule = 'touch', rules = null }, userId) {
     const [id] = await db('sim_portfolios').insert({
         name, description: description || null, starting_cash, fee_per_contract, fee_per_stock_trade, spread_exit_rule, created_by: userId || null,
+        strategy_type: rules ? 'rules' : 'manual', rules: rules ? JSON.stringify(rules) : null,
     });
     await snapshotPortfolio(await loadPortfolio(id), await spyPrice());
     return loadPortfolio(id);
@@ -439,6 +442,36 @@ export async function rollPosition(positionId, input) {
         await t('sim_positions').where({ id: pos.id }).update({ rolled_to_id: next.id });
         return next;
     });
+}
+
+// ─── Automatic strategy portfolios (simStrategyService) ───────
+
+/** A portfolio with every position and its totals (cash = starting cash + ledger). */
+export async function portfolioBook(portfolioId) {
+    const portfolio = await loadPortfolio(portfolioId);
+    const { positions, totals } = await totalsFor(portfolio);
+    return { portfolio, positions, totals };
+}
+
+export async function saveRulesState(portfolioId, state) {
+    await db('sim_portfolios').where({ id: portfolioId }).update({ rules_state: JSON.stringify(state), updated_at: db.fn.now() });
+}
+
+/** Buy a put back at a price the strategy already quoted; `label` says why (take profit, stop loss, …). */
+export async function strategyClosePut(positionId, { price, source = 'mid', label, rolled = false }) {
+    const pos = await loadOpenPosition(positionId);
+    await db.transaction(async (t) => {
+        const p = await loadPortfolio(pos.portfolio_id, t);
+        await closePutRow(t, p, pos, {
+            price, reason: rolled ? 'rolled' : 'bought_to_close',
+            description: `Strategy — ${label}: bought to close ${pos.contracts} ${pos.ticker} ${pos.expiration_date} $${pos.strike}P @ ${price} (${source})`,
+        });
+        await t('sim_positions').where({ id: pos.id }).update({ close_note: label });
+    });
+}
+
+export async function linkRoll(fromId, toId) {
+    await db('sim_positions').where({ id: fromId }).update({ rolled_to_id: toId });
 }
 
 async function settleExpiry(pos, underlying) {

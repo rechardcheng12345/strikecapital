@@ -26,6 +26,7 @@ import backtestRoutes from './routes/backtest.js';
 // Import services
 import { startExpiryAlertJob } from './services/notificationEngine.js';
 import { startSimulationJob } from './services/simService.js';
+import { startStrategyJob } from './services/simStrategyService.js';
 import { startChainRecorder } from './services/backtestService.js';
 const app = express();
 // Create directories if needed
@@ -97,6 +98,7 @@ app.listen(env.port, () => {
     startExpiryAlertJob(60);
     // Paper-trading: mark open positions at the mid, settle expiries, daily snapshots
     startSimulationJob(10);
+    startStrategyJob(5);
     // Backtest data: record each day's real long-dated chain after the close
     startChainRecorder(30);
 });
