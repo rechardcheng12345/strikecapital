@@ -6,7 +6,7 @@
 // it did and why it skipped (sim_strategy_runs).
 import { db } from '../config/database.js';
 import { mergeParams, createStrategy, newStrategyState, expiryType, daysBetween, runBacktest } from './backtestEngine.js';
-import { buildMarket, listPresets, BACKTEST_TICKERS } from './backtestService.js';
+import { buildMarket, listPresets, lastTradeDate, BACKTEST_TICKERS } from './backtestService.js';
 import { fetchPutChainRows, fetchOptionQuotes, fetchStockQuotes } from './priceService.js';
 import { createPortfolio, portfolioBook, saveRulesState, strategyClosePut, linkRoll, openPut, closePosition } from './simService.js';
 import { nyClock, isMarketOpen, quoteMid } from './simMath.js';
@@ -62,19 +62,6 @@ export async function createStrategyPortfolio({ name, description, starting_cash
         fee_per_stock_trade,
         rules: { preset_id: preset.id, preset_name: preset.name, ticker, run_at: run_at || DEFAULT_RUN_AT, params },
     }, userId);
-}
-
-/** The latest trading day Yahoo has for the ticker (New York date) — tells a market holiday from a trading day. */
-async function lastTradeDate(ticker) {
-    try {
-        const resp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`, {
-            headers: { 'User-Agent': 'Mozilla/5.0 StrikeCapital/1.0' }, signal: AbortSignal.timeout(10000),
-        });
-        const t = (await resp.json())?.chart?.result?.[0]?.meta?.regularMarketTime;
-        return t ? nyClock(new Date(t * 1000)).date : null;
-    } catch {
-        return null;
-    }
 }
 
 function describeAction(a, ticker) {

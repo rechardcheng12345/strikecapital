@@ -96,19 +96,34 @@ export function loadStatus(ticker) {
     return jobs.get(checkTicker(ticker)) || null;
 }
 
+// Puts recorded / loaded: 7 days to expiry and further, so short-dated routines (35–40 days, held until
+// take profit) have real prices as their puts age
+const MIN_DAYS = 7, MAX_DAYS = 1300;
+
+/** New York date of the ticker's latest trade on Yahoo — tells a trading day from a market holiday. */
+export async function lastTradeDate(ticker) {
+    try {
+        const t = (await yahooChart(ticker, '5d'))?.meta?.regularMarketTime;
+        return t ? nyClock(new Date(t * 1000)).date : null;
+    } catch {
+        return null;
+    }
+}
+
 /**
- * Load Yahoo's daily history for every put listed today (expiries 30–1300 days out) into bt_option_bars.
- * Runs in the background — poll loadStatus(). Re-running only adds missing days.
+ * Load Yahoo's daily history for every put listed today (expiries 7–1300 days out) into bt_option_bars.
+ * Runs in the background — poll loadStatus(). Re-running only adds missing days. range: how far back to
+ * fetch per contract ('5y' from the button; the daily job uses '1mo' — enough to fill recent days).
  */
-export async function startHistoryLoad(ticker) {
+export async function startHistoryLoad(ticker, { range = '5y', auto = false } = {}) {
     const T = checkTicker(ticker);
     if (jobs.get(T)?.running) return jobs.get(T);
     const job = { running: true, done: 0, total: 0, bars: 0, errors: 0, started_at: new Date().toISOString(), message: 'Listing contracts from Moomoo…' };
     jobs.set(T, job);
     (async () => {
-        const [logId] = await db('bt_data_loads').insert({ ticker: T, kind: 'history', started_at: new Date() });
+        const [logId] = await db('bt_data_loads').insert({ ticker: T, kind: 'history', started_at: new Date(), info: JSON.stringify({ range, auto }) });
         try {
-            const chain = await fetchPutChainRows([T], 30, 1300);
+            const chain = await fetchPutChainRows([T], MIN_DAYS, MAX_DAYS);
             const contracts = (chain.rows || []).map((r) => ({ expiry: r.expiry, strike: Number(r.strike) }));
             job.total = contracts.length;
             job.message = `Loading ${contracts.length} contracts from Yahoo…`;
@@ -118,7 +133,7 @@ export async function startHistoryLoad(ticker) {
                     const ct = contracts[i++];
                     const symbol = occSymbol(T, ct.expiry, ct.strike);
                     try {
-                        const r = await yahooChart(symbol, '5y');
+                        const r = await yahooChart(symbol, range);
                         const q = r?.indicators?.quote?.[0] || {};
                         const rows = [];
                         (r?.timestamp || []).forEach((ts, k) => {
@@ -141,11 +156,11 @@ export async function startHistoryLoad(ticker) {
             };
             await Promise.all(Array.from({ length: 4 }, worker));
             job.message = `Loaded ${job.bars} daily prices for ${job.total} contracts${job.errors ? ` (${job.errors} failed)` : ''}`;
-            await db('bt_data_loads').where({ id: logId }).update({ finished_at: new Date(), contracts: job.total, bars: job.bars, info: JSON.stringify({ errors: job.errors }) });
+            await db('bt_data_loads').where({ id: logId }).update({ finished_at: new Date(), contracts: job.total, bars: job.bars, info: JSON.stringify({ range, auto, errors: job.errors }) });
             calibrationCache.delete(T);
         } catch (err) {
             job.message = `Load failed: ${err.message}`;
-            await db('bt_data_loads').where({ id: logId }).update({ finished_at: new Date(), info: JSON.stringify({ error: err.message }) });
+            await db('bt_data_loads').where({ id: logId }).update({ finished_at: new Date(), info: JSON.stringify({ range, auto, error: err.message }) });
         } finally {
             job.running = false;
             job.finished_at = new Date().toISOString();
@@ -154,11 +169,12 @@ export async function startHistoryLoad(ticker) {
     return job;
 }
 
-/** Save today's end-of-day mids for every listed long-dated put (our own real history, going forward). */
+/** Save today's end-of-day mids for every listed put 7–1300 days out (our own real history, going forward). */
 export async function recordChains(ticker) {
     const T = checkTicker(ticker);
-    const date = nyClock().date;
-    const chain = await fetchPutChainRows([T], 30, 1300);
+    // Dated by the last trading day, so quotes saved on a weekend or holiday aren't filed under a non-trading day
+    const date = (await lastTradeDate(T)) || nyClock().date;
+    const chain = await fetchPutChainRows([T], MIN_DAYS, MAX_DAYS);
     const rows = [];
     for (const r of chain.rows || []) {
         const mid = r.bid > 0 && r.ask > 0 ? (r.bid + r.ask) / 2 : null;
@@ -173,18 +189,35 @@ export async function recordChains(ticker) {
     return { date, recorded: rows.length };
 }
 
+const MAX_DAILY_ATTEMPTS = 3;
 let recorderTimer = null;
-/** After 16:15 New York on weekdays, record each ticker's chain once a day. */
+/**
+ * Once each trading day after 16:15 New York (market holidays skipped): record the chain's end-of-day mids,
+ * then refresh the last month of Yahoo history for every listed put. Failed steps retry on later ticks,
+ * up to MAX_DAILY_ATTEMPTS a day.
+ */
 export function startChainRecorder(intervalMinutes = 30) {
     const tick = async () => {
         const { date, minutes, weekday } = nyClock();
         if (weekday === 'Sat' || weekday === 'Sun' || minutes < 16 * 60 + 15) return;
         for (const T of BACKTEST_TICKERS) {
             try {
-                const done = await db('bt_data_loads').where({ ticker: T, kind: 'record' }).where('started_at', '>=', `${date} 00:00:00`).first();
-                if (!done) await recordChains(T);
+                const today = await db('bt_data_loads').where({ ticker: T }).where('started_at', '>=', `${date} 00:00:00`);
+                const recorded = today.some((r) => r.kind === 'record');
+                const refreshes = today.filter((r) => r.kind === 'history');
+                const refreshed = refreshes.some((r) => r.finished_at && !String(r.info || '').includes('"error"'));
+                if (recorded && (refreshed || refreshes.length >= MAX_DAILY_ATTEMPTS || jobs.get(T)?.running)) continue;
+                if ((await lastTradeDate(T)) !== date) continue; // market holiday — nothing new to save
+                if (!recorded) {
+                    const r = await recordChains(T);
+                    console.log(`[Backtest] ${T}: recorded ${r.recorded} end-of-day prices for ${r.date}`);
+                }
+                if (!refreshed && refreshes.length < MAX_DAILY_ATTEMPTS && !jobs.get(T)?.running) {
+                    await startHistoryLoad(T, { range: '1mo', auto: true });
+                    console.log(`[Backtest] ${T}: daily real-price refresh started`);
+                }
             } catch (err) {
-                console.warn(`[Backtest] recording ${T} failed:`, err.message);
+                console.warn(`[Backtest] daily data update for ${T} failed:`, err.message);
             }
         }
     };

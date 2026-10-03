@@ -99,7 +99,7 @@ app.listen(env.port, () => {
     // Paper-trading: mark open positions at the mid, settle expiries, daily snapshots
     startSimulationJob(10);
     startStrategyJob(5);
-    // Backtest data: record each day's real long-dated chain after the close
+    // Backtest data, each trading day after the close: record the chain's mids, refresh Yahoo's real prices
     startChainRecorder(30);
 });
 export default app;
