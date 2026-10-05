@@ -41,4 +41,9 @@ export const env = {
     ollamaModel: process.env.OLLAMA_MODEL || 'gpt-oss:120b',
     // TypeSafe Jev (scanner context scoring)
     typesafeApiKey: process.env.TYPESAFE_API_KEY || '',
+    // Alpaca market data (backtest: option history since Feb 2024, incl. expired contracts) — free paper account keys
+    alpacaKeyId: process.env.ALPACA_API_KEY_ID || '',
+    alpacaSecretKey: process.env.ALPACA_API_SECRET_KEY || '',
+    alpacaTradingUrl: process.env.ALPACA_TRADING_URL || 'https://paper-api.alpaca.markets',
+    alpacaDataUrl: process.env.ALPACA_DATA_URL || 'https://data.alpaca.markets',
 };

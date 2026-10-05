@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { dataStatus, startHistoryLoad, recordChains, runAndSave, listRuns, getRun, deleteRun, listPresets, savePreset, deletePreset } from '../services/backtestService.js';
+import { dataStatus, startHistoryLoad, startAlpacaLoad, recordChains, runAndSave, listRuns, getRun, deleteRun, listPresets, savePreset, deletePreset } from '../services/backtestService.js';
 
 // Backtesting long-dated cash-secured puts — admin only.
 const router = Router();
@@ -64,6 +64,7 @@ const runSchema = z.object({
             stop_loss: toggle.extend({ multiple: z.number().min(1.1).max(20).optional() }).optional(),
         }).optional(),
         fee_per_contract: z.number().min(0).max(50).optional(),
+        real_only: z.boolean().optional(),
         slippage_pct: z.number().min(0).max(50).optional(),
     }),
 });
@@ -79,6 +80,8 @@ const wrap = (fn) => async (req, res, next) => {
 router.get('/data/:ticker', wrap(async (req, res) => res.json(await dataStatus(req.params.ticker))));
 // Load Yahoo's daily history of every listed long-dated put (runs in the background; poll GET /data/:ticker)
 router.post('/data/:ticker/load', wrap(async (req, res) => res.status(202).json(await startHistoryLoad(req.params.ticker))));
+// Add Alpaca's option history (since Feb 2024, expired contracts too) for days not already stored (background)
+router.post('/data/:ticker/alpaca', wrap(async (req, res) => res.status(202).json(await startAlpacaLoad(req.params.ticker))));
 // Record today's real chain now (the server also does this daily after the close)
 router.post('/data/:ticker/record', wrap(async (req, res) => res.json(await recordChains(req.params.ticker))));
 router.post('/run', validate(runSchema), wrap(async (req, res) => res.status(201).json(await runAndSave(req.body, req.user.id))));

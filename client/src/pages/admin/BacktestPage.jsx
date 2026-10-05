@@ -15,6 +15,7 @@ export const DEFAULT_FORM = {
     name: '',
     start: '2015-01-01',
     end: '',
+    real_only: false,
     starting_cash: 100000,
     size_mode: 'equity_pct',
     size_pct: 10,
@@ -61,6 +62,7 @@ export function formToParams(f) {
     return {
         start: f.start || undefined,
         end: f.end || undefined,
+        real_only: !!f.real_only,
         starting_cash: n(f.starting_cash),
         size_mode: f.size_mode,
         size_pct: n(f.size_pct),
@@ -154,7 +156,7 @@ export function paramsToForm(p, name = '') {
     return {
         ...DEFAULT_FORM,
         name,
-        start: p.start || '', end: p.end || '', starting_cash: p.starting_cash, size_mode: p.size_mode || 'contracts', size_pct: p.size_pct ?? 10, contracts: p.contracts ?? 1,
+        start: p.start || '', end: p.end || '', real_only: !!p.real_only, starting_cash: p.starting_cash, size_mode: p.size_mode || 'contracts', size_pct: p.size_pct ?? 10, contracts: p.contracts ?? 1,
         ladder: !!p.entry?.ladder?.enabled, ladder_day: p.entry?.ladder?.day ?? 1,
         listing: !!p.entry?.listing?.enabled,
         dip: !!p.entry?.dip?.enabled, dip_pct: p.entry?.dip?.pct ?? 30, dip_cooldown: p.entry?.dip?.cooldown_days ?? 30,
@@ -222,6 +224,14 @@ function DataPanel() {
         toast.success('Loading real option prices in the background…');
         refetch();
     };
+    const loadAlpaca = async () => {
+        setBusy(true);
+        const res = await backtestApi.loadAlpaca(TICKER);
+        setBusy(false);
+        if (res.error) return toast.error(res.error);
+        toast.success('Adding missing days from Alpaca in the background…');
+        refetch();
+    };
     const record = async () => {
         const res = await backtestApi.recordToday(TICKER);
         if (res.error) return toast.error(res.error);
@@ -232,10 +242,12 @@ function DataPanel() {
     const cal = data?.calibration;
     const yahoo = data?.sources?.find((s) => s.source === 'yahoo');
     const mids = data?.sources?.find((s) => s.source === 'moomoo_mid');
+    const alpaca = data?.sources?.find((s) => s.source === 'alpaca');
     return (
         <Box title={`Price data — ${TICKER}`} right={(
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={load} loading={busy || job?.running}><Download className="w-4 h-4 mr-1.5" />{yahoo ? 'Refresh real prices' : 'Load real prices'}</Button>
+                <Button variant="outline" size="sm" onClick={loadAlpaca} loading={busy || job?.running} disabled={data && !data.alpaca_configured} title={data && !data.alpaca_configured ? 'Add ALPACA_API_KEY_ID and ALPACA_API_SECRET_KEY to the server .env first' : 'Add option history since Feb 2024 (expired contracts too) for days not already stored — also runs daily after the close'}>Add Alpaca history</Button>
                 <Button variant="ghost" size="sm" onClick={record} title="Save today's Moomoo long-dated chain now (the server also does this after each close)">Record today</Button>
             </div>
         )}>
@@ -254,6 +266,7 @@ function DataPanel() {
                     <p className="text-xs uppercase tracking-wider text-gray-400">Real option prices</p>
                     <p>{yahoo ? `${yahoo.bars.toLocaleString()} daily prices, ${yahoo.contracts} contracts, ${yahoo.first} → ${yahoo.last}` : 'Not loaded yet'}</p>
                     {mids && <p className="text-xs text-gray-500">+ {mids.bars.toLocaleString()} recorded Moomoo mids ({mids.first} → {mids.last})</p>}
+                    {alpaca && <p className="text-xs text-gray-500">+ {alpaca.bars.toLocaleString()} from Alpaca, {alpaca.contracts} contracts incl. expired ({alpaca.first} → {alpaca.last})</p>}
                 </div>
                 <div>
                     <p className="text-xs uppercase tracking-wider text-gray-400">Model calibration</p>
@@ -373,6 +386,14 @@ function StrategyForm({ form, setForm, onRun, running }) {
                     <Input label="From" type="date" value={form.start} onChange={set('start')} />
                     <Input label="To (blank = today)" type="date" value={form.end} onChange={set('end')} />
                     <Input label="Starting cash ($)" type="number" value={form.starting_cash} onChange={set('starting_cash')} />
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <Check
+                        label="Real prices only (Feb 2024 →)"
+                        checked={form.real_only}
+                        onChange={(v) => setForm((f) => ({ ...f, real_only: v, start: v && (!f.start || f.start < '2024-02-01') ? '2024-02-01' : f.start }))}
+                    />
+                    <span className="text-xs text-gray-500">No model prices: puts are sold only on expiries and strikes that actually traded that day, and held puts keep their last traded price.</span>
                 </div>
 
                 <div className="grid lg:grid-cols-3 gap-4">

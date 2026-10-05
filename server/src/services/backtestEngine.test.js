@@ -358,3 +358,16 @@ describe('live strategy step (Simulation strategy portfolios)', () => {
         assert.deepEqual(actions.map((a) => `${a.kind}:${a.pos.trigger}`), ['open_put:after_expiry']);
     });
 });
+
+describe('real-prices-only market (expiriesOn)', () => {
+    it('sells only on expiries the market says traded that day, still filtered by expiry type', () => {
+        const bars = makeBars('2026-10-01', 3, () => 100);
+        const base = { size_mode: 'contracts', contracts: 1, starting_cash: 20000, max_capital_pct: 100, slippage_pct: 0, fee_per_contract: 0, entry: { ladder: { enabled: false }, continuous: { enabled: true } }, strike: { mode: 'pct', pct: 25, min_discount_pct: 25 }, exit: { take_profit_pct: null } };
+        const mkt = { ...market(), expiriesOn: () => ['2026-11-13'], snapStrike: (_d, _e, K) => Math.floor(K), optionPrice: () => ({ price: 2, source: 'real' }) };
+        const weekly = runBacktest({ bars, market: mkt, params: { ...base, expiry: { min_dte: 30, max_dte: 45, calendars: ['week'] } } });
+        assert.equal(weekly.trades.filter((t) => t.type === 'put')[0]?.expiry, '2026-11-13');
+        const monthlyOnly = runBacktest({ bars, market: mkt, params: { ...base, expiry: { min_dte: 30, max_dte: 45, calendars: ['jan', 'month'] } } });
+        assert.equal(monthlyOnly.trades.length, 0); // 13 Nov is a weekly, and it's the only expiry that traded
+        assert.ok(monthlyOnly.summary.skipped.no_expiry > 0);
+    });
+});

@@ -202,6 +202,7 @@ export function createStrategy({ params: P, market, bars, calendar, monthly, st,
     const fixedContracts = Math.max(1, Math.round(P.contracts || 1));
     const { open, calls, trades, assignments, stockEvents, skipped, pricing } = st;
     const closesUpTo = (i) => bars[i].close;
+    const expTypes = new Set(P.expiry.calendars);
 
     const scale = (date) => market.contractScale?.(date) ?? 1;
     let today = null; // current bar date, for per-real-contract fees
@@ -303,7 +304,9 @@ export function createStrategy({ params: P, market, bars, calendar, monthly, st,
             skipped.trend++;
             return false;
         }
-        const window = calendar.filter((e) => {
+        // A market that knows which expiries traded that day (real-prices-only backtests) limits the choice to them
+        const candidates = market.expiriesOn ? market.expiriesOn(date).filter((e) => expTypes.has(expiryType(e))) : calendar;
+        const window = candidates.filter((e) => {
             const dte = daysBetween(date, e);
             return dte >= P.expiry.min_dte && dte <= P.expiry.max_dte && (!roll || e > roll.after);
         });
@@ -569,7 +572,8 @@ export function createStrategy({ params: P, market, bars, calendar, monthly, st,
  *   rate(date) → decimal; sigma(i, k) → model vol for moneyness k on bar i;
  *   snapStrike(date, expiry, K) → listed strike nearest K; optionPrice(date, i, S, K, expiry) → { price, source };
  *   callPrice(date, i, S, K, expiry) → { price, source } (covered calls);
- *   contractScale(date) → real contracts per backtest contract (1 / later split ratio; optional, default 1)
+ *   contractScale(date) → real contracts per backtest contract (1 / later split ratio; optional, default 1);
+ *   expiriesOn(date) → expiries that traded that day (optional — real-prices-only runs sell only those)
  * }. Prices are split-adjusted, so before a split one real contract covers several backtest contracts —
  * fees and the covered-call minimum premium are charged per real contract. bench: { [name]: Map(date → close) } for buy-and-hold comparisons.
  */

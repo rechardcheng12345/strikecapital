@@ -8,6 +8,7 @@ import { nyClock } from './simMath.js';
 import { bsPut, bsCall, histVol } from './bsModel.js';
 import { calibrate, modelSigma, LOOKBACKS } from './backtestCalibration.js';
 import { runBacktest, mergeParams, daysBetween, strikeStep } from './backtestEngine.js';
+import { alpacaConfigured, listPutContracts, dailyBars as alpacaDailyBars, ALPACA_FIRST_DATE } from './alpacaOptions.js';
 
 export const BACKTEST_TICKERS = ['SOXL'];
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
@@ -169,6 +170,85 @@ export async function startHistoryLoad(ticker, { range = '5y', auto = false } = 
     return job;
 }
 
+const addDays = (date, n) => new Date(new Date(`${date}T00:00:00Z`).getTime() + n * 86400000).toISOString().slice(0, 10);
+
+/** The latest Alpaca load that finished without an error. */
+async function lastAlpacaLoad(T) {
+    const rows = await db('bt_data_loads').where({ ticker: T, kind: 'alpaca' }).whereNotNull('finished_at').orderBy('id', 'desc').limit(20);
+    return rows.find((r) => !String(r.info || '').includes('"error"')) || null;
+}
+
+/**
+ * Add Alpaca's daily bars (since Feb 2024, expired contracts included) for days we don't already have from
+ * any source — Yahoo or our Moomoo mids are never replaced. Incremental: contracts that had already expired
+ * at the last successful load are complete and skipped; the rest are fetched from a week before it.
+ * Runs in the background like startHistoryLoad (same job / loadStatus).
+ */
+export async function startAlpacaLoad(ticker, { auto = false } = {}) {
+    const T = checkTicker(ticker);
+    if (!alpacaConfigured()) throw new BtError('Alpaca is not set up: add ALPACA_API_KEY_ID and ALPACA_API_SECRET_KEY to the server .env and restart', 400);
+    if (jobs.get(T)?.running) return jobs.get(T);
+    const job = { running: true, source: 'alpaca', done: 0, total: 0, bars: 0, errors: 0, started_at: new Date().toISOString(), message: 'Listing puts from Alpaca…' };
+    jobs.set(T, job);
+    (async () => {
+        const [logId] = await db('bt_data_loads').insert({ ticker: T, kind: 'alpaca', started_at: new Date(), info: JSON.stringify({ auto }) });
+        try {
+            const today = nyClock().date;
+            const prev = await lastAlpacaLoad(T);
+            const prevDate = prev ? nyClock(new Date(prev.started_at)).date : null;
+            const start = prevDate ? [ALPACA_FIRST_DATE, addDays(prevDate, -7)].sort()[1] : ALPACA_FIRST_DATE;
+            const listed = await listPutContracts(T, ALPACA_FIRST_DATE, addDays(today, 1300));
+            const todo = listed.filter((c) => !prevDate || c.expiry >= prevDate);
+            // Every contract-day already stored, from any source — only the missing ones are added
+            const have = new Set((await db('bt_option_bars').where({ underlying: T }).select('symbol', 'bar_date')).map((r) => `${r.symbol}|${ymd(r.bar_date)}`));
+            job.total = todo.length;
+            job.message = `Adding missing days for ${todo.length} of ${listed.length} contracts from Alpaca (since ${start})…`;
+            let already = 0;
+            for (let b = 0; b < todo.length; b += 100) {
+                const batch = todo.slice(b, b + 100);
+                try {
+                    const bars = await alpacaDailyBars(batch.map((c) => c.symbol), start);
+                    const rows = [];
+                    for (const c of batch) {
+                        const symbol = occSymbol(T, c.expiry, c.strike);
+                        for (const bar of bars.get(c.symbol) || []) {
+                            const key = `${symbol}|${bar.date}`;
+                            if (have.has(key)) {
+                                already++;
+                                continue;
+                            }
+                            have.add(key);
+                            rows.push({ underlying: T, symbol, expiry: c.expiry, strike: c.strike, option_type: 'put', bar_date: bar.date, close: bar.close, volume: bar.volume, source: 'alpaca' });
+                        }
+                    }
+                    for (let s = 0; s < rows.length; s += 500) {
+                        await db('bt_option_bars').insert(rows.slice(s, s + 500)).onConflict(['symbol', 'bar_date', 'source']).ignore();
+                    }
+                    job.bars += rows.length;
+                } catch (err) {
+                    job.errors++;
+                    job.last_error = err.message;
+                    if (/API keys/.test(err.message)) throw err;
+                }
+                job.done += batch.length;
+            }
+            job.message = `Added ${job.bars} new daily prices from Alpaca (${already} days already in the database)${job.errors ? ` · ${job.errors} batch(es) failed: ${job.last_error}` : ''}`;
+            await db('bt_data_loads').where({ id: logId }).update({
+                finished_at: new Date(), contracts: todo.length, bars: job.bars,
+                info: JSON.stringify({ auto, start, listed: listed.length, already_had: already, errors: job.errors, ...(job.errors ? { error: job.last_error } : {}) }),
+            });
+            calibrationCache.delete(T);
+        } catch (err) {
+            job.message = `Alpaca load failed: ${err.message}`;
+            await db('bt_data_loads').where({ id: logId }).update({ finished_at: new Date(), info: JSON.stringify({ auto, error: err.message }) });
+        } finally {
+            job.running = false;
+            job.finished_at = new Date().toISOString();
+        }
+    })();
+    return job;
+}
+
 /** Save today's end-of-day mids for every listed put 7–1300 days out (our own real history, going forward). */
 export async function recordChains(ticker) {
     const T = checkTicker(ticker);
@@ -203,18 +283,26 @@ export function startChainRecorder(intervalMinutes = 30) {
         for (const T of BACKTEST_TICKERS) {
             try {
                 const today = await db('bt_data_loads').where({ ticker: T }).where('started_at', '>=', `${date} 00:00:00`);
+                const ok = (r) => r.finished_at && !String(r.info || '').includes('"error"');
                 const recorded = today.some((r) => r.kind === 'record');
                 const refreshes = today.filter((r) => r.kind === 'history');
-                const refreshed = refreshes.some((r) => r.finished_at && !String(r.info || '').includes('"error"'));
-                if (recorded && (refreshed || refreshes.length >= MAX_DAILY_ATTEMPTS || jobs.get(T)?.running)) continue;
+                const alpacas = today.filter((r) => r.kind === 'alpaca');
+                const needRefresh = !refreshes.some(ok) && refreshes.length < MAX_DAILY_ATTEMPTS;
+                const needAlpaca = alpacaConfigured() && !alpacas.some(ok) && alpacas.length < MAX_DAILY_ATTEMPTS;
+                if (recorded && !needRefresh && !needAlpaca) continue;
+                if (jobs.get(T)?.running) continue; // one background load at a time — next tick
                 if ((await lastTradeDate(T)) !== date) continue; // market holiday — nothing new to save
                 if (!recorded) {
                     const r = await recordChains(T);
                     console.log(`[Backtest] ${T}: recorded ${r.recorded} end-of-day prices for ${r.date}`);
                 }
-                if (!refreshed && refreshes.length < MAX_DAILY_ATTEMPTS && !jobs.get(T)?.running) {
+                // Yahoo first, then Alpaca on a later tick (Alpaca only adds days Yahoo / Moomoo don't have)
+                if (needRefresh) {
                     await startHistoryLoad(T, { range: '1mo', auto: true });
                     console.log(`[Backtest] ${T}: daily real-price refresh started`);
+                } else if (needAlpaca) {
+                    await startAlpacaLoad(T, { auto: true });
+                    console.log(`[Backtest] ${T}: daily Alpaca update started`);
                 }
             } catch (err) {
                 console.warn(`[Backtest] daily data update for ${T} failed:`, err.message);
@@ -302,9 +390,25 @@ function calFor(cal, years) {
     return years < SHORT_DATED_YEARS && cal.short?.calibrated ? cal.short : cal;
 }
 
-export async function buildMarket(T) {
+/**
+ * realOnly: price only from real data (Yahoo / Moomoo / Alpaca) — a put can be sold only on an expiry and strike
+ * that traded that day (nearest listed strike at or below the target); open puts keep their last real price on
+ * days without a trade (the engine keeps the previous mark when there's no price). No model prices at all.
+ */
+export async function buildMarket(T, { realOnly = false } = {}) {
     const [md, real, cal] = await Promise.all([marketData(T), loadRealBars(T), getCalibration(T)]);
     const { hv, rate } = md;
+    let expiriesOn;
+    if (realOnly) {
+        const byDate = new Map(); // date → sorted expiries with a real price that day
+        for (const key of real.strikes.keys()) {
+            const [e, d] = key.split('|');
+            if (!byDate.has(d)) byDate.set(d, []);
+            byDate.get(d).push(e);
+        }
+        for (const list of byDate.values()) list.sort();
+        expiriesOn = (date) => byDate.get(date) || [];
+    }
     return {
         md,
         real,
@@ -317,8 +421,14 @@ export async function buildMarket(T) {
                 const c = calFor(cal, years);
                 return modelSigma(c, hv[c.lookback][i], k);
             },
+            expiriesOn,
             snapStrike(date, expiry, K) {
                 const listed = real.strikes.get(`${expiry}|${date}`);
+                if (realOnly) {
+                    if (!listed?.size) return NaN;
+                    const below = [...listed].filter((k) => k <= K + 1e-9);
+                    return below.length ? Math.max(...below) : NaN;
+                }
                 if (listed?.size) return [...listed].reduce((a, b) => (Math.abs(b - K) < Math.abs(a - K) ? b : a));
                 const step = strikeStep(K);
                 return Math.max(step, Math.round(K / step) * step);
@@ -326,6 +436,7 @@ export async function buildMarket(T) {
             optionPrice(date, i, S, K, expiry) {
                 const realPx = real.prices.get(`${expiry}|${K}|${date}`);
                 if (realPx != null) return { price: realPx, source: 'real' };
+                if (realOnly) return { price: null, source: 'real' };
                 const t = Math.max(0, daysBetween(date, expiry)) / 365;
                 const c = calFor(cal, t);
                 const sigma = modelSigma(c, hv[c.lookback][i], K / S);
@@ -364,6 +475,7 @@ export async function dataStatus(ticker) {
         sources: agg.map((a) => ({ source: a.source, bars: Number(a.bars), contracts: Number(a.contracts), first: ymd(a.first), last: ymd(a.last) })),
         loads: lastLoad.map((l) => ({ ...l, info: l.info ? JSON.parse(l.info) : null })),
         job: jobs.get(T) || null,
+        alpaca_configured: alpacaConfigured(),
         calibration,
     };
 }
@@ -372,7 +484,8 @@ export async function runAndSave({ name, ticker, params }, userId) {
     const T = checkTicker(ticker);
     const P = mergeParams(params);
     if (P.start && P.end && P.start >= P.end) throw new BtError('Start date must be before the end date');
-    const { md, real, cal, market } = await buildMarket(T);
+    if (P.real_only && P.start && P.start < '2024-02-01') throw new BtError('Real prices only: start on or after 2024-02-01 (real option prices begin then)');
+    const { md, real, cal, market } = await buildMarket(T, { realOnly: !!P.real_only });
     const spy = await dailyBars('SPY');
     const bench = {
         [`${T}_hold`]: new Map(md.bars.map((b) => [b.date, b.close])),
