@@ -22,8 +22,8 @@ function JevTickerView({ ai }) {
         ['Damage to business', ai.thesis_break],
     ].filter(([, v]) => v);
     return (
-        <div className="border border-[#0D2654]/10 px-3 py-2 text-xs">
-            <p className="font-semibold text-[#0D2654] mb-1 flex items-center gap-1.5"><Brain className="w-3.5 h-3.5 text-[#F06010]" /> Jev view of {ai.ticker}</p>
+        <div className="border border-ink/10 px-3 py-2 text-xs">
+            <p className="font-semibold text-ink mb-1 flex items-center gap-1.5"><Brain className="w-3.5 h-3.5 text-accent" /> Jev view of {ai.ticker}</p>
             <ul className="space-y-0.5">
                 {rows.map(([k, v]) => (
                     <li key={k} className="flex gap-2">
@@ -77,10 +77,10 @@ export function RollFinderModal({ positionId, isOpen, onClose, onUse }) {
         <Modal isOpen={isOpen} onClose={onClose} title="Roll Finder" size="4xl">
             <div className="space-y-4">
                 {pos && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-[#F5F3EF] p-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-paper p-3">
                         <div>
                             <div className="text-gray-400 uppercase tracking-wider text-[10px]">Current put</div>
-                            <div className="font-semibold text-[#0D2654]">{pos.ticker} {formatCurrency(pos.strike)} · {formatExpiry(pos.expiry)}</div>
+                            <div className="font-semibold text-ink">{pos.ticker} {formatCurrency(pos.strike)} · {formatExpiry(pos.expiry)}</div>
                             <div className="text-gray-500">{pos.dte}d left · {pos.contracts} contract{pos.contracts > 1 ? 's' : ''}</div>
                             {pos.profit_captured_pct != null && (
                                 <div className={pos.profit_captured_pct >= 80 ? 'text-green-700 font-medium' : 'text-gray-500'}>
@@ -90,7 +90,7 @@ export function RollFinderModal({ positionId, isOpen, onClose, onUse }) {
                         </div>
                         <div>
                             <div className="text-gray-400 uppercase tracking-wider text-[10px]">Stock</div>
-                            <div className="font-semibold text-[#0D2654]">{formatCurrency(pos.stock_price)}</div>
+                            <div className="font-semibold text-ink">{formatCurrency(pos.stock_price)}</div>
                             <div className={pos.cushion_pct < 0 ? 'text-red-600' : 'text-gray-500'}>
                                 {pos.cushion_pct < 0 ? `${Math.abs(pos.cushion_pct).toFixed(1)}% ITM` : `${pos.cushion_pct.toFixed(1)}% above strike`}
                             </div>
@@ -135,7 +135,7 @@ export function RollFinderModal({ positionId, isOpen, onClose, onUse }) {
                         <span className="text-gray-500">Max strike drop %</span>
                         <input type="number" min={0} max={50} value={opts.maxStrikeDropPct} onChange={e => setOpts(o => ({ ...o, maxStrikeDropPct: parseFloat(e.target.value) || 0 }))} className="w-20 border border-gray-300 px-2 py-1" />
                     </label>
-                    <button type="button" onClick={load} disabled={loading} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0D2654] text-white font-medium hover:bg-[#0D2654]/90 disabled:opacity-50">
+                    <button type="button" onClick={load} disabled={loading} className="flex items-center gap-1.5 px-3 py-1.5 bg-ink text-white font-medium hover:bg-ink/90 disabled:opacity-50">
                         <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> {loading ? 'Pricing…' : 'Search'}
                     </button>
                     <label className="flex items-center gap-1.5 ml-auto">
@@ -150,9 +150,9 @@ export function RollFinderModal({ positionId, isOpen, onClose, onUse }) {
                 {result && (candidates.length === 0 ? (
                     <p className="text-sm text-gray-500">No {showDebits ? '' : 'net-credit '}rolls in this range. Try a longer DTE or a bigger strike drop.</p>
                 ) : (
-                    <div className="overflow-x-auto max-h-[50vh] overflow-y-auto border border-[#0D2654]/10">
+                    <div className="overflow-x-auto max-h-[50vh] overflow-y-auto border border-ink/10">
                         <table className="w-full text-xs">
-                            <thead className="sticky top-0 bg-[#0D2654] text-white">
+                            <thead className="sticky top-0 bg-ink text-white">
                                 <tr>
                                     <th className="px-2 py-2 text-left" title="Formula roll score">Score</th>
                                     <th className="px-2 py-2 text-left" title="Jev AI rating of this roll">Jev</th>
@@ -166,9 +166,9 @@ export function RollFinderModal({ positionId, isOpen, onClose, onUse }) {
                                     <th className="px-2 py-2"></th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-[#0D2654]/10">
+                            <tbody className="divide-y divide-ink/10">
                                 {candidates.map(c => (
-                                    <tr key={c.option_code} className="hover:bg-[#F5F3EF]">
+                                    <tr key={c.option_code} className="hover:bg-paper">
                                         <td className="px-2 py-2"><span className={scoreColor(c.roll_score)}>{c.roll_score}</span></td>
                                         <td className="px-2 py-2 whitespace-nowrap" title={c.jev ? `${c.jev.label} · confidence ${c.jev.confidence?.toFixed(2)}\n\nJev read:\n• ${(c.jev.inputs || []).join('\n• ')}` : ''}>
                                             {c.jev ? (
@@ -179,7 +179,7 @@ export function RollFinderModal({ positionId, isOpen, onClose, onUse }) {
                                             ) : <span className="text-gray-400">—</span>}
                                         </td>
                                         <td className="px-2 py-2 whitespace-nowrap">
-                                            <div className="font-semibold text-[#0D2654]">{formatCurrency(c.strike)} · {formatExpiry(c.expiry)}</div>
+                                            <div className="font-semibold text-ink">{formatCurrency(c.strike)} · {formatExpiry(c.expiry)}</div>
                                             <div className="text-gray-500">{c.days_to_expiry}d (+{c.extra_days}d) · bid {formatCurrency(c.bid)}</div>
                                         </td>
                                         <td className={`px-2 py-2 text-right font-semibold ${c.net_credit >= 0 ? 'text-green-700' : 'text-red-600'}`}>{formatCurrency(c.net_credit)}</td>
@@ -205,7 +205,7 @@ export function RollFinderModal({ positionId, isOpen, onClose, onUse }) {
                                             </div>
                                         </td>
                                         <td className="px-2 py-2 text-right">
-                                            <button type="button" onClick={() => onUse(c, result)} className="px-2 py-1 bg-[#F06010] text-white font-medium hover:bg-[#F06010]/90">
+                                            <button type="button" onClick={() => onUse(c, result)} className="px-2 py-1 bg-accent text-white font-medium hover:bg-accent/90">
                                                 Use
                                             </button>
                                         </td>

@@ -27,14 +27,14 @@ export function RollWatchCard() {
     const attention = positions.filter(p => p.needs_attention).length;
 
     return (
-        <div className="border-2 border-[#0D2654]/20 bg-white p-5">
+        <div className="border border-line bg-white p-5">
             <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider flex items-center gap-2">
-                    <Repeat className="w-4 h-4 text-[#F06010]" />
+                <h2 className="text-sm font-semibold text-ink uppercase tracking-wider flex items-center gap-2">
+                    <Repeat className="w-4 h-4 text-accent" />
                     Roll Watch
-                    {attention > 0 && <span className="px-1.5 py-0.5 text-[10px] bg-[#F06010] text-white normal-case tracking-normal">{attention} need attention</span>}
+                    {attention > 0 && <span className="px-1.5 py-0.5 text-[10px] bg-accent text-white normal-case tracking-normal">{attention} need attention</span>}
                 </h2>
-                <button type="button" onClick={() => refetch()} className="text-gray-400 hover:text-[#0D2654]" title="Refresh">
+                <button type="button" onClick={() => refetch()} className="text-gray-400 hover:text-ink" title="Refresh">
                     <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
                 </button>
             </div>
@@ -46,7 +46,7 @@ export function RollWatchCard() {
                 <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                         <thead>
-                            <tr className="text-left text-gray-500 border-b border-[#0D2654]/10">
+                            <tr className="text-left text-gray-500 border-b border-ink/10">
                                 <th className="py-1.5 pr-3 font-medium">Position</th>
                                 <th className="py-1.5 pr-3 font-medium text-right">DTE</th>
                                 <th className="py-1.5 pr-3 font-medium text-right">Stock / cushion</th>
@@ -55,11 +55,11 @@ export function RollWatchCard() {
                                 <th className="py-1.5"></th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#0D2654]/5">
+                        <tbody className="divide-y divide-ink/5">
                             {positions.map(p => (
                                 <tr key={p.id}>
                                     <td className="py-2 pr-3 whitespace-nowrap">
-                                        <button type="button" onClick={() => navigate(`/admin/positions/${p.id}`)} className="font-semibold text-[#0D2654] hover:text-[#F06010]">
+                                        <button type="button" onClick={() => navigate(`/admin/positions/${p.id}`)} className="font-semibold text-ink hover:text-accent">
                                             {p.ticker} {formatCurrency(p.strike)}P
                                         </button>
                                         <span className="text-gray-400"> · {formatExpiry(p.expiry)}{p.contracts > 1 ? ` · ×${p.contracts}` : ''}</span>
@@ -69,7 +69,7 @@ export function RollWatchCard() {
                                         {p.stock_price != null ? formatCurrency(p.stock_price) : '—'}
                                         {p.cushion_pct != null && <span className={p.cushion_pct < 5 ? 'text-red-600' : 'text-gray-400'}> · {p.cushion_pct.toFixed(1)}%</span>}
                                     </td>
-                                    <td className={`py-2 pr-3 text-right font-medium ${p.profit_captured_pct == null ? 'text-gray-400' : p.profit_captured_pct >= 80 ? 'text-green-600' : p.profit_captured_pct < 0 ? 'text-red-600' : 'text-[#0D2654]'}`}>
+                                    <td className={`py-2 pr-3 text-right font-medium ${p.profit_captured_pct == null ? 'text-gray-400' : p.profit_captured_pct >= 80 ? 'text-green-600' : p.profit_captured_pct < 0 ? 'text-red-600' : 'text-ink'}`}>
                                         {p.profit_captured_pct != null ? `${p.profit_captured_pct.toFixed(1)}%` : '—'}
                                     </td>
                                     <td className="py-2 pr-3">
@@ -84,7 +84,7 @@ export function RollWatchCard() {
                                         </div>
                                     </td>
                                     <td className="py-2 text-right">
-                                        <button type="button" onClick={() => setOpenId(p.id)} className="px-2 py-1 border border-[#0D2654]/20 text-[#0D2654] font-medium hover:border-[#F06010] hover:text-[#F06010] whitespace-nowrap">
+                                        <button type="button" onClick={() => setOpenId(p.id)} className="px-2 py-1 border border-line text-ink font-medium hover:border-accent hover:text-accent whitespace-nowrap">
                                             Find rolls
                                         </button>
                                     </td>

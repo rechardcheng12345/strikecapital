@@ -58,8 +58,8 @@ function PortfolioFormModal({ isOpen, onClose }) {
                 {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3">{error}</div>}
                 <div className="grid grid-cols-2 gap-2 text-sm">
                     {[['manual', 'Manual', 'I place the trades myself'], ['auto', 'Automatic', 'Follow a saved backtest setting every trading day']].map(([v, label, hint]) => (
-                        <label key={v} className={`border-2 p-2 cursor-pointer ${form.mode === v ? 'border-[#F06010] bg-orange-50' : 'border-gray-200'}`}>
-                            <span className="flex items-center gap-2 font-semibold text-[#0D2654]"><input type="radio" checked={form.mode === v} onChange={() => setForm((f) => ({ ...f, mode: v }))} /> {label}</span>
+                        <label key={v} className={`border p-2 cursor-pointer ${form.mode === v ? 'border-accent bg-orange-50' : 'border-gray-200'}`}>
+                            <span className="flex items-center gap-2 font-semibold text-ink"><input type="radio" checked={form.mode === v} onChange={() => setForm((f) => ({ ...f, mode: v }))} /> {label}</span>
                             <span className="block text-xs text-gray-500 mt-0.5">{hint}</span>
                         </label>
                     ))}
@@ -115,10 +115,10 @@ function PortfolioFormModal({ isOpen, onClose }) {
 
 function PortfolioCard({ p }) {
     return (
-        <Link to={`/admin/simulation/${p.id}`} className="block bg-white border-2 border-[#0D2654]/10 hover:border-[#F06010] transition-colors p-4">
+        <Link to={`/admin/simulation/${p.id}`} className="block bg-white border border-ink/10 hover:border-accent transition-colors p-4">
             <div className="flex items-start justify-between gap-2">
                 <div>
-                    <h3 className="font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{p.name}</h3>
+                    <h3 className="font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{p.name}</h3>
                     {p.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{p.description}</p>}
                 </div>
                 <div className="flex gap-1 shrink-0">
@@ -127,7 +127,7 @@ function PortfolioCard({ p }) {
                 </div>
             </div>
             <div className="mt-3 flex items-baseline gap-3">
-                <span className="text-2xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{money(p.total_value)}</span>
+                <span className="text-2xl font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{money(p.total_value)}</span>
                 <span className={`text-sm font-semibold ${signColor(p.total_return_pct)}`}>{p.total_return_pct > 0 ? '+' : ''}{pct(p.total_return_pct)}</span>
             </div>
             <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
@@ -171,7 +171,7 @@ export function SimulationPage() {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Simulation</h1>
+                    <h1 className="text-2xl font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Simulation</h1>
                     <p className="text-sm text-gray-500">Paper-trade strategies at the live Moomoo bid/ask mid. Nothing here touches the live fund.</p>
                     <LiveBadge live={data?.live} fetching={isFetching} />
                 </div>
@@ -196,8 +196,8 @@ export function SimulationPage() {
 
             {portfolios.length > 0 && (
                 <>
-                    <section className="bg-white border-2 border-[#0D2654]/10 p-4">
-                        <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider mb-1">Performance (indexed to 100)</h2>
+                    <section className="bg-white border border-ink/10 p-4">
+                        <h2 className="text-sm font-semibold text-ink uppercase tracking-wider mb-1">Performance (indexed to 100)</h2>
                         <p className="text-xs text-gray-500 mb-3">Each line starts at 100 so portfolios with different starting cash compare fairly. SPY dashed.</p>
                         <EquityChart series={series} spy={spy} />
                     </section>

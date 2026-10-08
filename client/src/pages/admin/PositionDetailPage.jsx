@@ -12,7 +12,8 @@ import { Button, Input, Card, CardHeader, CardBody, Badge, Modal, ErrorAlert, Sk
 function formatCurrency(value) {
     if (value == null)
         return '--';
-    return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const n = Number(value);
+    return (n < 0 ? '−' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function formatPercent(value) {
     if (value == null)
@@ -38,26 +39,20 @@ function statusBadgeVariant(status) {
     };
     return map[status] ?? 'gray';
 }
-function RiskMetric({ label, value, icon, highlight }) {
-    return (<div className={`rounded-none border-2 p-4 transition-all duration-150 ${highlight
-            ? 'border-[#F06010] bg-[#F06010]/5'
-            : 'border-[#0D2654]/15 bg-white hover:border-[#0D2654]/30'}`}>
-      <div className="flex items-center gap-2 mb-2">
-        <div className={`p-1.5 rounded-none ${highlight ? 'bg-[#F06010]/10 text-[#F06010]' : 'bg-[#0D2654]/5 text-[#0D2654]'}`}>
-          {icon}
-        </div>
-        <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">{label}</span>
-      </div>
-      <p className="text-lg font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+/** One cell of the hairline metrics ledger; `highlight` tints the figure, never the cell. */
+function RiskMetric({ label, value, highlight, tone }) {
+    return (<div className="p-5 -mt-px -ml-px border-t border-l border-line">
+      <span className="block min-h-[2.6em] text-[11px] leading-[1.3] font-medium uppercase tracking-eyebrow text-muted">{label}</span>
+      <div className={`mt-1 font-display text-[22px] leading-none ${tone || (highlight ? 'text-accent' : 'text-ink')}`}>
         {value}
-      </p>
+      </div>
     </div>);
 }
 // ─── Detail Row ───────────────────────────────────────
 function DetailRow({ label, value }) {
     return (<div className="flex flex-col gap-0.5">
-      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">{label}</span>
-      <span className="text-sm font-medium text-[#0D2654]">{value ?? '--'}</span>
+      <span className="text-[11px] font-medium uppercase tracking-eyebrow text-muted">{label}</span>
+      <span className="text-[14.5px] text-ink">{value ?? '—'}</span>
     </div>);
 }
 // ─── Loading Skeleton ─────────────────────────────────
@@ -68,12 +63,12 @@ function DetailSkeleton() {
         <Skeleton variant="text" width="40%" height={32}/>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {Array.from({ length: 6 }).map((_, i) => (<div key={i} className="rounded-none border-2 border-gray-200 bg-white p-4 space-y-2">
+        {Array.from({ length: 6 }).map((_, i) => (<div key={i} className="rounded-none border border-gray-200 bg-white p-4 space-y-2">
             <Skeleton variant="text" width="60%" height={12}/>
             <Skeleton variant="text" width="80%" height={22}/>
           </div>))}
       </div>
-      <div className="rounded-none border-2 border-gray-200 bg-white p-6 space-y-4">
+      <div className="rounded-none border border-gray-200 bg-white p-6 space-y-4">
         <Skeleton variant="text" width="30%" height={20}/>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {Array.from({ length: 9 }).map((_, i) => (<div key={i} className="space-y-1">
@@ -252,9 +247,9 @@ export function PositionDetailPage() {
     // ─── Render ───────────────────────────────────────
     return (<div>
       {/* Back button */}
-      <button onClick={() => navigate(backPath)} className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0D2654]/60 hover:text-[#0D2654] transition-colors mb-4">
+      <button onClick={() => navigate(backPath)} className="inline-flex items-center gap-1.5 text-sm font-medium text-ink/60 hover:text-ink transition-colors mb-4">
         <ArrowLeft className="w-4 h-4"/>
-        Back to Positions
+        Positions
       </button>
 
       {isError && (<div className="mb-6">
@@ -265,12 +260,12 @@ export function PositionDetailPage() {
 
       {position && (<div className="space-y-6">
           {/* ─── Header ────────────────────────────────── */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="font-display text-[34px] md:text-[42px] leading-[1.05] text-ink">
                 {position.position_type === 'stock'
-                ? `${position.ticker} Stock`
-                : `${position.ticker} $${parseFloat(position.strike_price).toFixed(2)}P`}
+                ? <>{position.ticker} <span className="!font-light text-ink/60">shares</span></>
+                : <>{String(position.ticker).replace(/ PUT$/i, '')} <span className="!font-light text-ink/60">${Number(position.strike_price).toFixed(Number(position.strike_price) % 1 ? 2 : 0)} put</span></>}
               </h1>
               <Badge variant={statusBadgeVariant(position.status)}>
                 {POSITION_STATUS[position.status]?.label ?? position.status}
@@ -317,7 +312,7 @@ export function PositionDetailPage() {
                 <Edit3 className="w-4 h-4 mr-1.5"/>
                 Edit
               </Button>
-              <Button variant="danger" size="sm" onClick={() => {
+              <Button variant="ghost" size="sm" className="text-red-700 hover:bg-red-50" onClick={() => {
                     setActionError(null);
                     setDeleteOpen(true);
                 }}>
@@ -336,7 +331,7 @@ export function PositionDetailPage() {
           {refreshLog && (
             <Card className="rounded-none">
               <CardHeader className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                <h3 className="text-sm font-semibold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                   Price Refresh Log
                 </h3>
                 <button onClick={() => setRefreshLog(null)} className="text-gray-400 hover:text-gray-600 text-xs">
@@ -400,39 +395,36 @@ export function PositionDetailPage() {
           )}
 
           {/* ─── Risk Metrics Strip ────────────────────── */}
-          <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 ${position.position_type === 'stock' ? 'lg:grid-cols-6' : 'lg:grid-cols-7'}`}>
+          <div className={`grid grid-cols-2 md:grid-cols-4 bg-white border border-line overflow-hidden ${position.position_type === 'stock' ? 'lg:grid-cols-6' : 'lg:grid-cols-7'}`}>
             {position.position_type === 'stock' ? (<>
-                <RiskMetric label="Shares" value={position.shares?.toLocaleString() || '--'} icon={<DollarSign className="w-4 h-4"/>}/>
-                <RiskMetric label="Cost Basis" value={formatCurrency(position.cost_basis)} icon={<Target className="w-4 h-4"/>}/>
-                <RiskMetric label="Current Price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'} icon={<DollarSign className="w-4 h-4"/>}/>
-                <RiskMetric label="Collateral" value={formatCurrency(position.collateral)} icon={<Shield className="w-4 h-4"/>}/>
-                <RiskMetric label="Break-Even" value={formatCurrency(position.break_even)} icon={<Target className="w-4 h-4"/>}/>
+                <RiskMetric label="Shares" value={position.shares?.toLocaleString() || '--'}/>
+                <RiskMetric label="Cost basis" value={formatCurrency(position.cost_basis)}/>
+                <RiskMetric label="Current price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'}/>
+                <RiskMetric label="Collateral" value={formatCurrency(position.collateral)}/>
+                <RiskMetric label="Break-even" value={formatCurrency(position.break_even)}/>
                 <RiskMetric label="Unrealized P&L" value={position.current_price && position.shares
                     ? formatCurrency((position.current_price - (position.cost_basis || 0)) * position.shares)
-                    : '--'} icon={<TrendingDown className="w-4 h-4"/>} highlight={position.current_price != null && position.cost_basis != null && position.current_price < position.cost_basis}/>
+                    : '--'} highlight={position.current_price != null && position.cost_basis != null && position.current_price < position.cost_basis}/>
               </>) : (<>
-                <RiskMetric label="Current Price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'} icon={<DollarSign className="w-4 h-4"/>}/>
-                <RiskMetric label="Unrealized P&L" value={position.unrealized_pnl != null ? formatCurrency(position.unrealized_pnl) : '--'} icon={<TrendingDown className="w-4 h-4"/>} highlight={position.unrealized_pnl != null && position.unrealized_pnl < 0}/>
-                <RiskMetric label="Profit Captured" value={<ProfitCaptured pct={position.profit_captured_pct} premium={position.premium_received} contracts={position.contracts}/>} icon={<Percent className="w-4 h-4"/>} highlight={position.profit_captured_pct != null && position.profit_captured_pct >= PROFIT_TAKE_TARGET_PCT}/>
-                <RiskMetric label="Collateral" value={formatCurrency(position.collateral)} icon={<Shield className="w-4 h-4"/>}/>
-                <RiskMetric label="Break-Even" value={formatCurrency(position.break_even)} icon={<Target className="w-4 h-4"/>}/>
-                <RiskMetric label="Max Profit" value={formatCurrency(position.max_profit)} icon={<DollarSign className="w-4 h-4"/>}/>
-                <RiskMetric label="Return on Coll." value={position.collateral > 0 ? formatPercent((position.max_profit / position.collateral) * 100) : '--'} icon={<Percent className="w-4 h-4"/>} highlight={position.collateral > 0 && (position.max_profit / position.collateral) * 100 > 3}/>
+                <RiskMetric label="Current price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'}/>
+                <RiskMetric label="Unrealized P&L" value={position.unrealized_pnl != null ? formatCurrency(position.unrealized_pnl) : '--'} tone={position.unrealized_pnl == null ? null : position.unrealized_pnl < 0 ? 'text-red-600' : 'text-green-600'}/>
+                <RiskMetric label="Profit captured" value={<ProfitCaptured pct={position.profit_captured_pct} premium={position.premium_received} contracts={position.contracts}/>} highlight={position.profit_captured_pct != null && position.profit_captured_pct >= PROFIT_TAKE_TARGET_PCT}/>
+                <RiskMetric label="Collateral" value={formatCurrency(position.collateral)}/>
+                <RiskMetric label="Break-even" value={formatCurrency(position.break_even)}/>
+                <RiskMetric label="Max profit" value={formatCurrency(position.max_profit)}/>
+                <RiskMetric label="Return on collateral" value={position.collateral > 0 ? formatPercent((position.max_profit / position.collateral) * 100) : '--'} highlight={position.collateral > 0 && (position.max_profit / position.collateral) * 100 > 3}/>
               </>)}
           </div>
           {position.last_price_update && (
-            <p className="text-xs text-gray-400 -mt-1">
-              Prices updated: {formatDateTime(position.last_price_update)}
+            <p className="text-[12px] text-muted -mt-3">
+              Prices updated {formatDateTime(position.last_price_update)}
             </p>
           )}
 
           {/* ─── Position Details Card ─────────────────── */}
-          <Card className="rounded-none border-2 border-[#0D2654]/15">
-            <CardHeader className="border-b-2 border-[#0D2654]/10">
-              <h2 className="text-lg font-bold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                <Info className="w-5 h-5 text-[#F06010]"/>
-                Position Details
-              </h2>
+          <Card className="border border-line">
+            <CardHeader className="border-b border-line">
+              <h2 className="font-display text-[22px] leading-none text-ink">Details</h2>
             </CardHeader>
             <CardBody>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-4">
@@ -440,10 +432,10 @@ export function PositionDetailPage() {
                 <DetailRow label="Type" value={POSITION_TYPE[position.position_type]?.label || 'Option'}/>
                 {position.position_type === 'stock' ? (<>
                     <DetailRow label="Shares" value={position.shares?.toLocaleString()}/>
-                    <DetailRow label="Cost Basis" value={formatCurrency(position.cost_basis)}/>
+                    <DetailRow label="Cost basis" value={formatCurrency(position.cost_basis)}/>
                     <DetailRow label="Collateral" value={formatCurrency(position.collateral)}/>
-                    <DetailRow label="Break-Even" value={formatCurrency(position.break_even)}/>
-                    <DetailRow label="Current Price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'}/>
+                    <DetailRow label="Break-even" value={formatCurrency(position.break_even)}/>
+                    <DetailRow label="Current price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'}/>
                     <DetailRow label="Status" value={POSITION_STATUS[position.status]?.label ?? position.status}/>
                     <DetailRow label="Open Date" value={formatDate(position.created_at)}/>
                   </>) : (<>
@@ -457,11 +449,11 @@ export function PositionDetailPage() {
                     <DetailRow label="Expiration" value={formatDate(position.expiration_date)}/>
                     <DetailRow label="Status" value={POSITION_STATUS[position.status]?.label ?? position.status}/>
                     <DetailRow label="Collateral" value={formatCurrency(position.collateral)}/>
-                    <DetailRow label="Break-Even" value={formatCurrency(position.break_even)}/>
-                    <DetailRow label="Max Profit" value={formatCurrency(position.max_profit)}/>
-                    <DetailRow label="Current Price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'}/>
+                    <DetailRow label="Break-even" value={formatCurrency(position.break_even)}/>
+                    <DetailRow label="Max profit" value={formatCurrency(position.max_profit)}/>
+                    <DetailRow label="Current price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'}/>
                     <DetailRow label="Unrealized P&L" value={position.unrealized_pnl != null ? formatCurrency(position.unrealized_pnl) : '--'}/>
-                    <DetailRow label="Profit Captured" value={position.profit_captured_pct != null ? `${position.profit_captured_pct.toFixed(1)}% of max profit` : '--'}/>
+                    <DetailRow label="Profit captured" value={position.profit_captured_pct != null ? `${position.profit_captured_pct.toFixed(1)}% of max profit` : '--'}/>
                     {(() => {
                         const tp = takeProfitPrice({ premiumTotal: position.premium_received, contracts: position.contracts });
                         return <DetailRow label={`${PROFIT_TAKE_TARGET_PCT}% Take-Profit Price`} value={tp != null ? `Buy to close at ${formatCurrency(tp)} / share (${formatCurrency(tp * 100 * position.contracts)} for ${position.contracts} contract${position.contracts > 1 ? 's' : ''})` : '--'}/>;
@@ -470,18 +462,18 @@ export function PositionDetailPage() {
                     <DetailRow label="Created" value={formatDate(position.created_at)}/>
                   </>)}
               </div>
-              {position.notes && (<div className="mt-4 pt-4 border-t border-[#0D2654]/10">
+              {position.notes && (<div className="mt-4 pt-4 border-t border-ink/10">
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Notes</span>
-                  <p className="text-sm text-[#0D2654] mt-1 whitespace-pre-wrap">{position.notes}</p>
+                  <p className="text-sm text-ink mt-1 whitespace-pre-wrap">{position.notes}</p>
                 </div>)}
             </CardBody>
           </Card>
 
           {/* ─── Resolution Info (if resolved) ─────────── */}
-          {position.status === 'RESOLVED' && (<Card className="rounded-none border-2 border-[#0D2654]/15">
-              <CardHeader className="border-b-2 border-[#0D2654]/10">
-                <h2 className="text-lg font-bold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                  <CheckCircle2 className="w-5 h-5 text-[#F06010]"/>
+          {position.status === 'RESOLVED' && (<Card className="rounded-none border border-ink/15">
+              <CardHeader className="border-b-2 border-ink/10">
+                <h2 className="text-lg font-bold text-ink flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  <CheckCircle2 className="w-5 h-5 text-accent"/>
                   Resolution
                 </h2>
               </CardHeader>
@@ -499,7 +491,7 @@ export function PositionDetailPage() {
             </Card>)}
 
           {/* ─── Rolled from / to links ────────────────── */}
-          {(position.rolled_from_id || position.rolled_to_id || position.assigned_from_id || position.assigned_to_id) && (<Card className="rounded-none border-2 border-blue-200 bg-blue-50/30">
+          {(position.rolled_from_id || position.rolled_to_id || position.assigned_from_id || position.assigned_to_id) && (<Card className="rounded-none border border-blue-200 bg-blue-50/30">
               <CardBody>
                 <div className="flex flex-col sm:flex-row gap-4">
                   {position.rolled_from_id && (<div className="flex items-center gap-2 text-sm">
@@ -652,7 +644,7 @@ export function PositionDetailPage() {
                 </div>)}
               <p className="text-sm text-gray-600">
                 Are you sure you want to delete{' '}
-                <span className="font-semibold text-[#0D2654]">
+                <span className="font-semibold text-ink">
                   {position.ticker} ${parseFloat(position.strike_price).toFixed(2)}P
                 </span>
                 ? This action cannot be undone.
@@ -696,13 +688,13 @@ export function PositionDetailPage() {
               )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea className="block w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-[#F06010] focus:border-[#F06010] sm:text-sm min-h-[60px] resize-y" value={editForm.notes ?? ''} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))}/>
+                <textarea className="block w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent sm:text-sm min-h-[60px] resize-y" value={editForm.notes ?? ''} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))}/>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="secondary" size="sm" onClick={() => setEditOpen(false)}>
                   Cancel
                 </Button>
-                <Button variant="primary" size="sm" className="bg-[#F06010] hover:bg-[#d9560e]" loading={actionLoading} onClick={handleEdit}>
+                <Button variant="primary" size="sm" className="bg-accent hover:bg-accent-deep" loading={actionLoading} onClick={handleEdit}>
                   Save Changes
                 </Button>
               </div>

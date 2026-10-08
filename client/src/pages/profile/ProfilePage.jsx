@@ -66,7 +66,7 @@ export function ProfilePage() {
       <Card>
         <CardHeader>
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-[#0D2654] rounded-full flex items-center justify-center">
+            <div className="w-12 h-12 bg-ink rounded-full flex items-center justify-center">
               <span className="text-xl font-semibold text-white">
                 {user?.full_name?.[0]?.toUpperCase() || 'U'}
               </span>
@@ -134,7 +134,7 @@ export function ProfilePage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-gray-50 rounded-none">
               <p className="text-sm text-gray-600">Role</p>
-              <p className="text-lg font-semibold text-[#0D2654] capitalize">
+              <p className="text-lg font-semibold text-ink capitalize">
                 {user?.role || 'N/A'}
               </p>
             </div>

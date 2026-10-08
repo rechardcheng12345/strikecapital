@@ -83,13 +83,13 @@ function PremiumEstimator({ row }) {
                     value={targetPrice}
                     onChange={e => setTargetPrice(e.target.value)}
                     placeholder={`e.g. ${Math.floor(row.stock_price * 0.95)}`}
-                    className="w-24 px-2 py-1 border border-gray-300 text-xs focus:outline-none focus:border-[#F06010]"
+                    className="w-24 px-2 py-1 border border-gray-300 text-xs focus:outline-none focus:border-accent"
                 />
             </div>
             {estimate !== null && (
                 <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-gray-500">est. premium:</span>
-                    <span className="font-bold text-[#0D2654]">${(estimate * 100).toFixed(2)}/contract</span>
+                    <span className="font-bold text-ink">${(estimate * 100).toFixed(2)}/contract</span>
                     <span className="text-gray-400">(${estimate.toFixed(4)}/sh)</span>
                     {row.premium > 0 && (
                         <span className={`font-medium ${estimate > row.premium ? 'text-green-600' : 'text-red-600'}`}>
@@ -124,10 +124,10 @@ function LevelsBlock({ levels, strike }) {
     return (
         <div className="space-y-1.5 text-xs text-gray-600">
             <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                <span><strong className="text-[#0D2654]">52W High:</strong> {l.fiftyTwoWeekHigh ? formatCurrency(l.fiftyTwoWeekHigh) : '—'}</span>
-                <span><strong className="text-[#0D2654]">52W Low:</strong> {l.fiftyTwoWeekLow ? formatCurrency(l.fiftyTwoWeekLow) : '—'}</span>
-                <span><strong className="text-[#0D2654]">MA50:</strong> {l.ma50 ? formatCurrency(l.ma50) : '—'}</span>
-                <span><strong className="text-[#0D2654]">MA200:</strong> {l.ma200 ? formatCurrency(l.ma200) : '—'}</span>
+                <span><strong className="text-ink">52W High:</strong> {l.fiftyTwoWeekHigh ? formatCurrency(l.fiftyTwoWeekHigh) : '—'}</span>
+                <span><strong className="text-ink">52W Low:</strong> {l.fiftyTwoWeekLow ? formatCurrency(l.fiftyTwoWeekLow) : '—'}</span>
+                <span><strong className="text-ink">MA50:</strong> {l.ma50 ? formatCurrency(l.ma50) : '—'}</span>
+                <span><strong className="text-ink">MA200:</strong> {l.ma200 ? formatCurrency(l.ma200) : '—'}</span>
             </div>
             {l.swingSupport?.length > 0 && (
                 <p><strong className="text-green-700">Support:</strong> {l.swingSupport.map(p => '$' + p.toFixed(2)).join(', ')}</p>
@@ -144,7 +144,7 @@ function JevScoreBar({ label, answer, good = 'low' }) {
     if (!answer) return null;
     const pct = Math.max(0, Math.min(1, answer.score / answer.max));
     const badness = good === 'low' ? pct : 1 - pct;
-    const color = badness >= 0.6 ? '#dc2626' : badness >= 0.3 ? '#F06010' : '#16a34a';
+    const color = badness >= 0.6 ? '#B4432B' : badness >= 0.3 ? '#F06010' : '#0E7A53';
     return (
         <div className="text-xs">
             <div className="flex justify-between mb-0.5">
@@ -200,7 +200,7 @@ function AiContextBlock({ ctx, row, aiWeight }) {
                 </div>
             )}
             <p className="text-xs text-gray-600">
-                Score: quant {row.score} × (1 − {Math.round(aiWeight * 100)}% × penalty {ctx.penalty.toFixed(2)}) = <strong className="text-[#0D2654]">{fs}</strong>
+                Score: quant {row.score} × (1 − {Math.round(aiWeight * 100)}% × penalty {ctx.penalty.toFixed(2)}) = <strong className="text-ink">{fs}</strong>
             </p>
             {ctx.headlines?.length > 0 && (
                 <div className="text-xs">
@@ -208,7 +208,7 @@ function AiContextBlock({ ctx, row, aiWeight }) {
                     <ul className="space-y-1">
                         {ctx.headlines.map((h, i) => (
                             <li key={i} className="leading-snug">
-                                <a href={h.link} target="_blank" rel="noreferrer" className="text-[#0D2654] hover:text-[#F06010] inline-flex gap-1">
+                                <a href={h.link} target="_blank" rel="noreferrer" className="text-ink hover:text-accent inline-flex gap-1">
                                     <span>{h.title}</span><ExternalLink className="w-3 h-3 flex-shrink-0 mt-0.5" />
                                 </a>
                                 <span className="text-gray-400"> · {h.publisher}, {h.published}</span>
@@ -228,7 +228,7 @@ function Metric({ label, children }) {
     return (
         <div>
             <div className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">{label}</div>
-            <div className="text-sm text-[#0D2654] font-medium">{children}</div>
+            <div className="text-sm text-ink font-medium">{children}</div>
         </div>
     );
 }
@@ -263,23 +263,23 @@ export function OptionScannerDetailPanel({
                 aria-label="Close details"
                 onClick={onClose}
             />
-            <aside className="fixed inset-y-0 right-0 z-40 w-full max-w-md bg-white shadow-xl overflow-y-auto md:static md:z-auto md:w-[420px] md:max-w-none md:shadow-none md:border-l-2 md:border-[#0D2654]/10">
-                <div className="sticky top-0 bg-white border-b border-[#0D2654]/10 px-4 py-3 flex items-start justify-between gap-3">
+            <aside className="fixed inset-y-0 right-0 z-40 w-full max-w-md bg-white shadow-xl overflow-y-auto md:static md:z-auto md:w-[420px] md:max-w-none md:shadow-none md:border-l-2 md:border-ink/10">
+                <div className="sticky top-0 bg-white border-b border-ink/10 px-4 py-3 flex items-start justify-between gap-3">
                     <div>
                         <p className="text-xs uppercase tracking-wider text-gray-400">Contract</p>
-                        <h3 className="text-lg font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                        <h3 className="text-lg font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                             {row.ticker} {formatCurrency(row.strike)} PUT
                         </h3>
                         <p className="text-xs text-gray-500">{formatExpiry(row.expiry)} · {row.days_to_expiry}d · <span className={scoreColor(finalScore(row, aiContext, aiWeight))}>Score {finalScore(row, aiContext, aiWeight) ?? '—'}</span></p>
                     </div>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-[#0D2654] p-1">
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-ink p-1">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 <div className="px-4 py-4 space-y-5">
                     <section>
-                        <h4 className="text-xs font-semibold text-[#0D2654] uppercase tracking-wider mb-2">Quote</h4>
+                        <h4 className="text-xs font-semibold text-ink uppercase tracking-wider mb-2">Quote</h4>
                         <div className="grid grid-cols-2 gap-3">
                             <Metric label="Mid / contract">{midPerContract != null ? formatCurrency(midPerContract) : '—'}</Metric>
                             <Metric label="Last">{row.premium != null ? formatCurrency(row.premium) : '—'}</Metric>
@@ -293,7 +293,7 @@ export function OptionScannerDetailPanel({
                     </section>
 
                     <section>
-                        <h4 className="text-xs font-semibold text-[#0D2654] uppercase tracking-wider mb-2">Greeks</h4>
+                        <h4 className="text-xs font-semibold text-ink uppercase tracking-wider mb-2">Greeks</h4>
                         <div className="grid grid-cols-2 gap-3">
                             <Metric label="Delta"><span className={deltaColor(row.delta)}>{row.delta != null ? formatNum(row.delta, 3) : '—'}</span></Metric>
                             <Metric label="POP"><span className={popColor(row.pop_keep_premium)}>{row.pop_keep_premium != null ? row.pop_keep_premium.toFixed(1) + '%' : '—'}</span></Metric>
@@ -303,7 +303,7 @@ export function OptionScannerDetailPanel({
                     </section>
 
                     <section>
-                        <h4 className="text-xs font-semibold text-[#0D2654] uppercase tracking-wider mb-2">Edge vs Black-Scholes</h4>
+                        <h4 className="text-xs font-semibold text-ink uppercase tracking-wider mb-2">Edge vs Black-Scholes</h4>
                         <div className="grid grid-cols-2 gap-3">
                             <Metric label="Edge">
                                 <span className={edgeColor(row.premium_edge_pct)}>
@@ -317,7 +317,7 @@ export function OptionScannerDetailPanel({
                     </section>
 
                     <section>
-                        <h4 className="text-xs font-semibold text-[#0D2654] uppercase tracking-wider mb-2">Liquidity</h4>
+                        <h4 className="text-xs font-semibold text-ink uppercase tracking-wider mb-2">Liquidity</h4>
                         <div className="grid grid-cols-2 gap-3">
                             <Metric label="Open interest">{row.open_interest != null ? Number(row.open_interest).toLocaleString() : '—'}</Metric>
                             <Metric label="Volume">{row.volume != null ? Number(row.volume).toLocaleString() : '—'}</Metric>
@@ -325,14 +325,14 @@ export function OptionScannerDetailPanel({
                     </section>
 
                     <section>
-                        <h4 className="text-xs font-semibold text-[#0D2654] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <Brain className="w-3.5 h-3.5 text-[#F06010]" /> Jev trade score
+                        <h4 className="text-xs font-semibold text-ink uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <Brain className="w-3.5 h-3.5 text-accent" /> Jev trade score
                         </h4>
                         {jevScore ? (
                             <div className="space-y-2 text-xs">
                                 <div className="flex items-baseline gap-3">
                                     <span className={`text-2xl font-bold ${jevScore.jev_score >= 60 ? 'text-green-600' : jevScore.jev_score >= 40 ? 'text-yellow-600' : 'text-red-500'}`}>{jevScore.jev_score}</span>
-                                    <span className="font-semibold text-[#0D2654]">{jevScore.label}</span>
+                                    <span className="font-semibold text-ink">{jevScore.label}</span>
                                     <span className="text-gray-400" title="How concentrated Jev's answer is (1.0 = certain)">conf {jevScore.confidence?.toFixed(2)}</span>
                                     <span className="text-gray-400">vs quant {row.score}</span>
                                 </div>
@@ -352,7 +352,7 @@ export function OptionScannerDetailPanel({
                     </section>
 
                     <section>
-                        <h4 className="text-xs font-semibold text-[#0D2654] uppercase tracking-wider mb-2">30–60 DTE view</h4>
+                        <h4 className="text-xs font-semibold text-ink uppercase tracking-wider mb-2">30–60 DTE view</h4>
                         <div className="grid grid-cols-2 gap-3">
                             <Metric label="Days to 80% (flat stock)">{row.days_to_80 != null ? `~${row.days_to_80}d of ${row.days_to_expiry}d` : '—'}</Metric>
                             <Metric label="Managed ann. return">{row.managed_ann_pct != null ? row.managed_ann_pct.toFixed(1) + '%' : '—'}</Metric>
@@ -379,7 +379,7 @@ export function OptionScannerDetailPanel({
                     </section>
 
                     <section>
-                        <h4 className="text-xs font-semibold text-[#0D2654] uppercase tracking-wider mb-2">Portfolio fit (1 contract)</h4>
+                        <h4 className="text-xs font-semibold text-ink uppercase tracking-wider mb-2">Portfolio fit (1 contract)</h4>
                         <div className="grid grid-cols-2 gap-3">
                             <Metric label="Collateral">{formatCurrency(row.collateral)}</Metric>
                             <Metric label="% of capital base">{row.collateral_pct_of_base != null ? formatPct(row.collateral_pct_of_base) : '—'}</Metric>
@@ -398,29 +398,29 @@ export function OptionScannerDetailPanel({
                     </section>
 
                     <section>
-                        <h4 className="text-xs font-semibold text-[#0D2654] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <Brain className="w-3.5 h-3.5 text-[#F06010]" /> Jev AI context
+                        <h4 className="text-xs font-semibold text-ink uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <Brain className="w-3.5 h-3.5 text-accent" /> Jev AI context
                         </h4>
                         <AiContextBlock ctx={aiContext} row={row} aiWeight={aiWeight} />
                     </section>
 
                     <section>
-                        <h4 className="text-xs font-semibold text-[#0D2654] uppercase tracking-wider mb-2">Quant score breakdown</h4>
+                        <h4 className="text-xs font-semibold text-ink uppercase tracking-wider mb-2">Quant score breakdown</h4>
                         <ul className="text-xs space-y-1 text-gray-600">
-                            <li className="flex justify-between"><span>Managed yield (max 35)</span><span className="font-medium text-[#0D2654]">{parts.yield ?? '—'}</span></li>
-                            <li className="flex justify-between"><span>Delta sweet-spot (max 20)</span><span className="font-medium text-[#0D2654]">{parts.delta ?? '—'}</span></li>
-                            <li className="flex justify-between"><span>Cushion vs expected move (max 15)</span><span className="font-medium text-[#0D2654]">{parts.cushion ?? '—'}</span></li>
-                            <li className="flex justify-between"><span>IV richness (max 20)</span><span className="font-medium text-[#0D2654]">{parts.iv ?? '—'}</span></li>
-                            <li className="flex justify-between"><span>Liquidity (max 10)</span><span className="font-medium text-[#0D2654]">{parts.liquidity ?? '—'}</span></li>
+                            <li className="flex justify-between"><span>Managed yield (max 35)</span><span className="font-medium text-ink">{parts.yield ?? '—'}</span></li>
+                            <li className="flex justify-between"><span>Delta sweet-spot (max 20)</span><span className="font-medium text-ink">{parts.delta ?? '—'}</span></li>
+                            <li className="flex justify-between"><span>Cushion vs expected move (max 15)</span><span className="font-medium text-ink">{parts.cushion ?? '—'}</span></li>
+                            <li className="flex justify-between"><span>IV richness (max 20)</span><span className="font-medium text-ink">{parts.iv ?? '—'}</span></li>
+                            <li className="flex justify-between"><span>Liquidity (max 10)</span><span className="font-medium text-ink">{parts.liquidity ?? '—'}</span></li>
                             {parts.earnings_multiplier != null && parts.earnings_multiplier !== 1 && (
                                 <li className="flex justify-between text-purple-700"><span>Earnings before expiry</span><span className="font-medium">×{parts.earnings_multiplier}</span></li>
                             )}
-                            <li className="flex justify-between border-t border-[#0D2654]/10 pt-1 font-semibold text-[#0D2654]"><span>Quant score</span><span>{row.score ?? '—'}</span></li>
+                            <li className="flex justify-between border-t border-ink/10 pt-1 font-semibold text-ink"><span>Quant score</span><span>{row.score ?? '—'}</span></li>
                         </ul>
                     </section>
 
                     <section>
-                        <h4 className="text-xs font-semibold text-[#0D2654] uppercase tracking-wider mb-2">Support / resistance</h4>
+                        <h4 className="text-xs font-semibold text-ink uppercase tracking-wider mb-2">Support / resistance</h4>
                         {!levelsState || levelsState.loading ? (
                             <p className="text-xs text-gray-500">Loading levels…</p>
                         ) : levelsState.error ? (
@@ -433,7 +433,7 @@ export function OptionScannerDetailPanel({
                     </section>
 
                     <section>
-                        <h4 className="text-xs font-semibold text-[#0D2654] uppercase tracking-wider mb-2">Premium estimator</h4>
+                        <h4 className="text-xs font-semibold text-ink uppercase tracking-wider mb-2">Premium estimator</h4>
                         <PremiumEstimator row={row} />
                     </section>
 
@@ -441,7 +441,7 @@ export function OptionScannerDetailPanel({
                         type="button"
                         onClick={() => !added && onAddToMonitoring(row)}
                         disabled={adding || added}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#F06010] text-white text-sm font-medium hover:bg-[#F06010]/90 disabled:opacity-60 transition-colors"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white text-sm font-medium hover:bg-accent/90 disabled:opacity-60 transition-colors"
                     >
                         {added
                             ? <><CheckCircle className="w-4 h-4" /> Added to Monitoring</>

@@ -31,7 +31,7 @@ const PositionHistoryPage = lazy(() => import('./pages/investor/PositionHistoryP
 const NotificationsPage = lazy(() => import('./pages/investor/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
 const ProfilePage = lazy(() => import('./pages/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const PageLoader = () => (<div className="flex justify-center items-center py-12">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F06010]"></div>
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
   </div>);
 function App() {
     const { isAuthenticated, user } = useAuthStore();

@@ -1,9 +1,9 @@
 export function Skeleton({ variant = 'text', width, height, className = '', }) {
-    const baseClasses = 'bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer';
+    const baseClasses = 'bg-gradient-to-r from-paper-deep via-paper to-paper-deep bg-[length:200%_100%] animate-shimmer';
     const variantClasses = {
-        text: 'rounded h-4 w-full',
+        text: 'h-4 w-full',
         circular: 'rounded-full',
-        rectangular: 'rounded-lg',
+        rectangular: '',
     };
     const style = {};
     if (width)
@@ -13,7 +13,7 @@ export function Skeleton({ variant = 'text', width, height, className = '', }) {
     return (<div className={`${baseClasses} ${variantClasses[variant]} ${className}`} style={style}/>);
 }
 export function SkeletonCard() {
-    return (<div className="bg-white rounded-none border border-gray-200 p-4 space-y-3">
+    return (<div className="bg-white border border-line p-5 space-y-3">
       <div className="flex items-center gap-3">
         <Skeleton variant="circular" width={40} height={40}/>
         <div className="flex-1 space-y-2">

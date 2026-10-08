@@ -3,8 +3,88 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-paper text-ink font-sans;
+    font-feature-settings: "cv11", "ss03";
+    font-variant-numeric: tabular-nums;
+  }
+  ::selection {
+    background: rgba(240, 96, 16, 0.18);
+    color: #0D2654;
+  }
+  :focus-visible {
+    outline: 2px solid #F06010;
+    outline-offset: 2px;
+  }
+  /* Display face: Space Grotesk for titles and figures */
+  .font-display {
+    font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+  /* Page titles (they carry an inline Space Grotesk style) */
+  h1[style*="Space Grotesk"] {
+    font-weight: 600 !important;
+    font-size: clamp(1.875rem, 1.5rem + 1vw, 2.5rem) !important;
+    line-height: 1.08 !important;
+    letter-spacing: -0.03em;
+    color: #0D2654;
+  }
+  /* Legacy page titles carry a decorative icon; the title stands on its own */
+  h1[style*="Space Grotesk"] > svg {
+    display: none;
+  }
+  /* In-page section titles, without the decorative icon */
+  h2[style*="Space Grotesk"] {
+    font-weight: 600 !important;
+    font-size: 1.375rem !important;
+    line-height: 1.15 !important;
+    letter-spacing: -0.02em;
+  }
+  h2[style*="Space Grotesk"] > svg {
+    display: none;
+  }
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.005em;
+  }
+  table thead th {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #6F6A61;
+    border-bottom: 1px solid #E4DFD4;
+    white-space: nowrap;
+  }
+  /* Old heavy navy header bars → white */
+  thead.bg-ink, thead tr.bg-ink, thead tr[class*="bg-ink "] {
+    background-color: #fff !important;
+    color: #6F6A61 !important;
+  }
+  table tbody tr {
+    transition: background-color 0.15s ease;
+  }
+  table tbody tr:hover {
+    background-color: #FAF8F4;
+  }
+  table tbody td {
+    border-color: #EEEAE1;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #CFC8B9 transparent;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 

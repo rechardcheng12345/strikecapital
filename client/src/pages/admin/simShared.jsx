@@ -24,7 +24,7 @@ export function shortDate(d) {
     return new Date(`${String(d).slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit', timeZone: 'UTC' });
 }
 
-export const LINE_COLORS = ['#F06010', '#0D2654', '#16A34A', '#9333EA', '#0891B2', '#DB2777', '#CA8A04'];
+export const LINE_COLORS = ['#F06010', '#0D2654', '#0E7A53', '#9333EA', '#0891B2', '#DB2777', '#CA8A04'];
 
 /**
  * Equity curves indexed to 100 at each series' first point, so portfolios with different starting cash
@@ -53,16 +53,16 @@ export function EquityChart({ series, spy, height = 300 }) {
     return (
         <ResponsiveContainer width="100%" height={height}>
             <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#EEEAE1" />
                 <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fontSize: 11 }} minTickGap={24} />
                 <YAxis tick={{ fontSize: 11 }} domain={['auto', 'auto']} width={44} />
                 <Tooltip labelFormatter={shortDate} formatter={(v, name) => [Number(v).toFixed(2), name]} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <ReferenceLine y={100} stroke="#9CA3AF" strokeDasharray="4 4" />
+                <ReferenceLine y={100} stroke="#B5AFA3" strokeDasharray="4 4" />
                 {series.map((s, i) => (
                     <Line key={s.key} type="monotone" dataKey={s.key} name={s.name} stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={2} dot={false} connectNulls />
                 ))}
-                {spy?.length ? <Line type="monotone" dataKey="spy" name="SPY" stroke="#9CA3AF" strokeWidth={1.5} strokeDasharray="5 3" dot={false} connectNulls /> : null}
+                {spy?.length ? <Line type="monotone" dataKey="spy" name="SPY" stroke="#B5AFA3" strokeWidth={1.5} strokeDasharray="5 3" dot={false} connectNulls /> : null}
             </LineChart>
         </ResponsiveContainer>
     );
@@ -83,9 +83,9 @@ export function LiveBadge({ live, fetching }) {
 
 export function Stat({ label, value, sub, className = '' }) {
     return (
-        <div className="border border-[#0D2654]/10 bg-white px-4 py-3">
+        <div className="border border-ink/10 bg-white px-4 py-3">
             <p className="text-xs uppercase tracking-wider text-gray-400">{label}</p>
-            <p className={`text-xl font-bold ${className || 'text-[#0D2654]'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{value}</p>
+            <p className={`text-xl font-bold ${className || 'text-ink'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{value}</p>
             {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
         </div>
     );
@@ -129,7 +129,7 @@ export function LiveQuote({ state, label = 'Live quote' }) {
             </span>
             <span>Bid <strong>{money(q.bid)}</strong></span>
             <span>Ask <strong>{money(q.ask)}</strong></span>
-            <span>{q.source === 'mid' ? 'Mid' : 'Last'} <strong className="text-[#0D2654]">{money(q.price)}</strong></span>
+            <span>{q.source === 'mid' ? 'Mid' : 'Last'} <strong className="text-ink">{money(q.price)}</strong></span>
             {q.delta != null && <span className="text-gray-500">Δ {Math.abs(q.delta).toFixed(2)}</span>}
             <span className="text-xs text-gray-400">{state.updatedAt ? new Date(state.updatedAt).toLocaleTimeString() : ''}</span>
         </div>
@@ -227,7 +227,7 @@ export function OpenTradeModal({ isOpen, onClose, portfolioId = null, prefill = 
                     placeholder={prefill?.fallback_price ? `Scanner mid ${Number(prefill.fallback_price).toFixed(2)} is used if no live quote` : 'Live mid'}
                 />
                 {fillPx > 0 && Number(form.strike) > 0 && (
-                    <div className="text-sm bg-[#0D2654]/5 px-3 py-2 space-y-0.5">
+                    <div className="text-sm bg-ink/5 px-3 py-2 space-y-0.5">
                         <p>
                             {form.price !== '' ? `Fill at your price ${money(fillPx)}` : quote ? `Fills at the live mid (now ${money(fillPx)})` : `No live quote — fills at the scanner mid ${money(fillPx)}`}
                             {' · '}Premium ≈ <strong>{money(fillPx * 100 * contracts)}</strong> · Collateral <strong>{money(Number(form.strike) * 100 * contracts)}</strong>
@@ -281,7 +281,7 @@ export function PaperTradeButton({ row, finalScore, jevScore }) {
             <button
                 type="button"
                 onClick={() => setOpen(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-[#0D2654] text-[#0D2654] text-sm font-medium hover:bg-[#0D2654]/5 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-ink text-ink text-sm font-medium hover:bg-ink/5 transition-colors"
             >
                 <FlaskConical className="w-4 h-4" /> Paper trade
             </button>

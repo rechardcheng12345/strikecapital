@@ -11,7 +11,7 @@ import { adminApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import {
   Button, Input, Card, CardBody, CardHeader, Badge, Modal,
-  ErrorAlert, Skeleton, EmptyState,
+  ErrorAlert, Skeleton, EmptyState, PageHeader, Ledger, Money,
 } from '../../components/ui';
 
 function formatCurrency(value) {
@@ -53,7 +53,7 @@ function FundOverview() {
       <Card className="rounded-none mb-6">
         <CardBody className="p-4 text-center text-sm text-gray-500">
           Fund settings not configured.{' '}
-          <Link to="/admin/settings" className="text-[#F06010] hover:underline font-medium">
+          <Link to="/admin/settings" className="text-accent hover:underline font-medium">
             Configure now
           </Link>
         </CardBody>
@@ -61,64 +61,14 @@ function FundOverview() {
     );
   }
 
-  const utilizationPct = data.allocation_pct_used || 0;
-
+  const used = data.allocation_pct_used || 0;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      {/* Total Fund Capital */}
-      <Card className="rounded-none border-l-4 border-l-[#0D2654]">
-        <CardBody className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Wallet className="w-4 h-4 text-[#0D2654]" />
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Fund Capital</span>
-          </div>
-          <p className="text-xl font-bold text-[#0D2654] font-mono">{formatCurrency(data.total_fund_capital)}</p>
-        </CardBody>
-      </Card>
-
-      {/* Total Allocated */}
-      <Card className="rounded-none border-l-4 border-l-[#F06010]">
-        <CardBody className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <DollarSign className="w-4 h-4 text-[#F06010]" />
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Allocated</span>
-          </div>
-          <p className="text-xl font-bold text-[#0D2654] font-mono">{formatCurrency(data.total_allocated)}</p>
-        </CardBody>
-      </Card>
-
-      {/* Remaining Capacity */}
-      <Card className="rounded-none border-l-4 border-l-green-600">
-        <CardBody className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <PieChart className="w-4 h-4 text-green-600" />
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Remaining Capacity</span>
-          </div>
-          <p className="text-xl font-bold text-[#0D2654] font-mono">{formatCurrency(data.remaining_capacity)}</p>
-          <div className="mt-2 w-full bg-gray-200 rounded-none h-1.5">
-            <div
-              className="h-1.5 rounded-none transition-all"
-              style={{
-                width: `${Math.min(utilizationPct, 100)}%`,
-                backgroundColor: utilizationPct > 90 ? '#dc2626' : utilizationPct > 70 ? '#f59e0b' : '#16a34a',
-              }}
-            />
-          </div>
-          <p className="text-xs text-gray-400 mt-1">{utilizationPct.toFixed(1)}% allocated</p>
-        </CardBody>
-      </Card>
-
-      {/* Investor Count */}
-      <Card className="rounded-none border-l-4 border-l-purple-600">
-        <CardBody className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <UserCheck className="w-4 h-4 text-purple-600" />
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Investors</span>
-          </div>
-          <p className="text-xl font-bold text-[#0D2654]">{data.investor_count}</p>
-        </CardBody>
-      </Card>
-    </div>
+    <Ledger className="mb-6" items={[
+      { label: 'Contributed capital', value: <Money value={data.total_fund_capital}/>, caption: 'Fund capital from all contributions' },
+      { label: 'Allocated to investors', value: <Money value={data.total_allocated}/>, caption: `${used.toFixed(1)}% of contributed capital` },
+      { label: 'Unallocated', value: <Money value={data.remaining_capacity}/>, caption: data.remaining_capacity > 0 ? 'Room for new investors' : 'Fully allocated' },
+      { label: 'Investors', value: String(data.investor_count), caption: 'With a capital account' },
+    ]}/>
   );
 }
 
@@ -238,10 +188,10 @@ function InvestorFormModal({ isOpen, onClose, investor, fundCapital }) {
               <button
                 type="button"
                 onClick={() => setForm((f) => ({ ...f, role: 'investor' }))}
-                className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${
+                className={`px-4 py-2 text-sm font-medium rounded-none border transition-colors ${
                   form.role === 'investor'
-                    ? 'border-[#0D2654] bg-[#0D2654] text-white'
-                    : 'border-[#0D2654]/20 text-[#0D2654] hover:border-[#0D2654]/40'
+                    ? 'border-ink bg-ink text-white'
+                    : 'border-line text-ink hover:border-ink/40'
                 }`}
               >
                 Investor
@@ -249,10 +199,10 @@ function InvestorFormModal({ isOpen, onClose, investor, fundCapital }) {
               <button
                 type="button"
                 onClick={() => setForm((f) => ({ ...f, role: 'admin' }))}
-                className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${
+                className={`px-4 py-2 text-sm font-medium rounded-none border transition-colors ${
                   form.role === 'admin'
-                    ? 'border-[#0D2654] bg-[#0D2654] text-white'
-                    : 'border-[#0D2654]/20 text-[#0D2654] hover:border-[#0D2654]/40'
+                    ? 'border-ink bg-ink text-white'
+                    : 'border-line text-ink hover:border-ink/40'
                 }`}
               >
                 Admin
@@ -285,7 +235,7 @@ function InvestorFormModal({ isOpen, onClose, investor, fundCapital }) {
               <button
                 type="button"
                 onClick={() => setForm((f) => ({ ...f, is_active: true }))}
-                className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${
+                className={`px-4 py-2 text-sm font-medium rounded-none border transition-colors ${
                   form.is_active
                     ? 'border-green-600 bg-green-600 text-white'
                     : 'border-gray-300 text-gray-500 hover:border-gray-400'
@@ -296,7 +246,7 @@ function InvestorFormModal({ isOpen, onClose, investor, fundCapital }) {
               <button
                 type="button"
                 onClick={() => setForm((f) => ({ ...f, is_active: false }))}
-                className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${
+                className={`px-4 py-2 text-sm font-medium rounded-none border transition-colors ${
                   !form.is_active
                     ? 'border-red-600 bg-red-600 text-white'
                     : 'border-gray-300 text-gray-500 hover:border-gray-400'
@@ -317,7 +267,7 @@ function InvestorFormModal({ isOpen, onClose, investor, fundCapital }) {
           />
           {fundCapital > 0 && (
             <p className="text-xs text-gray-400 mt-1">
-              Allocation: <span className="font-medium text-[#0D2654]">{computedPct}%</span> of {formatCurrency(fundCapital)}
+              Allocation: <span className="font-medium text-ink">{computedPct}%</span> of {formatCurrency(fundCapital)}
             </p>
           )}
         </div>
@@ -373,7 +323,7 @@ function ResetPasswordModal({ isOpen, onClose, investor }) {
     <Modal isOpen={isOpen} onClose={onClose} title="Reset Password" size="sm">
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="text-sm text-gray-600">
-          Set a new password for <span className="font-semibold text-[#0D2654]">{investor?.full_name}</span>
+          Set a new password for <span className="font-semibold text-ink">{investor?.full_name}</span>
         </p>
         {formError && (
           <div className="bg-red-50 border border-red-200 rounded-none p-3 text-sm text-red-700">
@@ -413,10 +363,10 @@ function InvestorDetailModal({ isOpen, onClose, investor }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Name</p>
-            <p className="text-sm font-semibold text-[#0D2654]">
+            <p className="text-sm font-semibold text-ink">
               {investor.full_name}
               {investor.role === 'admin' && (
-                <span className="ml-2 text-xs bg-[#0D2654] text-white px-1.5 py-0.5">Admin</span>
+                <span className="ml-2 text-xs bg-ink text-white px-1.5 py-0.5">Admin</span>
               )}
             </p>
           </div>
@@ -436,13 +386,13 @@ function InvestorDetailModal({ isOpen, onClose, investor }) {
           </div>
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Invested Amount</p>
-            <p className="text-sm font-semibold text-[#0D2654]">
+            <p className="text-sm font-semibold text-ink">
               {investor.invested_amount ? formatCurrency(investor.invested_amount) : '---'}
             </p>
           </div>
           <div>
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Allocation %</p>
-            <p className="text-sm font-semibold text-[#F06010]">
+            <p className="text-sm font-semibold text-accent">
               {investor.allocation_pct ? parseFloat(investor.allocation_pct).toFixed(2) + '%' : '---'}
             </p>
           </div>
@@ -493,7 +443,7 @@ function DeleteConfirmModal({ isOpen, onClose, investor }) {
       <div className="space-y-4">
         <p className="text-sm text-gray-600">
           Are you sure you want to deactivate{' '}
-          <span className="font-semibold text-[#0D2654]">{investor?.full_name}</span>?
+          <span className="font-semibold text-ink">{investor?.full_name}</span>?
           Their account and allocation will be disabled.
         </p>
         {deleteError && (
@@ -552,10 +502,10 @@ function WithdrawModal({ isOpen, onClose, investor }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="bg-gray-50 border border-gray-200 p-3 text-sm">
           <p className="text-gray-500">Their share of the fund today</p>
-          <p className="text-2xl font-bold text-[#0D2654]">{isLoading ? '…' : formatCurrency(available)}</p>
+          <p className="text-2xl font-bold text-ink">{isLoading ? '…' : formatCurrency(available)}</p>
           <p className="text-xs text-gray-500">{worth ? `${Number(worth.ownership_pct).toFixed(2)}% of the fund · net invested + their share of realized and open P&L` : ''}</p>
         </div>
-        <label className="flex items-center gap-2 text-sm font-medium text-[#0D2654]">
+        <label className="flex items-center gap-2 text-sm font-medium text-ink">
           <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Withdraw everything ({formatCurrency(available)})
         </label>
         {!all && (
@@ -730,16 +680,12 @@ export function InvestorManagementPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-          <Users className="w-6 h-6 text-[#F06010]" />
-          Investor Management
-        </h1>
-        <Button variant="primary" onClick={() => setShowAddModal(true)} className="rounded-none gap-2">
-          <Plus className="w-4 h-4" />
-          Add Investor
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Fund"
+        title="Investors"
+        description="Capital accounts, statements, top-ups and withdrawals."
+        actions={<Button variant="primary" onClick={() => setShowAddModal(true)}><Plus className="w-4 h-4" />Add investor</Button>}
+      />
 
       {/* Fund Overview */}
       <FundOverview />
@@ -754,7 +700,7 @@ export function InvestorManagementPage() {
             placeholder="Search by name or email..."
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border-2 border-[#0D2654]/20 rounded-none bg-white text-sm focus:outline-none focus:border-[#F06010] transition-colors"
+            className="w-full pl-10 pr-4 py-2 border border-line rounded-none bg-white text-sm focus:outline-none focus:border-accent transition-colors"
           />
         </div>
       </div>
@@ -767,7 +713,7 @@ export function InvestorManagementPage() {
       )}
 
       {/* Table */}
-      <Card className="rounded-none border-2 border-[#0D2654]/20 overflow-hidden">
+      <Card className="rounded-none border border-line overflow-hidden">
         {isLoading ? (
           <CardBody><TableSkeleton /></CardBody>
         ) : investors.length === 0 ? (
@@ -789,7 +735,7 @@ export function InvestorManagementPage() {
         ) : (
           <>
             {/* Table Header */}
-            <div className="hidden md:grid md:grid-cols-[1fr_1.2fr_0.8fr_0.5fr_0.8fr_0.6fr_0.8fr] gap-2 px-6 py-3 bg-[#0D2654] text-white text-xs font-semibold uppercase tracking-wider">
+            <div className="hidden md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,0.8fr)_88px_minmax(0,0.8fr)_72px_236px] gap-3 px-6 py-3 bg-white border-b border-line text-muted text-[11px] font-medium uppercase tracking-[0.1em]">
               <span>Name</span>
               <span>Email</span>
               <span>Phone</span>
@@ -803,79 +749,79 @@ export function InvestorManagementPage() {
             {investors.map((inv) => (
               <div
                 key={inv.id}
-                className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr_0.8fr_0.5fr_0.8fr_0.6fr_0.8fr] gap-2 px-6 py-3 border-b border-gray-100 hover:bg-[#F5F3EF]/50 transition-colors items-center text-sm"
+                className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,0.8fr)_88px_minmax(0,0.8fr)_72px_236px] gap-3 px-6 py-3.5 border-b border-line/70 last:border-b-0 hover:bg-[#FAF8F4] transition-colors items-center text-sm"
               >
-                <span className="font-medium text-[#0D2654]">
+                <span className="font-medium text-ink">
                   {inv.full_name}
                   {inv.role === 'admin' && (
-                    <span className="ml-2 text-[10px] bg-[#0D2654] text-white px-1.5 py-0.5 uppercase font-bold">
+                    <span className="ml-2 align-middle text-[10px] border border-ink-100 bg-ink-50 text-ink/70 px-1.5 py-[2px] uppercase tracking-[0.08em] font-medium">
                       Admin
                     </span>
                   )}
                 </span>
-                <span className="text-gray-600 truncate">{inv.email}</span>
-                <span className="text-gray-600">{inv.phone || '---'}</span>
+                <span className="text-muted truncate">{inv.email}</span>
+                <span className="text-muted">{inv.phone || '—'}</span>
                 <span>
                   <Badge variant={inv.is_active ? 'green' : 'red'}>
                     {inv.is_active ? 'Active' : 'Inactive'}
                   </Badge>
                 </span>
-                <span className="text-right font-medium text-[#0D2654] font-mono">
+                <span className="text-right font-medium text-ink font-mono">
                   {inv.invested_amount ? formatCurrency(inv.invested_amount) : '---'}
                 </span>
-                <span className="text-right font-medium text-[#F06010] font-mono">
+                <span className="text-right text-ink/70 font-mono">
                   {inv.allocation_pct ? parseFloat(inv.allocation_pct).toFixed(2) + '%' : '---'}
                 </span>
                 <div className="flex items-center justify-end gap-1">
                   <button
                     onClick={() => setViewingInvestor(inv)}
-                    className="p-1.5 hover:bg-[#0D2654]/10 rounded-none transition-colors"
+                    className="p-1.5 text-ink/50 hover:text-ink hover:bg-ink/5 transition-colors"
                     title="View details"
                   >
-                    <Eye className="w-4 h-4 text-[#0D2654]" />
+                    <Eye className="w-4 h-4" strokeWidth={1.6} />
                   </button>
                   <Link
                     to={`/admin/investors/${inv.id}/statement`}
-                    className="p-1.5 hover:bg-[#0D2654]/10 rounded-none transition-colors"
+                    className="p-1.5 text-ink/50 hover:text-ink hover:bg-ink/5 transition-colors"
                     title="P&L statement"
                   >
-                    <FileText className="w-4 h-4 text-[#0D2654]" />
+                    <FileText className="w-4 h-4" strokeWidth={1.6} />
                   </Link>
                   <button
                     onClick={() => setCapitalInvestor(inv)}
-                    className="p-1.5 hover:bg-green-100 rounded-none transition-colors"
+                    className="p-1.5 text-ink/50 hover:text-ink hover:bg-ink/5 transition-colors"
                     title="Add capital"
                   >
-                    <Wallet className="w-4 h-4 text-green-700" />
+                    <Wallet className="w-4 h-4" strokeWidth={1.6} />
                   </button>
                   <button
                     onClick={() => setWithdrawInvestor(inv)}
-                    className="p-1.5 hover:bg-red-50 rounded-none transition-colors"
+                    className="p-1.5 text-ink/50 hover:text-red-600 hover:bg-red-50 transition-colors"
                     title="Withdraw"
                   >
-                    <Banknote className="w-4 h-4 text-red-600" />
+                    <Banknote className="w-4 h-4" strokeWidth={1.6} />
                   </button>
                   <button
                     onClick={() => setEditingInvestor(inv)}
-                    className="p-1.5 hover:bg-[#F06010]/10 rounded-none transition-colors"
+                    className="p-1.5 text-ink/50 hover:text-ink hover:bg-ink/5 transition-colors"
                     title="Edit investor"
                   >
-                    <Pencil className="w-4 h-4 text-[#F06010]" />
+                    <Pencil className="w-4 h-4" strokeWidth={1.6} />
                   </button>
                   <button
                     onClick={() => setResetPasswordInvestor(inv)}
-                    className="p-1.5 hover:bg-purple-100 rounded-none transition-colors"
+                    className="p-1.5 text-ink/50 hover:text-ink hover:bg-ink/5 transition-colors"
                     title="Reset password"
                   >
-                    <KeyRound className="w-4 h-4 text-purple-600" />
+                    <KeyRound className="w-4 h-4" strokeWidth={1.6} />
                   </button>
                   {inv.role !== 'admin' && (
                     <button
                       onClick={() => setDeletingInvestor(inv)}
-                      className="p-1.5 hover:bg-red-100 rounded-none transition-colors"
+                      className="p-1.5 text-ink/50 hover:text-red-600 hover:bg-red-50 transition-colors"
                       title="Deactivate investor"
                     >
-                      <Trash2 className="w-4 h-4 text-red-500" />
+                      <Trash2 className="w-4 h-4" strokeWidth={1.6} />
                     </button>
                   )}
                 </div>
@@ -902,7 +848,7 @@ export function InvestorManagementPage() {
             >
               <ChevronLeft className="w-4 h-4" /> Prev
             </Button>
-            <span className="text-sm font-medium text-[#0D2654] px-2">
+            <span className="text-sm font-medium text-ink px-2">
               {pagination.page} / {pagination.pages}
             </span>
             <Button

@@ -50,10 +50,10 @@ export function SimStrategyPanel({ portfolio, snapshots }) {
     const shown = showAll ? runs : runs.slice(0, 15);
 
     return (
-        <section className="bg-white border-2 border-[#F06010]/40 p-4 space-y-4">
+        <section className="bg-white border border-accent/40 p-4 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div className="min-w-0">
-                    <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider flex items-center gap-2"><Bot className="w-4 h-4 text-[#F06010]" />Automatic strategy</h2>
+                    <h2 className="text-sm font-semibold text-ink uppercase tracking-wider flex items-center gap-2"><Bot className="w-4 h-4 text-accent" />Automatic strategy</h2>
                     <p className="text-sm text-gray-700 mt-1">Follows the backtest setting <strong>{rules.preset_name}</strong> — the backtest engine decides, trades fill at the live Moomoo mid.</p>
                 </div>
                 <Button size="sm" onClick={runNow} loading={running} disabled={!portfolio.is_active}><Play className="w-4 h-4 mr-1.5" />Run now</Button>
@@ -69,7 +69,7 @@ export function SimStrategyPanel({ portfolio, snapshots }) {
                         {runAt == null ? (
                             <>
                                 <span>Every trading day at <strong>{scheduled}</strong> New York ({sgtRange(scheduled)})</span>
-                                <button type="button" className="text-xs text-[#F06010] hover:underline" onClick={() => setRunAt(scheduled)}>change</button>
+                                <button type="button" className="text-xs text-accent hover:underline" onClick={() => setRunAt(scheduled)}>change</button>
                             </>
                         ) : (
                             <>
@@ -99,7 +99,7 @@ export function SimStrategyPanel({ portfolio, snapshots }) {
             <div>
                 <div className="flex items-center justify-between mb-1">
                     <h3 className="text-xs uppercase tracking-wider text-gray-400">Decision log ({runs.length})</h3>
-                    {runs.length > 15 && <button type="button" className="text-xs text-gray-500 hover:text-[#0D2654]" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Show latest 15' : 'Show all'}</button>}
+                    {runs.length > 15 && <button type="button" className="text-xs text-gray-500 hover:text-ink" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Show latest 15' : 'Show all'}</button>}
                 </div>
                 {runs.length === 0 ? (
                     <p className="text-sm text-gray-400 py-4 text-center">No runs yet — the first daily run is at {scheduled} New York, or press Run now.</p>
@@ -107,7 +107,7 @@ export function SimStrategyPanel({ portfolio, snapshots }) {
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-[#0D2654]/10">
+                                <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-ink/10">
                                     <th className="px-2 py-2 font-medium">Date</th>
                                     <th className="px-2 py-2 font-medium">Run</th>
                                     <th className="px-2 py-2 font-medium text-right">{rules.ticker || 'SOXL'}</th>

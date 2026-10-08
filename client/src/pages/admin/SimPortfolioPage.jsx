@@ -218,7 +218,7 @@ function Table({ head, children, empty }) {
         <div className="overflow-x-auto">
             <table className="w-full text-sm">
                 <thead>
-                    <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-[#0D2654]/10">
+                    <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-ink/10">
                         {head.map((h, i) => <th key={h} className={`px-2 py-2 font-medium ${i > 0 ? 'text-right' : ''}`}>{h}</th>)}
                     </tr>
                 </thead>
@@ -232,9 +232,9 @@ const td = 'px-2 py-2 text-right font-mono whitespace-nowrap';
 
 function Section({ title, children, action }) {
     return (
-        <section className="bg-white border-2 border-[#0D2654]/10 p-4">
+        <section className="bg-white border border-ink/10 p-4">
             <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider">{title}</h2>
+                <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">{title}</h2>
                 {action}
             </div>
             {children}
@@ -271,14 +271,14 @@ export function SimPortfolioPage() {
 
     return (
         <div className="space-y-6">
-            <Link to="/admin/simulation" className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0D2654]/60 hover:text-[#0D2654]">
+            <Link to="/admin/simulation" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink/60 hover:text-ink">
                 <ArrowLeft className="w-4 h-4" /> All portfolios
             </Link>
 
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div>
                     <div className="flex items-center gap-2">
-                        <h1 className="text-2xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{p.name}</h1>
+                        <h1 className="text-2xl font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{p.name}</h1>
                         {p.strategy_type === 'rules' && <Badge variant="blue">Automatic</Badge>}
                         {!p.is_active && <Badge variant="gray">Paused</Badge>}
                     </div>
@@ -315,7 +315,7 @@ export function SimPortfolioPage() {
                 <Table head={['Position', 'DTE', 'Qty', 'Entry', 'Bid / Ask', 'Mark', 'Underlying', 'Unrealized', 'Captured', '']} empty={open.length ? null : 'No open positions.'}>
                     {open.map((x) => (
                         <tr key={x.id} className="border-b border-gray-100">
-                            <td className="px-2 py-2 whitespace-nowrap font-medium text-[#0D2654]">
+                            <td className="px-2 py-2 whitespace-nowrap font-medium text-ink">
                                 {contractLabel(x)}
                                 {x.entry_source && x.entry_source !== 'mid' && <span className="ml-1 text-xs text-gray-400">({x.entry_source})</span>}
                             </td>
@@ -355,7 +355,7 @@ export function SimPortfolioPage() {
                         <Table head={['Position', 'Opened', 'Closed', 'Entry', 'Exit', 'Result', 'P&L']} empty={closed.length ? null : 'No closed trades yet.'}>
                             {closed.map((x) => (
                                 <tr key={x.id} className="border-b border-gray-100">
-                                    <td className="px-2 py-2 whitespace-nowrap font-medium text-[#0D2654]">{contractLabel(x)}</td>
+                                    <td className="px-2 py-2 whitespace-nowrap font-medium text-ink">{contractLabel(x)}</td>
                                     <td className={td}>{shortDate(x.open_date)}</td>
                                     <td className={td}>{shortDate(x.close_date)}</td>
                                     <td className={td}>{money(x.entry_price)}</td>

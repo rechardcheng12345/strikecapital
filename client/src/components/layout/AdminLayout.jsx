@@ -1,156 +1,38 @@
-import { Fragment, useState, useEffect } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Transition } from '@headlessui/react';
-import { LayoutDashboard, TrendingUp, Users, BarChart3, ShieldAlert, ScrollText, Megaphone, Settings, Menu, X, LogOut, Wallet, ScanLine, FlaskConical, BellRing, Radar, ChevronDown, Timer, History, TestTubes, SlidersHorizontal, } from 'lucide-react';
-import { useAuthStore } from '../../stores/authStore';
+import { LayoutDashboard, TrendingUp, Users, BarChart3, ShieldAlert, Megaphone, Settings, Wallet, Radar, TestTubes } from 'lucide-react';
+import { AppShell } from './AppShell';
+
 const adminNavItems = [
+    { section: 'Fund' },
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { path: '/admin/positions', icon: TrendingUp, label: 'Positions' },
     { path: '/admin/investors', icon: Users, label: 'Investors' },
     { path: '/admin/pnl', icon: BarChart3, label: 'P&L Analytics' },
-    { path: '/admin/risk', icon: ShieldAlert, label: 'Risk Dashboard' },
+    { path: '/admin/risk', icon: ShieldAlert, label: 'Risk' },
     { path: '/admin/funds', icon: Wallet, label: 'Account Funds' },
+    { section: 'Research' },
     {
         label: 'Options Finding', icon: Radar, children: [
-            { path: '/admin/scanner', icon: ScanLine, label: 'Option Scanner' },
-            { path: '/admin/option-alerts', icon: BellRing, label: 'Option Alerts' },
-            { path: '/admin/zero-dte', icon: Timer, label: '0DTE Spreads' },
+            { path: '/admin/scanner', label: 'Option Scanner' },
+            { path: '/admin/option-alerts', label: 'Option Alerts' },
+            { path: '/admin/zero-dte', label: '0DTE Spreads' },
         ],
     },
     {
         label: 'Strategy Lab', icon: TestTubes, children: [
-            { path: '/admin/simulation', icon: FlaskConical, label: 'Simulation' },
-            { path: '/admin/backtest', icon: History, label: 'Backtest' },
+            { path: '/admin/simulation', label: 'Simulation' },
+            { path: '/admin/backtest', label: 'Backtest' },
         ],
     },
+    { section: 'Workspace' },
     { path: '/admin/announcements', icon: Megaphone, label: 'Announcements' },
     {
         label: 'Settings', icon: Settings, children: [
-            { path: '/admin/settings', icon: SlidersHorizontal, label: 'Fund Settings' },
-            { path: '/admin/audit', icon: ScrollText, label: 'Audit Trail' },
+            { path: '/admin/settings', label: 'Fund Settings' },
+            { path: '/admin/audit', label: 'Audit Trail' },
         ],
     },
 ];
+
 export function AdminLayout() {
-    const location = useLocation();
-    const navigate = useNavigate();
-    const { user, logout } = useAuthStore();
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [openGroups, setOpenGroups] = useState({});
-    useEffect(() => {
-        setIsMobileMenuOpen(false);
-        // Open the group holding the current page (e.g. arriving on /admin/scanner from a link)
-        for (const item of adminNavItems) {
-            if (item.children?.some((c) => location.pathname.startsWith(c.path))) {
-                setOpenGroups((g) => (g[item.label] ? g : { ...g, [item.label]: true }));
-            }
-        }
-    }, [location.pathname]);
-    const isActive = (path, exact) => {
-        if (exact)
-            return location.pathname === path;
-        return location.pathname.startsWith(path);
-    };
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
-    const navLinkClasses = (path, exact) => `flex items-center space-x-3 px-4 py-2.5 rounded-none transition-colors ${isActive(path, exact)
-        ? 'bg-white/10 text-white border-l-2 border-[#F06010]'
-        : 'text-gray-300 hover:bg-white/5 hover:text-white border-l-2 border-transparent'}`;
-    const sidebarContent = (<>
-      {/* Brand */}
-      <div className="px-4 py-5 border-b border-white/10">
-        <Link to="/admin" className="flex items-center space-x-3">
-          <img src="/logo2.png" alt="StrikeCapital" className="w-8 h-8 rounded"/>
-          <span className="text-white font-bold text-lg tracking-tight">StrikeCapital</span>
-        </Link>
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto">
-        {adminNavItems.map((item) => {
-            if (!item.children) {
-                return (<Link key={item.path} to={item.path} className={navLinkClasses(item.path, item.exact)}>
-                <item.icon className="w-5 h-5"/>
-                <span className="font-medium text-sm">{item.label}</span>
-              </Link>);
-            }
-            const open = !!openGroups[item.label];
-            const childActive = item.children.some((c) => isActive(c.path));
-            return (<div key={item.label}>
-              <button type="button" onClick={() => setOpenGroups((g) => ({ ...g, [item.label]: !open }))} aria-expanded={open} className={`w-full flex items-center space-x-3 px-4 py-2.5 transition-colors border-l-2 ${childActive && !open ? 'border-[#F06010] text-white bg-white/5' : 'border-transparent text-gray-300 hover:bg-white/5 hover:text-white'}`}>
-                <item.icon className="w-5 h-5"/>
-                <span className="font-medium text-sm flex-1 text-left">{item.label}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`}/>
-              </button>
-              {open && item.children.map((c) => (<Link key={c.path} to={c.path} className={`${navLinkClasses(c.path, c.exact)} pl-11`}>
-                  <c.icon className="w-4 h-4"/>
-                  <span className="font-medium text-sm">{c.label}</span>
-                </Link>))}
-            </div>);
-        })}
-      </nav>
-
-      {/* User */}
-      <div className="border-t border-white/10 p-4">
-        <div className="flex items-center space-x-3 mb-3">
-          <div className="w-8 h-8 bg-[#F06010] rounded-full flex items-center justify-center">
-            <span className="text-white text-sm font-medium">
-              {user?.full_name?.[0]?.toUpperCase() || 'A'}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{user?.full_name}</p>
-            <p className="text-xs text-gray-400 truncate">{user?.email}</p>
-          </div>
-        </div>
-        <button onClick={handleLogout} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors text-sm w-full">
-          <LogOut className="w-4 h-4"/>
-          <span>Sign out</span>
-        </button>
-      </div>
-    </>);
-    return (<div className="min-h-screen bg-[#F5F3EF] flex">
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col w-64 bg-[#0D2654] min-h-screen fixed left-0 top-0 bottom-0">
-        {sidebarContent}
-      </aside>
-
-      {/* Mobile header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-[#0D2654] px-4 py-3 flex items-center justify-between z-30">
-        <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 rounded hover:bg-white/10 transition-colors">
-          <Menu className="w-6 h-6 text-white"/>
-        </button>
-        <div className="flex items-center space-x-2">
-          <img src="/logo2.png" alt="StrikeCapital" className="w-6 h-6 rounded"/>
-          <span className="text-white font-bold">StrikeCapital</span>
-        </div>
-        <div className="w-8"/>
-      </div>
-
-      {/* Mobile drawer */}
-      <Transition show={isMobileMenuOpen} as={Fragment}>
-        <div className="md:hidden">
-          <Transition.Child as={Fragment} enter="transition-opacity ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="transition-opacity ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
-            <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setIsMobileMenuOpen(false)}/>
-          </Transition.Child>
-          <Transition.Child as={Fragment} enter="transition-transform ease-out duration-300" enterFrom="-translate-x-full" enterTo="translate-x-0" leave="transition-transform ease-in duration-200" leaveFrom="translate-x-0" leaveTo="-translate-x-full">
-            <aside className="fixed inset-y-0 left-0 w-64 bg-[#0D2654] z-50 flex flex-col">
-              <div className="flex items-center justify-end p-2">
-                <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 rounded hover:bg-white/10">
-                  <X className="w-6 h-6 text-white"/>
-                </button>
-              </div>
-              {sidebarContent}
-            </aside>
-          </Transition.Child>
-        </div>
-      </Transition>
-
-      {/* Main content */}
-      <main className="flex-1 md:ml-64 mt-14 md:mt-0 p-3 sm:p-4 md:p-6 lg:p-8 max-w-full overflow-x-hidden">
-        <Outlet />
-      </main>
-    </div>);
+    return <AppShell items={adminNavItems} homePath="/admin" roleLabel="Fund manager"/>;
 }

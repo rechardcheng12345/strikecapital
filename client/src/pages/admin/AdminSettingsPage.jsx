@@ -94,7 +94,7 @@ export function AdminSettingsPage() {
     return (<div className="space-y-6 max-w-3xl">
       {/* Header */}
       <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-        <Settings className="w-6 h-6 text-[#F06010]"/>
+        <Settings className="w-6 h-6 text-accent"/>
         Fund Settings
       </h1>
 
@@ -109,8 +109,8 @@ export function AdminSettingsPage() {
           <Card className="rounded-none">
             <CardHeader className="rounded-none">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                  <Building2 className="w-5 h-5 inline mr-2 text-[#F06010]"/>
+                <h2 className="text-lg font-semibold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  <Building2 className="w-5 h-5 inline mr-2 text-accent"/>
                   Configuration
                 </h2>
                 {settings.updated_at && (<div className="flex items-center gap-1.5 text-xs text-gray-500">
@@ -194,7 +194,7 @@ export function AdminSettingsPage() {
                 <Button type="button" variant="outline" className="rounded-none" onClick={handleReset} disabled={!isDirty || mutation.isPending}>
                   Reset
                 </Button>
-                <Button type="submit" className="rounded-none bg-[#0D2654] hover:bg-[#0D2654]/90" loading={mutation.isPending} disabled={!isDirty}>
+                <Button type="submit" className="rounded-none bg-ink hover:bg-ink/90" loading={mutation.isPending} disabled={!isDirty}>
                   Save Settings
                 </Button>
               </div>

@@ -16,9 +16,9 @@ const VERDICT = {
 
 function Box({ title, children, right }) {
     return (
-        <section className="bg-white border-2 border-[#0D2654]/10 p-4">
+        <section className="bg-white border border-ink/10 p-4">
             <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider">{title}</h2>
+                <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">{title}</h2>
                 {right}
             </div>
             {children}
@@ -30,7 +30,7 @@ function Fact({ label, value, sub }) {
     return (
         <div>
             <p className="text-xs uppercase tracking-wider text-gray-400">{label}</p>
-            <p className="text-lg font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{value}</p>
+            <p className="text-lg font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{value}</p>
             {sub && <p className="text-xs text-gray-500">{sub}</p>}
         </div>
     );
@@ -42,7 +42,7 @@ function CandidateTable({ side, rows, selected, onSelect }) {
         <div className="overflow-x-auto">
             <table className="w-full text-sm">
                 <thead>
-                    <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-[#0D2654]/10">
+                    <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-ink/10">
                         {['', 'Spread', 'From price', 'Credit', 'Natural', 'Max loss', 'Need win', 'Hit (2y)', 'Hit (sim. VIX)', 'EV', 'Δ short', ''].map((h, i) => (
                             <th key={i} className={`px-2 py-2 font-medium ${i > 1 ? 'text-right' : ''}`}>{h}</th>
                         ))}
@@ -52,11 +52,11 @@ function CandidateTable({ side, rows, selected, onSelect }) {
                     {rows.map((c) => {
                         const on = selected?.short_strike === c.short_strike;
                         return (
-                            <tr key={c.short_strike} onClick={() => onSelect(on ? null : c)} className={`border-b border-gray-100 cursor-pointer ${on ? 'bg-[#F06010]/10' : c.beyond_forecast ? 'hover:bg-[#F5F3EF]' : 'text-gray-400 hover:bg-[#F5F3EF]'}`}>
+                            <tr key={c.short_strike} onClick={() => onSelect(on ? null : c)} className={`border-b border-gray-100 cursor-pointer ${on ? 'bg-accent/10' : c.beyond_forecast ? 'hover:bg-paper' : 'text-gray-400 hover:bg-paper'}`}>
                                 <td className="px-2 py-1.5"><input type="radio" readOnly checked={on} /></td>
-                                <td className="px-2 py-1.5 whitespace-nowrap font-semibold text-[#0D2654]">
+                                <td className="px-2 py-1.5 whitespace-nowrap font-semibold text-ink">
                                     {c.short_strike}/{c.long_strike}{side === 'call' ? 'C' : 'P'}
-                                    {c.suggested && <Star className="inline w-3.5 h-3.5 ml-1 text-[#F06010] fill-[#F06010]" />}
+                                    {c.suggested && <Star className="inline w-3.5 h-3.5 ml-1 text-accent fill-accent" />}
                                 </td>
                                 <td className={td}>{pct(c.distance_pct)}</td>
                                 <td className={`${td} font-semibold ${c.meets_target ? 'text-green-700' : ''}`}>{money(c.credit_dollars)}</td>
@@ -145,7 +145,7 @@ function TradePanel({ scan, put, call }) {
                     {chosen && <p className="text-xs text-gray-500">Exit rule in this portfolio: {chosen.spread_exit_rule === 'loss2x' ? 'close at 2× credit loss' : chosen.spread_exit_rule === 'hold' ? 'hold to expiry' : 'close when the price touches the short strike'} (change it in the portfolio settings).</p>}
                     <div className="flex items-center gap-3">
                         <Button size="sm" onClick={submit} loading={busy} disabled={!portfolioId}>Sell at live mids</Button>
-                        {done && <Link to={`/admin/simulation/${done}`} className="text-sm text-[#F06010] hover:underline">Open portfolio →</Link>}
+                        {done && <Link to={`/admin/simulation/${done}`} className="text-sm text-accent hover:underline">Open portfolio →</Link>}
                     </div>
                     {!portfolios.length && <p className="text-xs text-gray-500">No active paper portfolio — create one under Simulation.</p>}
                 </div>
@@ -180,13 +180,13 @@ export function ZeroDtePage() {
         <div className="space-y-6">
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>0DTE Spreads</h1>
+                    <h1 className="text-2xl font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>0DTE Spreads</h1>
                     <p className="text-sm text-gray-500">Same-day credit spreads on SPY / QQQ. Scan after the first 30 minutes (≈10:00 New York, 22:00 Singapore in US summer time).</p>
                 </div>
                 <div className="flex flex-wrap items-end gap-2">
-                    <div className="flex border-2 border-[#0D2654]/20">
+                    <div className="flex border border-line">
                         {['SPY', 'QQQ'].map((t) => (
-                            <button key={t} type="button" onClick={() => setTicker(t)} className={`px-4 py-2 text-sm font-semibold ${ticker === t ? 'bg-[#0D2654] text-white' : 'text-[#0D2654]'}`}>{t}</button>
+                            <button key={t} type="button" onClick={() => setTicker(t)} className={`px-4 py-2 text-sm font-semibold ${ticker === t ? 'bg-ink text-white' : 'text-ink'}`}>{t}</button>
                         ))}
                     </div>
                     <div className="w-24"><Input label="Width ($)" type="number" min={1} value={width} onChange={(e) => setWidth(e.target.value)} /></div>
@@ -196,7 +196,7 @@ export function ZeroDtePage() {
             </div>
 
             {!scan && !busy && (
-                <div className="bg-white border-2 border-[#0D2654]/10 p-6 text-sm text-gray-600 space-y-2">
+                <div className="bg-white border border-ink/10 p-6 text-sm text-gray-600 space-y-2">
                     <p><strong>How it works:</strong> the scan predicts today&apos;s high and low three ways — the options market (today&apos;s at-the-money straddle), the VIX, and 2 years of how far {ticker} moved from its open — and lists call spreads above and put spreads below with their live credit and how often history reached each short strike.</p>
                     <p>A $10 credit on a $2 spread risks about $190: you need to win roughly 19 of every 20 trades just to break even. Paper-trade it first and watch the &ldquo;wins lost per loss&rdquo; number in the portfolio.</p>
                 </div>
@@ -209,7 +209,7 @@ export function ZeroDtePage() {
                             <AlertTriangle className="w-4 h-4" /> No expiry today — showing the next one ({scan.expiry}). Forecast uses a full day.
                         </div>
                     )}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 bg-white border-2 border-[#0D2654]/10 p-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 bg-white border border-ink/10 p-4">
                         <Fact label={`${scan.ticker} now`} value={money(u.price)} sub={u.prev_close ? `${(((u.price - u.prev_close) / u.prev_close) * 100).toFixed(2)}% vs yesterday` : null} />
                         <Fact label="Open" value={money(u.open)} sub={u.open && u.prev_close ? `gap ${(((u.open - u.prev_close) / u.prev_close) * 100).toFixed(2)}%` : null} />
                         <Fact label="Today high / low" value={`${u.high ?? '—'} / ${u.low ?? '—'}`} />
@@ -229,8 +229,8 @@ export function ZeroDtePage() {
                                         </tr>
                                     ))}
                                     <tr>
-                                        <td className="py-2 pr-2 font-semibold text-[#0D2654]">Combined (widest)</td>
-                                        <td className="py-2 text-right font-mono font-semibold text-[#0D2654] whitespace-nowrap">{scan.forecast.low} – {scan.forecast.high}</td>
+                                        <td className="py-2 pr-2 font-semibold text-ink">Combined (widest)</td>
+                                        <td className="py-2 text-right font-mono font-semibold text-ink whitespace-nowrap">{scan.forecast.low} – {scan.forecast.high}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -241,7 +241,7 @@ export function ZeroDtePage() {
                         <div className="lg:col-span-2">
                             <Box title="AI day check (Jev)" right={v && <span className={`px-3 py-1 text-sm font-bold border ${v.cls}`}>{v.label}</span>}>
                                 {scan.ai?.note && <p className="text-sm text-amber-700 mb-2">{scan.ai.note}</p>}
-                                {scan.ai?.label && <p className="text-sm text-[#0D2654] mb-2">{scan.ai.label} <span className="text-xs text-gray-400">(score {scan.ai.score} of 3{scan.ai.review ? ', low confidence — review' : ''})</span></p>}
+                                {scan.ai?.label && <p className="text-sm text-ink mb-2">{scan.ai.label} <span className="text-xs text-gray-400">(score {scan.ai.score} of 3{scan.ai.review ? ', low confidence — review' : ''})</span></p>}
                                 <ul className="text-sm text-gray-600 list-disc pl-5 space-y-0.5">
                                     {scan.ai?.day_summary?.map((w) => <li key={w}>{w}</li>)}
                                 </ul>
@@ -250,7 +250,7 @@ export function ZeroDtePage() {
                                         <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">Headlines (last day)</p>
                                         <ul className="text-xs space-y-0.5">
                                             {scan.ai.headlines.slice(0, 6).map((h) => (
-                                                <li key={h.link}><a href={h.link} target="_blank" rel="noreferrer" className="text-[#0D2654] hover:underline">{h.title}</a> <span className="text-gray-400">· {h.publisher}</span> <ExternalLink className="inline w-3 h-3 text-gray-300" /></li>
+                                                <li key={h.link}><a href={h.link} target="_blank" rel="noreferrer" className="text-ink hover:underline">{h.title}</a> <span className="text-gray-400">· {h.publisher}</span> <ExternalLink className="inline w-3 h-3 text-gray-300" /></li>
                                             ))}
                                         </ul>
                                     </div>

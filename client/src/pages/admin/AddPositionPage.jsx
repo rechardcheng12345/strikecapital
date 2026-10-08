@@ -95,7 +95,7 @@ export function AddPositionPage() {
             Back
           </Button>
         </Link>
-        <h1 className="text-2xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+        <h1 className="text-2xl font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
           Add Position
         </h1>
       </div>
@@ -104,7 +104,7 @@ export function AddPositionPage() {
         {/* Form */}
         <div className="lg:col-span-2">
           <Card className="rounded-none">
-            <CardHeader className="bg-[#0D2654]">
+            <CardHeader className="bg-ink">
               <h2 className="text-lg font-semibold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                 {isStock ? 'Stock Position Details' : 'Cash-Secured Put Details'}
               </h2>
@@ -113,26 +113,26 @@ export function AddPositionPage() {
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                 {/* Position Type Toggle */}
                 <div className="flex gap-2 mb-2">
-                  <button type="button" onClick={() => setPositionType('option')} className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${positionType === 'option'
-            ? 'border-[#0D2654] bg-[#0D2654] text-white'
-            : 'border-[#0D2654]/20 text-[#0D2654] hover:border-[#0D2654]/40'}`}>
+                  <button type="button" onClick={() => setPositionType('option')} className={`px-4 py-2 text-sm font-medium rounded-none border transition-colors ${positionType === 'option'
+            ? 'border-ink bg-ink text-white'
+            : 'border-line text-ink hover:border-ink/40'}`}>
                     Cash-Secured Put
                   </button>
-                  <button type="button" onClick={() => setPositionType('stock')} className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${positionType === 'stock'
-            ? 'border-[#0D2654] bg-[#0D2654] text-white'
-            : 'border-[#0D2654]/20 text-[#0D2654] hover:border-[#0D2654]/40'}`}>
+                  <button type="button" onClick={() => setPositionType('stock')} className={`px-4 py-2 text-sm font-medium rounded-none border transition-colors ${positionType === 'stock'
+            ? 'border-ink bg-ink text-white'
+            : 'border-line text-ink hover:border-ink/40'}`}>
                     Stock Position
                   </button>
                 </div>
 
                 {/* Status Toggle */}
                 <div className="flex gap-2 mb-6">
-                  <button type="button" onClick={() => setPositionStatus('OPEN')} className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${positionStatus === 'OPEN'
+                  <button type="button" onClick={() => setPositionStatus('OPEN')} className={`px-4 py-2 text-sm font-medium rounded-none border transition-colors ${positionStatus === 'OPEN'
             ? 'border-green-600 bg-green-600 text-white'
             : 'border-green-200 text-green-700 hover:border-green-400'}`}>
                     Open
                   </button>
-                  <button type="button" onClick={() => setPositionStatus('MONITORING')} className={`px-4 py-2 text-sm font-medium rounded-none border-2 transition-colors ${positionStatus === 'MONITORING'
+                  <button type="button" onClick={() => setPositionStatus('MONITORING')} className={`px-4 py-2 text-sm font-medium rounded-none border transition-colors ${positionStatus === 'MONITORING'
             ? 'border-yellow-500 bg-yellow-500 text-white'
             : 'border-yellow-200 text-yellow-700 hover:border-yellow-400'}`}>
                     Monitoring
@@ -187,7 +187,7 @@ export function AddPositionPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Notes
                   </label>
-                  <textarea className="block w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-[#F06010] focus:border-[#F06010] sm:text-sm min-h-[80px] resize-y" placeholder="Optional notes about this position..." {...register('notes')}/>
+                  <textarea className="block w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent sm:text-sm min-h-[80px] resize-y" placeholder="Optional notes about this position..." {...register('notes')}/>
                 </div>
 
                 {/* Submit */}
@@ -197,7 +197,7 @@ export function AddPositionPage() {
                       Cancel
                     </Button>
                   </Link>
-                  <Button type="submit" variant="primary" className="bg-[#F06010] hover:bg-[#d9560e] rounded-none" loading={createMutation.isPending}>
+                  <Button type="submit" variant="primary" className="bg-accent hover:bg-accent-deep rounded-none" loading={createMutation.isPending}>
                     Create Position
                   </Button>
                 </div>
@@ -209,9 +209,9 @@ export function AddPositionPage() {
         {/* Live Calculation Preview */}
         <div className="lg:col-span-1">
           <Card className="rounded-none lg:sticky lg:top-6">
-            <CardHeader className="bg-[#F5F3EF]">
-              <h2 className="text-lg font-semibold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                <Calculator className="w-5 h-5 text-[#F06010]"/>
+            <CardHeader className="bg-paper">
+              <h2 className="text-lg font-semibold text-ink flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                <Calculator className="w-5 h-5 text-accent"/>
                 Calculation Preview
               </h2>
             </CardHeader>
@@ -221,14 +221,14 @@ export function AddPositionPage() {
                 </p>) : (<>
                   {/* Collateral */}
                   <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 bg-[#0D2654] flex items-center justify-center rounded-none flex-shrink-0">
+                    <div className="w-9 h-9 bg-ink flex items-center justify-center rounded-none flex-shrink-0">
                       <DollarSign className="w-5 h-5 text-white"/>
                     </div>
                     <div>
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                         {isStock ? 'Total Cost' : 'Collateral Required'}
                       </p>
-                      <p className="text-xl font-bold text-[#0D2654] font-mono">
+                      <p className="text-xl font-bold text-ink font-mono">
                         {formatCurrency(collateral)}
                       </p>
                       <p className="text-xs text-gray-400">
@@ -241,14 +241,14 @@ export function AddPositionPage() {
 
                   {/* Break-Even */}
                   <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 bg-[#F06010] flex items-center justify-center rounded-none flex-shrink-0">
+                    <div className="w-9 h-9 bg-accent flex items-center justify-center rounded-none flex-shrink-0">
                       <TrendingUp className="w-5 h-5 text-white"/>
                     </div>
                     <div>
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Break-Even Price
                       </p>
-                      <p className="text-xl font-bold text-[#0D2654] font-mono">
+                      <p className="text-xl font-bold text-ink font-mono">
                         {formatCurrency(breakEven)}
                       </p>
                       <p className="text-xs text-gray-400">
@@ -267,7 +267,7 @@ export function AddPositionPage() {
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Net Premium (after fees)
                       </p>
-                      <p className="text-xl font-bold text-[#0D2654] font-mono">
+                      <p className="text-xl font-bold text-ink font-mono">
                         {formatCurrency(netPremium)}
                       </p>
                       <p className="text-xs text-gray-400">
@@ -297,14 +297,14 @@ export function AddPositionPage() {
 
                   {/* Return on Collateral */}
                   <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 bg-[#0D2654] flex items-center justify-center rounded-none flex-shrink-0">
+                    <div className="w-9 h-9 bg-ink flex items-center justify-center rounded-none flex-shrink-0">
                       <Percent className="w-5 h-5 text-white"/>
                     </div>
                     <div>
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Return on Collateral
                       </p>
-                      <p className="text-xl font-bold text-[#F06010] font-mono">
+                      <p className="text-xl font-bold text-accent font-mono">
                         {returnOnCollateral.toFixed(2)}%
                       </p>
                       <p className="text-xs text-gray-400">

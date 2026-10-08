@@ -81,12 +81,12 @@ function AnnouncementFormModal({ isOpen, onClose, announcement }) {
 
         <div className="w-full">
           <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-          <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Announcement title" className="block w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-[#F06010] focus:border-[#F06010] sm:text-sm"/>
+          <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Announcement title" className="block w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent sm:text-sm"/>
         </div>
 
         <div className="w-full">
           <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
-          <textarea required rows={5} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write the announcement content..." className="block w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-[#F06010] focus:border-[#F06010] sm:text-sm resize-y"/>
+          <textarea required rows={5} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write the announcement content..." className="block w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent sm:text-sm resize-y"/>
         </div>
 
         {/* Active toggle */}
@@ -134,7 +134,7 @@ function DeleteConfirmModal({ isOpen, onClose, announcement }) {
       <div className="space-y-4">
         <p className="text-sm text-gray-600">
           Are you sure you want to delete{' '}
-          <span className="font-semibold text-[#0D2654]">
+          <span className="font-semibold text-ink">
             &ldquo;{announcement?.title}&rdquo;
           </span>
           ? This action cannot be undone.
@@ -178,8 +178,8 @@ export function AnnouncementsPage() {
     return (<div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-          <Megaphone className="w-6 h-6 text-[#F06010]"/>
+        <h1 className="text-2xl font-bold text-ink flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+          <Megaphone className="w-6 h-6 text-accent"/>
           Announcements
         </h1>
         <Button variant="primary" onClick={() => setShowCreateModal(true)} className="rounded-none gap-2">
@@ -202,7 +202,7 @@ export function AnnouncementsPage() {
         </div>)}
 
       {/* Empty */}
-      {!isLoading && announcements.length === 0 && (<Card className="rounded-none border-2 border-[#0D2654]/20">
+      {!isLoading && announcements.length === 0 && (<Card className="rounded-none border border-line">
           <CardBody>
             <EmptyState icon={Megaphone} title="No announcements yet" description="Create your first announcement to keep investors informed." action={<Button variant="primary" onClick={() => setShowCreateModal(true)} className="rounded-none gap-2">
                   <Plus className="w-4 h-4"/>
@@ -213,12 +213,12 @@ export function AnnouncementsPage() {
 
       {/* Announcement Cards */}
       {!isLoading && announcements.length > 0 && (<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {announcements.map((ann) => (<div key={ann.id} className={`bg-white border-2 rounded-none p-5 transition-all duration-150 ${ann.is_active
-                    ? 'border-[#0D2654]/20 hover:border-[#F06010]/60'
+          {announcements.map((ann) => (<div key={ann.id} className={`bg-white border rounded-none p-5 transition-all duration-150 ${ann.is_active
+                    ? 'border-line hover:border-accent/60'
                     : 'border-gray-200 opacity-70'}`}>
               {/* Card Header */}
               <div className="flex items-start justify-between gap-3 mb-3">
-                <h3 className="text-base font-bold text-[#0D2654] line-clamp-1 flex-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                <h3 className="text-base font-bold text-ink line-clamp-1 flex-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                   {ann.title}
                 </h3>
                 <Badge variant={ann.is_active ? 'green' : 'gray'}>
@@ -244,8 +244,8 @@ export function AnnouncementsPage() {
                     {ann.is_active ? (<ToggleRight className="w-5 h-5 text-green-600"/>) : (<ToggleLeft className="w-5 h-5 text-gray-400"/>)}
                   </button>
                   {/* Edit */}
-                  <button onClick={() => setEditingAnnouncement(ann)} className="p-1.5 hover:bg-[#F06010]/10 rounded-none transition-colors" title="Edit announcement">
-                    <Pencil className="w-4 h-4 text-[#F06010]"/>
+                  <button onClick={() => setEditingAnnouncement(ann)} className="p-1.5 hover:bg-accent/10 rounded-none transition-colors" title="Edit announcement">
+                    <Pencil className="w-4 h-4 text-accent"/>
                   </button>
                   {/* Delete */}
                   <button onClick={() => setDeletingAnnouncement(ann)} className="p-1.5 hover:bg-red-100 rounded-none transition-colors" title="Delete announcement">
@@ -268,7 +268,7 @@ export function AnnouncementsPage() {
               <ChevronLeft className="w-4 h-4"/>
               Prev
             </Button>
-            <span className="text-sm font-medium text-[#0D2654] px-2">
+            <span className="text-sm font-medium text-ink px-2">
               {pagination.page} / {pagination.pages}
             </span>
             <Button variant="outline" size="sm" disabled={pagination.page >= pagination.pages} onClick={() => setPage((p) => p + 1)} className="rounded-none gap-1">

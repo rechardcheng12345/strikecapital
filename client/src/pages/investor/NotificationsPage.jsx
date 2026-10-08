@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Bell, ChevronLeft, ChevronRight, CheckCheck, Clock, } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
 import { investorApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
-import { Button, Skeleton, EmptyState } from '../../components/ui';
+import { Button, Skeleton, EmptyState, ErrorAlert, PageHeader } from '../../components/ui';
 import { NOTIFICATION_TYPE } from '../../lib/constants';
 export function NotificationsPage() {
     const queryClient = useQueryClient();
@@ -55,85 +55,61 @@ export function NotificationsPage() {
             return `${diffHr}h ago`;
         if (diffDays < 7)
             return `${diffDays}d ago`;
-        return date.toLocaleDateString();
+        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     }
     return (<div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-          <Bell className="w-6 h-6 text-[#F06010]"/>
-          Notifications
-          {unreadCount > 0 && (<span className="ml-2 inline-flex items-center justify-center px-2.5 py-0.5 rounded-none text-xs font-bold bg-[#F06010] text-white">
-              {unreadCount}
-            </span>)}
-        </h1>
-        {unreadCount > 0 && (<Button variant="outline" size="sm" onClick={handleMarkAllRead} loading={markingAll} className="rounded-none">
-            <CheckCheck className="w-4 h-4 mr-1.5"/>
-            Mark All Read
+      <PageHeader
+        eyebrow="Inbox"
+        title="Notifications"
+        description={unreadCount > 0 ? `${unreadCount} unread — trades opened, closed and expiring in the fund.` : 'Trades opened, closed and expiring in the fund. You are all caught up.'}
+        actions={unreadCount > 0 && (<Button variant="secondary" onClick={handleMarkAllRead} loading={markingAll}>
+            <CheckCheck className="w-4 h-4"/>Mark all read
           </Button>)}
-      </div>
+      />
 
-      {isError && (<div className="mb-6">
-          <div className="rounded-none border-2 border-red-300 bg-red-50 p-4 text-red-700 text-sm">
-            {error?.message || 'Failed to load notifications.'}
-            <button onClick={() => refetch()} className="ml-2 underline font-medium">
-              Retry
-            </button>
-          </div>
-        </div>)}
+      {isError && <div className="mb-6"><ErrorAlert message={error?.message || 'Failed to load notifications.'} onRetry={() => refetch()}/></div>}
 
-      {isLoading ? (<div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (<div key={i} className="rounded-none border-2 border-gray-200 bg-white p-4 space-y-2">
-              <div className="flex items-center gap-3">
-                <Skeleton variant="text" width={100} height={20}/>
-                <Skeleton variant="text" width="60%" height={16}/>
-              </div>
-              <Skeleton variant="text" width="80%" height={14}/>
-              <Skeleton variant="text" width={80} height={12}/>
+      {isLoading ? (<div className="bg-white border border-line divide-y divide-line/70">
+          {Array.from({ length: 6 }).map((_, i) => (<div key={i} className="p-6 space-y-2">
+              <Skeleton variant="text" width="45%" height={16}/>
+              <Skeleton variant="text" width="70%" height={14}/>
             </div>))}
-        </div>) : notifications.length === 0 ? (<div className="bg-white rounded-none border-2 border-[#0D2654]/20">
-          <EmptyState icon={Bell} title="No notifications" description="You're all caught up. No notifications to display."/>
-        </div>) : (<div className="space-y-3">
+        </div>) : notifications.length === 0 ? (<div className="bg-white border border-line">
+          <EmptyState icon={Bell} title="No notifications" description="You're all caught up."/>
+        </div>) : (<ol className="bg-white border border-line divide-y divide-line/70">
           {notifications.map((notif) => {
                 const typeConfig = NOTIFICATION_TYPE[notif.type];
-                return (<div key={notif.id} className={`rounded-none border-2 bg-white p-4 transition-all duration-150 ${notif.is_read
-                        ? 'border-[#0D2654]/10'
-                        : 'border-l-[4px] border-l-[#F06010] border-t-[#0D2654]/20 border-r-[#0D2654]/20 border-b-[#0D2654]/20'}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      {typeConfig && (<span className={`inline-flex items-center px-2 py-0.5 rounded-none text-xs font-medium ${typeConfig.color}`}>
-                          {typeConfig.label}
-                        </span>)}
-                      <h3 className={`text-sm font-semibold ${notif.is_read ? 'text-gray-600' : 'text-[#0D2654]'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                        {notif.title}
-                      </h3>
-                    </div>
-                    <p className={`text-sm ${notif.is_read ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {notif.message}
-                    </p>
-                    <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
-                      <Clock className="w-3 h-3"/>
-                      {formatTimestamp(notif.created_at)}
-                    </div>
+                const unread = !notif.is_read;
+                return (<li key={notif.id} className={`group grid grid-cols-[14px_minmax(0,1fr)] sm:grid-cols-[14px_112px_minmax(0,1fr)_auto] gap-x-4 gap-y-1 px-5 sm:px-6 py-5 transition-colors hover:bg-[#FAF8F4] ${unread ? '' : 'opacity-75'}`}>
+                <span className="pt-[7px]" aria-hidden>
+                  <span className={`block w-[7px] h-[7px] rounded-full ${unread ? 'bg-accent' : 'bg-transparent'}`}/>
+                </span>
+                <time className="hidden sm:block pt-px text-[12.5px] text-muted tabular-nums" dateTime={notif.created_at}>{formatTimestamp(notif.created_at)}</time>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h3 className={`text-[14.5px] ${unread ? 'font-medium text-ink' : 'text-ink/80'}`}>{notif.title}</h3>
+                    {typeConfig && <span className="text-[10.5px] uppercase tracking-[0.1em] text-muted">{typeConfig.label}</span>}
                   </div>
-                  {!notif.is_read && (<button onClick={() => handleMarkRead(notif.id)} disabled={markingId === notif.id} className="shrink-0 text-xs text-[#F06010] hover:text-[#0D2654] font-medium transition-colors disabled:opacity-50">
-                      {markingId === notif.id ? 'Marking...' : 'Mark read'}
-                    </button>)}
+                  <p className="mt-1 text-[13.5px] leading-relaxed text-muted">{notif.message}</p>
+                  <time className="sm:hidden mt-1.5 block text-[12px] text-muted/80">{formatTimestamp(notif.created_at)}</time>
                 </div>
-              </div>);
+                {unread ? (<button onClick={() => handleMarkRead(notif.id)} disabled={markingId === notif.id} className="col-start-2 sm:col-start-auto justify-self-start sm:justify-self-end self-start text-[12.5px] text-muted hover:text-ink underline-offset-4 hover:underline transition-colors disabled:opacity-50">
+                    {markingId === notif.id ? 'Marking…' : 'Mark read'}
+                  </button>) : <span className="hidden sm:block"/>}
+              </li>);
             })}
-        </div>)}
+        </ol>)}
 
       {/* Pagination */}
-      {pagination && pagination.pages > 1 && (<div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-gray-500">
+      {pagination && pagination.pages > 1 && (<div className="flex items-center justify-between mt-5">
+          <p className="text-[13px] text-muted">
             Page {pagination.page} of {pagination.pages} ({pagination.total} total)
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => setPage((p) => p - 1)} className="rounded-none">
+            <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => setPage((p) => p - 1)} >
               <ChevronLeft className="w-4 h-4"/>
             </Button>
-            <Button variant="outline" size="sm" disabled={pagination.page >= pagination.pages} onClick={() => setPage((p) => p + 1)} className="rounded-none">
+            <Button variant="outline" size="sm" disabled={pagination.page >= pagination.pages} onClick={() => setPage((p) => p + 1)} >
               <ChevronRight className="w-4 h-4"/>
             </Button>
           </div>

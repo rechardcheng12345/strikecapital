@@ -1,78 +1,101 @@
-import { LayoutDashboard, DollarSign, TrendingUp, Activity, Bell, PieChart, } from 'lucide-react';
+import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { investorApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
+import { useAuthStore } from '../../stores/authStore';
 import { formatDateTime } from '../../lib/constants';
-import { Skeleton, ErrorAlert } from '../../components/ui';
-function formatCurrency(value) {
-    return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+import { Skeleton, ErrorAlert, PageHeader, Money, Pct, HeroFigure, Ledger, TrendChart, Eyebrow, greeting, toneClass } from '../../components/ui';
+
+const shortDate = (d) => (d ? new Date(`${String(d).slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '');
+
+function OverviewSkeleton() {
+    return (<div className="space-y-6">
+      <div className="bg-white border border-line p-8 grid lg:grid-cols-[1.1fr_1fr] gap-10">
+        <div className="space-y-4"><Skeleton width={140} height={12}/><Skeleton width="70%" height={72}/><Skeleton width="85%" height={14}/></div>
+        <Skeleton height={190}/>
+      </div>
+      <Skeleton height={130}/>
+    </div>);
 }
-function formatPercent(value) {
-    return value.toFixed(1) + '%';
-}
-function MetricCard({ title, value, icon, subtitle, accent, valueColor }) {
-    return (<div className={`rounded-none border-2 p-3 transition-all duration-150 ${accent
-            ? 'border-[#F06010] bg-white'
-            : 'border-[#0D2654]/20 bg-white hover:border-[#0D2654]/40'}`}>
-      <div className="flex items-center justify-between mb-1.5">
-        <div className={`p-1.5 rounded-none ${accent ? 'bg-[#F06010]/10 text-[#F06010]' : 'bg-[#0D2654]/5 text-[#0D2654]'}`}>
-          {icon}
+
+/** The investor's account at a glance — also shown to the admin under Dashboard → Investor view. */
+export function InvestorOverview() {
+    const { data: d, isLoading, isError, error, refetch } = useApiQuery({ queryKey: ['investor', 'dashboard'], queryFn: () => investorApi.getDashboard() });
+    const { data: pnl } = useApiQuery({ queryKey: ['investor', 'pnl', 'all'], queryFn: () => investorApi.getPnl('all') });
+
+    // Cumulative realized share over time, oldest first
+    const series = useMemo(() => {
+        const rows = [...(pnl?.records || [])].sort((a, b) => String(a.record_date).localeCompare(String(b.record_date)));
+        let sum = 0;
+        const byDay = new Map();
+        for (const r of rows) {
+            sum += Number(r.pnl_share) || 0;
+            byDay.set(shortDate(r.record_date), Math.round(sum * 100) / 100);
+        }
+        return [...byDay.entries()].map(([date, value]) => ({ date, value }));
+    }, [pnl]);
+
+    if (isLoading) return <OverviewSkeleton/>;
+    if (isError) return <ErrorAlert message={error?.message || 'Failed to load your account.'} onRetry={() => refetch()}/>;
+    if (!d) return null;
+
+    const invested = d.allocation.allocation_amount;
+    const realized = d.total_pnl_share ?? 0;
+    const open = d.unrealized_pnl_share ?? 0;
+    const value = d.account_value ?? invested + realized + open;
+    const profit = realized + open;
+    const twr = d.total_return_pct;
+
+    return (<div className="space-y-6">
+      <section className="bg-white border border-line grid lg:grid-cols-[1.05fr_1fr]">
+        <div className="p-7 sm:p-10 lg:border-r border-line">
+          <HeroFigure label="Account value" caption={<>
+              <span className={`font-medium ${toneClass(profit)}`}><Money plain value={profit} signed/></span> profit
+              {twr != null && <> · <span className={`font-medium ${toneClass(twr)}`}><Pct value={twr}/></span> {d.return_basis === 'time_weighted' ? 'time-weighted' : 'return'}</>}
+              {d.return_since && <> since {shortDate(d.return_since)}</>}
+              {d.annualized_return_pct != null && <> · <Pct value={d.annualized_return_pct}/> a year</>}
+            </>}>
+            <Money value={value}/>
+          </HeroFigure>
+          <p className="mt-8 text-[12px] text-muted/80">
+            Open positions valued at their latest price{d.last_price_update ? ` · updated ${formatDateTime(d.last_price_update)}` : ''}.
+          </p>
         </div>
-        {subtitle && (<span className="text-xs font-medium text-gray-400 uppercase tracking-wider truncate ml-2 text-right">
-            {subtitle}
-          </span>)}
-      </div>
-      <p className="text-xs font-medium text-gray-500 mb-0.5">{title}</p>
-      <p className={`text-xl font-bold ${valueColor || 'text-[#0D2654]'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-        {value}
-      </p>
+        <div className="p-7 sm:p-10 border-t lg:border-t-0 border-line flex flex-col">
+          <div className="flex items-baseline justify-between">
+            <Eyebrow>Realized P&L, cumulative</Eyebrow>
+            <span className={`text-[13px] font-medium ${toneClass(realized)}`}><Money plain value={realized} signed/></span>
+          </div>
+          <div className="mt-6 flex-1 min-h-[180px]">
+            <TrendChart points={series} height={200}/>
+          </div>
+          {series.length > 1 && (<div className="mt-2 flex justify-between text-[11px] text-muted">
+              <span>{series[0].date}</span><span>{series[series.length - 1].date}</span>
+            </div>)}
+        </div>
+      </section>
+
+      <Ledger items={[
+            { label: 'Net invested', value: <Money value={invested}/>, caption: `${Number(d.allocation.allocation_pct || 0).toFixed(1)}% of contributed capital` },
+            { label: 'Realized P&L', value: <Money value={realized} signed/>, tone: toneClass(realized), caption: 'Your share of closed trades' },
+            { label: 'Open positions', value: <Money value={open} signed/>, tone: toneClass(open), caption: 'Your share at today’s prices' },
+            { label: 'Win rate', value: <Pct value={d.win_rate} signed={false}/>, caption: `${d.active_positions} position${d.active_positions === 1 ? '' : 's'} open now` },
+        ]}/>
+
+      {d.unread_notifications > 0 && (<Link to="/notifications" className="group flex items-center justify-between border border-line bg-white px-6 py-4 hover:border-ink/30 transition-colors">
+          <span className="flex items-center gap-3 text-sm text-ink">
+            <span className="relative flex w-2 h-2"><span className="absolute inset-0 rounded-full bg-accent animate-pulse-ring"/><span className="relative w-2 h-2 rounded-full bg-accent"/></span>
+            {d.unread_notifications} unread update{d.unread_notifications === 1 ? '' : 's'} from the fund
+          </span>
+          <span className="text-[13px] text-muted group-hover:text-ink transition-colors">Read →</span>
+        </Link>)}
     </div>);
 }
-function MetricCardSkeleton() {
-    return (<div className="rounded-none border-2 border-gray-200 bg-white p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <Skeleton variant="rectangular" width={32} height={32} className="rounded-none"/>
-        <Skeleton variant="text" width={60} height={12}/>
-      </div>
-      <Skeleton variant="text" width="60%" height={12}/>
-      <Skeleton variant="text" width="80%" height={24}/>
-    </div>);
-}
+
 export function InvestorDashboardPage() {
-    const { data: dashboard, isLoading, isError, error, refetch, } = useApiQuery({
-        queryKey: ['investor', 'dashboard'],
-        queryFn: () => investorApi.getDashboard(),
-    });
-    const pnlColor = dashboard && dashboard.total_pnl_share >= 0 ? 'text-green-600' : 'text-red-600';
-    const unrealizedPnlColor = dashboard && dashboard.unrealized_pnl_share >= 0 ? 'text-green-600' : 'text-red-600';
+    const user = useAuthStore((s) => s.user);
     return (<div>
-      <h1 className="text-2xl font-bold text-[#0D2654] mb-6 flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-        <LayoutDashboard className="w-6 h-6 text-[#F06010]"/>
-        My Dashboard
-      </h1>
-
-      {isError && (<div className="mb-6">
-          <ErrorAlert message={error?.message || 'Failed to load dashboard.'} onRetry={() => refetch()}/>
-        </div>)}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {isLoading ? (<>
-            <MetricCardSkeleton />
-            <MetricCardSkeleton />
-            <MetricCardSkeleton />
-            <MetricCardSkeleton />
-            <MetricCardSkeleton />
-            <MetricCardSkeleton />
-          </>) : dashboard ? (<>
-            <MetricCard title="My Allocation" value={formatCurrency(dashboard.allocation.allocation_amount)} icon={<DollarSign className="w-5 h-5"/>} subtitle={formatPercent(dashboard.allocation.allocation_pct) + ' of fund'} accent/>
-            <MetricCard title="Realized P&L Share" value={formatCurrency(dashboard.total_pnl_share)} icon={<TrendingUp className="w-5 h-5"/>} subtitle="My share" valueColor={pnlColor}/>
-            <MetricCard title="Unrealized P&L Share" value={formatCurrency(dashboard.unrealized_pnl_share ?? 0)} icon={<DollarSign className="w-5 h-5"/>} subtitle={dashboard.last_price_update ? `Updated ${formatDateTime(dashboard.last_price_update)}` : 'No price data'} valueColor={unrealizedPnlColor}/>
-            {dashboard.total_return_pct !== null && dashboard.total_return_pct !== undefined && (
-              <MetricCard title="Total Return" value={formatPercent(dashboard.total_return_pct)} icon={<TrendingUp className="w-5 h-5"/>} subtitle={dashboard.return_basis === 'time_weighted' ? `Time-weighted${dashboard.return_since ? ` since ${dashboard.return_since}` : ''}${dashboard.annualized_return_pct != null ? ` · ${dashboard.annualized_return_pct.toFixed(1)}%/yr` : ''}` : 'On my allocation'} valueColor={dashboard.total_return_pct >= 0 ? 'text-green-600' : 'text-red-600'}/>
-            )}
-            <MetricCard title="Win Rate" value={formatPercent(dashboard.win_rate)} icon={<PieChart className="w-5 h-5"/>} subtitle="Resolved"/>
-            <MetricCard title="Active Positions" value={dashboard.active_positions.toLocaleString()} icon={<Activity className="w-5 h-5"/>} subtitle="Current"/>
-            <MetricCard title="Unread Notifications" value={dashboard.unread_notifications.toLocaleString()} icon={<Bell className="w-5 h-5"/>} subtitle="New" accent={dashboard.unread_notifications > 0}/>
-          </>) : null}
-      </div>
+      <PageHeader eyebrow="Your account" title={greeting(user?.full_name)} description="Your share of the StrikeCapital fund — what it’s worth today and how it got there."/>
+      <InvestorOverview/>
     </div>);
 }

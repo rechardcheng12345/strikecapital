@@ -14,7 +14,7 @@ function FundItem({ label, value, valueColor }) {
     return (
         <div className="flex flex-col gap-0.5">
             <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">{label}</span>
-            <span className={`text-sm font-semibold ${valueColor || 'text-[#0D2654]'}`}>
+            <span className={`text-sm font-semibold ${valueColor || 'text-ink'}`}>
                 {value ?? '--'}
             </span>
         </div>
@@ -23,12 +23,12 @@ function FundItem({ label, value, valueColor }) {
 
 function FundCard({ title, icon, children }) {
     return (
-        <div className="rounded-none border-2 border-[#0D2654]/15 bg-white">
-            <div className="px-5 py-3 border-b-2 border-[#0D2654]/10 flex items-center gap-2">
-                <div className="p-1.5 rounded-none bg-[#0D2654]/5 text-[#0D2654]">
+        <div className="rounded-none border border-ink/15 bg-white">
+            <div className="px-5 py-3 border-b-2 border-ink/10 flex items-center gap-2">
+                <div className="p-1.5 rounded-none bg-ink/5 text-ink">
                     {icon}
                 </div>
-                <h3 className="text-sm font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                <h3 className="text-sm font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                     {title}
                 </h3>
             </div>
@@ -43,7 +43,7 @@ function HeroMetric({ label, value, valueColor }) {
     return (
         <div className="text-center">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">{label}</p>
-            <p className={`text-2xl font-bold ${valueColor || 'text-[#0D2654]'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+            <p className={`text-2xl font-bold ${valueColor || 'text-ink'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                 {value}
             </p>
         </div>
@@ -53,7 +53,7 @@ function HeroMetric({ label, value, valueColor }) {
 function FundsSkeleton() {
     return (
         <div className="space-y-6">
-            <div className="rounded-none border-2 border-gray-200 bg-white p-6">
+            <div className="rounded-none border border-gray-200 bg-white p-6">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
                     {Array.from({ length: 4 }).map((_, i) => (
                         <div key={i} className="text-center space-y-2">
@@ -64,7 +64,7 @@ function FundsSkeleton() {
                 </div>
             </div>
             {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="rounded-none border-2 border-gray-200 bg-white p-5 space-y-4">
+                <div key={i} className="rounded-none border border-gray-200 bg-white p-5 space-y-4">
                     <Skeleton variant="text" width="30%" height={16} />
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {Array.from({ length: 3 }).map((_, j) => (
@@ -89,20 +89,20 @@ function ReconciliationPanel() {
     });
 
     const plColor = (val) => {
-        if (val == null) return 'text-[#0D2654]';
+        if (val == null) return 'text-ink';
         return Number(val) >= 0 ? 'text-green-600' : 'text-red-600';
     };
 
     return (
-        <div className="rounded-none border-2 border-[#0D2654]/15 bg-white">
+        <div className="rounded-none border border-ink/15 bg-white">
             <button
                 onClick={() => setOpen(v => !v)}
-                className="w-full px-5 py-3 border-b-2 border-[#0D2654]/10 flex items-center gap-2 hover:bg-gray-50"
+                className="w-full px-5 py-3 border-b-2 border-ink/10 flex items-center gap-2 hover:bg-gray-50"
             >
-                <div className="p-1.5 rounded-none bg-[#0D2654]/5 text-[#0D2654]">
+                <div className="p-1.5 rounded-none bg-ink/5 text-ink">
                     <AlertTriangle className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                <h3 className="text-sm font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                     Earnings Reconciliation
                 </h3>
                 <span className="ml-auto text-[10px] text-gray-400 uppercase tracking-wider hidden sm:block">
@@ -118,11 +118,11 @@ function ReconciliationPanel() {
                         <>
                             {/* Formula terms */}
                             <div>
-                                <h4 className="text-xs font-bold text-[#0D2654] uppercase tracking-wider mb-2">Formula Terms</h4>
+                                <h4 className="text-xs font-bold text-ink uppercase tracking-wider mb-2">Formula Terms</h4>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase">Total Assets</p>
-                                        <p className="font-semibold text-[#0D2654]">{formatCurrency(recon.terms.totalAssets)}</p>
+                                        <p className="font-semibold text-ink">{formatCurrency(recon.terms.totalAssets)}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase">Market Value</p>
@@ -130,12 +130,12 @@ function ReconciliationPanel() {
                                     </div>
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase">Gross Fund Value</p>
-                                        <p className="font-semibold text-[#0D2654]">{formatCurrency(recon.terms.grossFundValue)}</p>
+                                        <p className="font-semibold text-ink">{formatCurrency(recon.terms.grossFundValue)}</p>
                                         <p className="text-[9px] text-gray-400">TA − MV</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase">Fund Capital</p>
-                                        <p className="font-semibold text-[#0D2654]">{formatCurrency(recon.terms.totalCapital)}</p>
+                                        <p className="font-semibold text-ink">{formatCurrency(recon.terms.totalCapital)}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase">Open Premium (net)</p>
@@ -161,7 +161,7 @@ function ReconciliationPanel() {
 
                             {/* Duplicate warning */}
                             {recon.duplicatePositions?.length > 0 && (
-                                <div className="border-2 border-red-300 bg-red-50 p-3">
+                                <div className="border border-red-300 bg-red-50 p-3">
                                     <p className="text-xs font-bold text-red-700 uppercase tracking-wider mb-2">
                                         Positions with multiple P&L rows (possible double-count)
                                     </p>
@@ -194,7 +194,7 @@ function ReconciliationPanel() {
 
                             {/* Open premium detail */}
                             <div>
-                                <h4 className="text-xs font-bold text-[#0D2654] uppercase tracking-wider mb-2">
+                                <h4 className="text-xs font-bold text-ink uppercase tracking-wider mb-2">
                                     Open Option Positions ({recon.openPremiumDetail.length}) — contributing {formatCurrency(recon.terms.openPremiumNet)}
                                 </h4>
                                 <div className="overflow-x-auto">
@@ -231,7 +231,7 @@ function ReconciliationPanel() {
 
                             {/* All P&L records */}
                             <div>
-                                <h4 className="text-xs font-bold text-[#0D2654] uppercase tracking-wider mb-2">
+                                <h4 className="text-xs font-bold text-ink uppercase tracking-wider mb-2">
                                     All P&L Records ({recon.pnlDetail.length}) — SUM = {formatCurrency(recon.terms.realizedGross)}
                                 </h4>
                                 <div className="overflow-x-auto max-h-96 overflow-y-auto">
@@ -290,21 +290,21 @@ export function AccountFundsPage() {
     });
 
     const plColor = (val) => {
-        if (val == null) return 'text-[#0D2654]';
+        if (val == null) return 'text-ink';
         return Number(val) >= 0 ? 'text-green-600' : 'text-red-600';
     };
 
     return (
         <div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <h1 className="text-2xl font-bold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                    <Wallet className="w-6 h-6 text-[#F06010]" />
+                <h1 className="text-2xl font-bold text-ink flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    <Wallet className="w-6 h-6 text-accent" />
                     Account Funds
                 </h1>
                 <button
                     onClick={() => refetch()}
                     disabled={isFetching}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border-2 border-[#0D2654]/20 bg-white text-[#0D2654] hover:border-[#0D2654]/40 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-line bg-white text-ink hover:border-ink/40 transition-colors disabled:opacity-50"
                 >
                     <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
                     Refresh
@@ -338,7 +338,7 @@ export function AccountFundsPage() {
                     </div>
 
                     {/* Hero metrics */}
-                    <div className="rounded-none border-2 border-[#F06010] bg-white p-4 sm:p-6">
+                    <div className="rounded-none border border-accent bg-white p-4 sm:p-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                             <HeroMetric label="Total Assets" value={formatCurrency(funds.totalAssets)} />
                             <HeroMetric label="Cash" value={formatCurrency(funds.cash)} />
@@ -349,12 +349,12 @@ export function AccountFundsPage() {
 
                     {/* Earnings Analysis */}
                     {funds.additionalEarnings !== null && funds.additionalEarnings !== undefined && (
-                        <div className="rounded-none border-2 border-[#F06010] bg-white">
-                            <div className="px-5 py-3 border-b-2 border-[#F06010]/20 flex items-center gap-2 bg-[#F06010]/5">
-                                <div className="p-1.5 rounded-none bg-[#F06010]/10 text-[#F06010]">
+                        <div className="rounded-none border border-accent bg-white">
+                            <div className="px-5 py-3 border-b-2 border-accent/20 flex items-center gap-2 bg-accent/5">
+                                <div className="p-1.5 rounded-none bg-accent/10 text-accent">
                                     <Sparkles className="w-4 h-4" />
                                 </div>
-                                <h3 className="text-sm font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                                <h3 className="text-sm font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                                     Earnings Analysis
                                 </h3>
                                 <span className="ml-auto text-[10px] text-gray-400 uppercase tracking-wider hidden sm:block">
@@ -366,7 +366,7 @@ export function AccountFundsPage() {
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
                                     <div className="text-center">
                                         <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Gross Fund Value</p>
-                                        <p className="text-xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                                        <p className="text-xl font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                                             {formatCurrency(funds.grossFundValue ?? funds.totalAssets)}
                                         </p>
                                         <p className="text-[10px] text-gray-400 mt-0.5">
@@ -375,7 +375,7 @@ export function AccountFundsPage() {
                                     </div>
                                     <div className="text-center">
                                         <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Fund Capital</p>
-                                        <p className="text-xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                                        <p className="text-xl font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                                             {formatCurrency(funds.totalCapital)}
                                         </p>
                                     </div>
@@ -400,7 +400,7 @@ export function AccountFundsPage() {
                                 <div className="border-t border-gray-100 pt-3 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center">
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase tracking-wider">Total Assets</p>
-                                        <p className="text-sm font-semibold text-[#0D2654]">{formatCurrency(funds.totalAssets)}</p>
+                                        <p className="text-sm font-semibold text-ink">{formatCurrency(funds.totalAssets)}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase tracking-wider">Options Mkt Value</p>

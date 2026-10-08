@@ -13,9 +13,9 @@ const td = 'px-3 py-2 font-mono text-right whitespace-nowrap';
 
 function Tile({ label, value, sub, className = '' }) {
     return (
-        <div className="bg-white border-2 border-[#0D2654]/10 p-4">
+        <div className="bg-white border border-ink/10 p-4">
             <p className="text-xs uppercase tracking-wider text-gray-400">{label}</p>
-            <p className={`text-2xl font-bold text-[#0D2654] mt-1 ${className}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{value}</p>
+            <p className={`text-2xl font-bold text-ink mt-1 ${className}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{value}</p>
             {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
         </div>
     );
@@ -25,7 +25,7 @@ function Section({ title, hint, children }) {
     return (
         <Card className="rounded-none">
             <CardHeader>
-                <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider">{title}</h2>
+                <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">{title}</h2>
                 {hint && <p className="text-xs text-gray-500 mt-0.5">{hint}</p>}
             </CardHeader>
             <CardBody className="p-0 overflow-x-auto">{children}</CardBody>
@@ -45,12 +45,12 @@ export function InvestorStatementPage() {
     const withdrawn = -s.contributions.filter((c) => c.amount < 0).reduce((sum, c) => sum + c.amount, 0);
     return (
         <div className="space-y-6">
-            <Link to="/admin/investors" className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0D2654]/60 hover:text-[#0D2654]">
+            <Link to="/admin/investors" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink/60 hover:text-ink">
                 <ArrowLeft className="w-4 h-4" /> Investors
             </Link>
             <div>
-                <h1 className="text-2xl font-bold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                    <FileText className="w-6 h-6 text-[#F06010]" />P&L statement — {s.investor.full_name}
+                <h1 className="text-2xl font-bold text-ink flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    <FileText className="w-6 h-6 text-accent" />P&L statement — {s.investor.full_name}
                 </h1>
                 <p className="text-sm text-gray-500">{s.investor.email} · as of {s.as_of}{s.since ? ` · invested since ${s.since}` : ''}</p>
             </div>
@@ -122,7 +122,7 @@ export function InvestorStatementPage() {
                             {s.open_positions.map((o) => (
                                 <tr key={o.position_id} className="border-b border-gray-50">
                                     <td className="px-3 py-2 whitespace-nowrap">
-                                        <Link to={`/admin/positions/${o.position_id}`} className="text-[#0D2654] hover:underline">
+                                        <Link to={`/admin/positions/${o.position_id}`} className="text-ink hover:underline">
                                             {o.ticker} {o.type === 'stock' ? `${o.shares} shares` : `$${o.strike} · ${o.expiry} · ×${o.contracts}`}
                                         </Link>
                                     </td>
@@ -162,7 +162,7 @@ export function InvestorStatementPage() {
                                     <tr key={r.position_id} className="border-b border-gray-50">
                                         <td className="px-3 py-2 whitespace-nowrap">{r.closed_on}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">
-                                            <Link to={`/admin/positions/${r.position_id}`} className="text-[#0D2654] hover:underline">
+                                            <Link to={`/admin/positions/${r.position_id}`} className="text-ink hover:underline">
                                                 {r.ticker} {r.type === 'stock' ? '' : `$${r.strike} · ${r.expiry}`}
                                             </Link>
                                         </td>

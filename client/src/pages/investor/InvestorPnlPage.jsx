@@ -1,115 +1,92 @@
-import { useState } from 'react';
-import { BarChart3, DollarSign, PieChart, } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { BarChart3 } from 'lucide-react';
 import { investorApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
-import { Skeleton, ErrorAlert, EmptyState } from '../../components/ui';
-function formatCurrency(value) {
-    return (value < 0 ? '-' : '') + '$' + Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function formatPercent(value) {
-    return value.toFixed(1) + '%';
-}
-const PERIOD_TABS = [
-    { key: '1m', label: '1M' },
-    { key: '3m', label: '3M' },
-    { key: 'ytd', label: 'YTD' },
-    { key: 'all', label: 'All' },
-];
+import { Skeleton, ErrorAlert, EmptyState, PageHeader, HeroFigure, Money, Segmented, TrendChart, Eyebrow, toneClass } from '../../components/ui';
+
+const PERIODS = [['1m', '1M'], ['3m', '3M'], ['ytd', 'YTD'], ['all', 'All']];
+const PERIOD_TEXT = { '1m': 'in the last month', '3m': 'in the last three months', ytd: 'this year', all: 'since you joined' };
+const day = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
 export function InvestorPnlPage() {
     const [period, setPeriod] = useState('all');
-    const { data: pnl, isLoading, isError, error, refetch, } = useApiQuery({
+    const { data: pnl, isLoading, isError, error, refetch } = useApiQuery({
         queryKey: ['investor', 'pnl', period],
         queryFn: () => investorApi.getPnl(period),
     });
-    const pnlColor = pnl && pnl.total_pnl_share >= 0 ? 'text-green-600' : 'text-red-600';
+
+    // Oldest → newest running total for the chart
+    const points = useMemo(() => {
+        if (!pnl?.records?.length) return [];
+        let run = 0;
+        return [...pnl.records]
+            .sort((a, b) => new Date(a.record_date) - new Date(b.record_date))
+            .map((r) => ({ date: day(r.record_date), value: (run += Number(r.pnl_share) || 0) }));
+    }, [pnl]);
+
     return (<div>
-      <h1 className="text-2xl font-bold text-[#0D2654] mb-6 flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-        <BarChart3 className="w-6 h-6 text-[#F06010]"/>
-        P&L
-      </h1>
+      <PageHeader
+        eyebrow="My account"
+        title="Profit & loss"
+        description="Your share of every closed trade, in proportion to your stake in the fund."
+        actions={<Segmented value={period} onChange={setPeriod} options={PERIODS}/>}
+      />
 
-      {isError && (<div className="mb-6">
-          <ErrorAlert message={error?.message || 'Failed to load P&L data.'} onRetry={() => refetch()}/>
-        </div>)}
+      {isError && <div className="mb-6"><ErrorAlert message={error?.message || 'Failed to load P&L data.'} onRetry={() => refetch()}/></div>}
 
-      {/* Period tabs */}
-      <div className="flex gap-1 mb-6 border-b-2 border-[#0D2654]/10">
-        {PERIOD_TABS.map((tab) => (<button key={tab.key} onClick={() => setPeriod(tab.key)} className={`px-4 py-2 text-sm font-medium transition-colors rounded-none border-b-2 -mb-[2px] ${period === tab.key
-                ? 'border-[#F06010] text-[#F06010]'
-                : 'border-transparent text-gray-500 hover:text-[#0D2654]'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-            {tab.label}
-          </button>))}
-      </div>
-
-      {/* Summary cards */}
-      {isLoading ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <div className="rounded-none border-2 border-gray-200 bg-white p-5 space-y-3">
-            <Skeleton variant="rectangular" width={40} height={40} className="rounded-none"/>
-            <Skeleton variant="text" width="60%" height={14}/>
-            <Skeleton variant="text" width="80%" height={28}/>
-          </div>
-          <div className="rounded-none border-2 border-gray-200 bg-white p-5 space-y-3">
-            <Skeleton variant="rectangular" width={40} height={40} className="rounded-none"/>
-            <Skeleton variant="text" width="60%" height={14}/>
-            <Skeleton variant="text" width="80%" height={28}/>
-          </div>
-        </div>) : pnl ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <div className="rounded-none border-2 border-[#F06010] bg-white p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div className="p-2 rounded-none bg-[#F06010]/10 text-[#F06010]">
-                <DollarSign className="w-5 h-5"/>
+      {isLoading ? (<div className="space-y-6"><Skeleton height={300}/><Skeleton height={360}/></div>) : pnl ? (<>
+        <section className="bg-white border border-line grid lg:grid-cols-[1fr_1.4fr]">
+          <div className="p-7 sm:p-10 lg:border-r border-line flex flex-col justify-between gap-8">
+            <HeroFigure label="Your realized P&L" caption={<>
+                From <span className="text-ink">{pnl.records.length.toLocaleString()}</span> closed {pnl.records.length === 1 ? 'trade' : 'trades'} {PERIOD_TEXT[period]}.
+              </>}>
+              <span className={toneClass(pnl.total_pnl_share)}><Money value={pnl.total_pnl_share} signed/></span>
+            </HeroFigure>
+            <dl className="grid grid-cols-2 border-t border-line pt-5">
+              <div>
+                <dt className="text-[11px] font-medium uppercase tracking-eyebrow text-muted">Your stake</dt>
+                <dd className="mt-2 text-[22px] font-medium tracking-[-0.02em] text-ink">{Number(pnl.allocation_pct || 0).toFixed(2)}%</dd>
               </div>
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">My Share</span>
-            </div>
-            <p className="text-sm font-medium text-gray-500 mb-1">Total P&L Share</p>
-            <p className={`text-2xl font-bold ${pnlColor}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              {formatCurrency(pnl.total_pnl_share)}
-            </p>
-          </div>
-          <div className="rounded-none border-2 border-[#0D2654]/20 bg-white p-5 hover:border-[#0D2654]/40 transition-all duration-150">
-            <div className="flex items-start justify-between mb-3">
-              <div className="p-2 rounded-none bg-[#0D2654]/5 text-[#0D2654]">
-                <PieChart className="w-5 h-5"/>
+              <div>
+                <dt className="text-[11px] font-medium uppercase tracking-eyebrow text-muted">Average per trade</dt>
+                <dd className="mt-2 text-[22px] font-medium tracking-[-0.02em] text-ink">
+                  <Money value={pnl.records.length ? pnl.total_pnl_share / pnl.records.length : 0}/>
+                </dd>
               </div>
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Fund</span>
-            </div>
-            <p className="text-sm font-medium text-gray-500 mb-1">Allocation %</p>
-            <p className="text-2xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              {formatPercent(pnl.allocation_pct)}
-            </p>
+            </dl>
           </div>
-        </div>) : null}
+          <div className="p-6 sm:p-8 border-t lg:border-t-0 border-line">
+            <Eyebrow className="mb-4">Cumulative</Eyebrow>
+            <TrendChart points={points} height={240}/>
+          </div>
+        </section>
 
-      {/* Records table */}
-      <div className="bg-white rounded-none border-2 border-[#0D2654]/20 overflow-hidden">
-        {isLoading ? (<div className="p-6 space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (<div key={i} className="flex gap-4">
-                <Skeleton variant="text" width="25%" height={16}/>
-                <Skeleton variant="text" width="25%" height={16}/>
-                <Skeleton variant="text" width="25%" height={16}/>
-              </div>))}
-          </div>) : !pnl || pnl.records.length === 0 ? (<EmptyState icon={BarChart3} title="No P&L records" description="No P&L records found for this period."/>) : (<div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-[#0D2654] text-white">
-                  <th className="text-left px-4 py-3 font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Ticker</th>
-                  <th className="text-right px-4 py-3 font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>P&L Share</th>
-                  <th className="text-left px-4 py-3 font-medium" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pnl.records.map((record, idx) => (<tr key={`${record.position_id}-${record.record_date}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-4 py-3 font-semibold text-[#0D2654]">{record.ticker}</td>
-                    <td className={`px-4 py-3 text-right font-medium ${record.pnl_share >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(record.pnl_share)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {new Date(record.record_date).toLocaleDateString()}
-                    </td>
-                  </tr>))}
-              </tbody>
-            </table>
-          </div>)}
-      </div>
+        <section className="mt-10">
+          <div className="flex items-baseline justify-between mb-4">
+            <h2 className="font-display text-[22px] leading-none text-ink">Statement</h2>
+            <span className="text-[12.5px] text-muted">Newest first</span>
+          </div>
+          <div className="bg-white border border-line overflow-hidden">
+            {pnl.records.length === 0 ? (<EmptyState icon={BarChart3} title="Nothing closed in this period" description="Your share appears here when a trade is closed or expires."/>) : (<div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left px-4 sm:px-6 py-3.5">Date</th>
+                    <th className="text-left px-4 sm:px-6 py-3.5">Position</th>
+                    <th className="text-right px-4 sm:px-6 py-3.5">Your share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pnl.records.map((r) => (<tr key={`${r.position_id}-${r.record_date}`} className="border-b border-line/70 last:border-b-0">
+                      <td className="px-4 sm:px-6 py-3.5 text-muted whitespace-nowrap">{day(r.record_date)}</td>
+                      <td className="px-4 sm:px-6 py-3.5 font-medium text-ink whitespace-nowrap">{r.ticker}</td>
+                      <td className={`px-4 sm:px-6 py-3.5 text-right font-mono whitespace-nowrap ${toneClass(r.pnl_share)}`}><Money plain value={r.pnl_share} signed/></td>
+                    </tr>))}
+                </tbody>
+              </table>
+            </div>)}
+          </div>
+        </section>
+      </>) : null}
     </div>);
 }

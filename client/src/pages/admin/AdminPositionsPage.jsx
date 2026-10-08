@@ -22,15 +22,16 @@ const STATUS_TABS = [
     { key: 'RESOLVED', label: 'Resolved' },
 ];
 const STATUS_BADGE_VARIANT = {
-    OPEN: 'bg-green-100 text-green-800',
-    MONITORING: 'bg-yellow-100 text-yellow-800',
-    ROLLING: 'bg-blue-100 text-blue-800',
-    EXPIRY: 'bg-orange-100 text-orange-800',
-    RESOLVED: 'bg-gray-100 text-gray-800',
+    OPEN: 'border border-green-100 bg-green-50 text-green-700',
+    MONITORING: 'border border-amber-200/70 bg-amber-50 text-amber-800',
+    ROLLING: 'border border-ink-100 bg-ink-50 text-ink',
+    EXPIRY: 'border border-accent/25 bg-accent-soft text-accent-deep',
+    RESOLVED: 'border border-line-strong bg-white text-muted',
 };
 function formatCurrency(value) {
     const num = typeof value === 'string' ? parseFloat(value) : value;
-    return '$' + (num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const n = num || 0;
+    return (n < 0 ? '−' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function formatPercent(value) {
     if (value === undefined || value === null)
@@ -100,8 +101,8 @@ export function AdminPositionsPage() {
     return (<div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-[#0D2654] flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-          <TrendingUp className="w-6 h-6 text-[#F06010]"/>
+        <h1 className="text-xl sm:text-2xl font-bold text-ink flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+          <TrendingUp className="w-6 h-6 text-accent"/>
           Positions
         </h1>
         <div className="flex items-center gap-2 sm:gap-3">
@@ -110,7 +111,7 @@ export function AdminPositionsPage() {
             Refresh Prices
           </Button>
           <Link to="/admin/positions/new">
-            <Button variant="primary" className="bg-[#F06010] hover:bg-[#d9560e] rounded-none">
+            <Button variant="primary" className="bg-accent hover:bg-accent-deep rounded-none">
               <Plus className="w-4 h-4 mr-2"/>
               Add Position
             </Button>
@@ -121,7 +122,7 @@ export function AdminPositionsPage() {
       {/* Filter Tabs */}
       <div className="flex gap-1 mb-6 border-b border-gray-200 overflow-x-auto">
         {STATUS_TABS.map((tab) => (<button key={tab.key} onClick={() => handleTabChange(tab.key)} className={`px-4 py-2 text-sm font-medium transition-colors rounded-none ${activeTab === tab.key
-                ? 'text-[#F06010] border-b-2 border-[#F06010]'
+                ? 'text-accent border-b-2 border-accent'
                 : 'text-gray-500 hover:text-gray-700'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
             {tab.label}
           </button>))}
@@ -155,7 +156,7 @@ export function AdminPositionsPage() {
             <EmptyState icon={TrendingUp} title="No positions found" description={activeTab === 'ALL'
                 ? 'Get started by adding your first cash-secured put position.'
                 : `No positions with status "${activeTab}".`} action={<Link to="/admin/positions/new">
-                  <Button variant="primary" className="bg-[#F06010] hover:bg-[#d9560e] rounded-none">
+                  <Button variant="primary" className="bg-accent hover:bg-accent-deep rounded-none">
                     <Plus className="w-4 h-4 mr-2"/>
                     Add Position
                   </Button>
@@ -168,7 +169,7 @@ export function AdminPositionsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs min-w-[700px]">
               <thead>
-                <tr className="bg-[#0D2654] text-white">
+                <tr className="bg-ink text-white">
                   <th className="text-left px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Ticker</th>
                   <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Strike</th>
                   <th className="text-right px-2 py-2.5 font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{activeTab === 'MONITORING' ? 'Target' : 'Premium'}</th>
@@ -184,10 +185,10 @@ export function AdminPositionsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {positions.map((pos) => (<tr key={pos.id} onClick={() => navigate(`/admin/positions/${pos.id}`)} className="hover:bg-[#F5F3EF] cursor-pointer transition-colors">
-                    <td className="px-2 py-2.5 font-semibold text-[#0D2654] whitespace-nowrap">
-                      {pos.ticker}
-                      <span className={`ml-1 inline-flex items-center px-1 py-0.5 rounded-none text-[10px] font-medium ${pos.position_type === 'stock' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                {positions.map((pos) => (<tr key={pos.id} onClick={() => navigate(`/admin/positions/${pos.id}`)} className="hover:bg-paper cursor-pointer transition-colors">
+                    <td className="px-2 py-3 font-medium text-ink whitespace-nowrap">
+                      {String(pos.ticker).replace(/ PUT$/i, '')}
+                      <span className="ml-1.5 text-[10.5px] uppercase tracking-[0.1em] text-muted">
                         {pos.position_type === 'stock' ? 'Stock' : 'Put'}
                       </span>
                     </td>
@@ -249,7 +250,7 @@ export function AdminPositionsPage() {
         <div className="space-y-4">
           <p className="text-gray-600">
             Are you sure you want to delete the{' '}
-            <span className="font-semibold text-[#0D2654]">{deleteTarget?.ticker}</span>{' '}
+            <span className="font-semibold text-ink">{deleteTarget?.ticker}</span>{' '}
             ${deleteTarget?.strike_price} put position? This action cannot be undone.
           </p>
           <div className="flex justify-end gap-3">

@@ -371,14 +371,14 @@ export function OptionScannerPage() {
 
     return (
         <div>
-            <h1 className="text-2xl font-bold text-[#0D2654] mb-6 flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                <ScanLine className="w-6 h-6 text-[#F06010]" />
+            <h1 className="text-2xl font-bold text-ink mb-6 flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                <ScanLine className="w-6 h-6 text-accent" />
                 Option Scanner
             </h1>
 
             <div className="space-y-4 mb-6">
-                <div className="border-2 border-[#0D2654]/20 bg-white p-5">
-                    <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider mb-3">Watchlist</h2>
+                <div className="border border-line bg-white p-5">
+                    <h2 className="text-sm font-semibold text-ink uppercase tracking-wider mb-3">Watchlist</h2>
                     <form onSubmit={handleAddTicker} className="flex gap-2 mb-3 max-w-sm">
                         <Input
                             value={newTicker}
@@ -389,7 +389,7 @@ export function OptionScannerPage() {
                         <button
                             type="submit"
                             disabled={addingTicker || !newTicker.trim()}
-                            className="px-3 py-2 bg-[#0D2654] text-white text-sm font-medium hover:bg-[#0D2654]/90 disabled:opacity-50 transition-colors"
+                            className="px-3 py-2 bg-ink text-white text-sm font-medium hover:bg-ink/90 disabled:opacity-50 transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                         </button>
@@ -406,8 +406,8 @@ export function OptionScannerPage() {
                     ) : (
                         <div className="flex flex-wrap gap-2">
                             {tickers.map(t => (
-                                <div key={t.ticker} className="flex items-center gap-2 px-3 py-1.5 bg-[#F5F3EF] border border-[#0D2654]/10">
-                                    <span className="text-sm font-medium text-[#0D2654]">{t.ticker}</span>
+                                <div key={t.ticker} className="flex items-center gap-2 px-3 py-1.5 bg-paper border border-ink/10">
+                                    <span className="text-sm font-medium text-ink">{t.ticker}</span>
                                     <button
                                         onClick={() => handleRemoveTicker(t.ticker)}
                                         className="text-gray-400 hover:text-red-500 transition-colors"
@@ -424,16 +424,16 @@ export function OptionScannerPage() {
 
                 <ScannerRulesCard />
 
-                <div className="border-2 border-[#0D2654]/20 bg-white p-5">
+                <div className="border border-line bg-white p-5">
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                        <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider">Scan Parameters</h2>
+                        <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">Scan Parameters</h2>
                         <div className="flex flex-wrap gap-1.5">
                             {SCAN_PRESETS.map(p => (
                                 <button
                                     key={p.key}
                                     type="button"
                                     onClick={() => applyPreset(p.key)}
-                                    className={`px-2.5 py-1 text-xs font-medium border transition-colors ${presetKey === p.key ? 'bg-[#0D2654] text-white border-[#0D2654]' : 'bg-white text-[#0D2654] border-[#0D2654]/20 hover:border-[#0D2654]/50'}`}
+                                    className={`px-2.5 py-1 text-xs font-medium border transition-colors ${presetKey === p.key ? 'bg-ink text-white border-ink' : 'bg-white text-ink border-line hover:border-ink/50'}`}
                                 >
                                     {p.label}
                                 </button>
@@ -496,7 +496,7 @@ export function OptionScannerPage() {
                         {scanning ? (
                             <button
                                 onClick={handleStopScan}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-[#0D2654] text-white font-medium text-sm hover:bg-[#0D2654]/90 transition-colors"
+                                className="flex items-center gap-2 px-6 py-2.5 bg-ink text-white font-medium text-sm hover:bg-ink/90 transition-colors"
                             >
                                 <Square className="w-4 h-4" />
                                 Stop Scan
@@ -505,7 +505,7 @@ export function OptionScannerPage() {
                             <button
                                 onClick={handleScan}
                                 disabled={tickers.length === 0}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-[#F06010] text-white font-medium text-sm hover:bg-[#F06010]/90 disabled:opacity-50 transition-colors"
+                                className="flex items-center gap-2 px-6 py-2.5 bg-accent text-white font-medium text-sm hover:bg-accent/90 disabled:opacity-50 transition-colors"
                             >
                                 <Search className="w-4 h-4" />
                                 Run Scan
@@ -525,7 +525,7 @@ export function OptionScannerPage() {
             </div>
 
             {scanWarnings.length > 0 && (
-                <div className="mb-4 p-4 border-2 border-yellow-400 bg-yellow-50 flex items-start gap-3">
+                <div className="mb-4 p-4 border border-yellow-400 bg-yellow-50 flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                     <div>
                         <p className="text-sm font-medium text-yellow-800">Scanner Warning</p>
@@ -537,9 +537,9 @@ export function OptionScannerPage() {
             )}
 
             {scanResults && (
-                <div className="border-2 border-[#0D2654]/20 bg-white">
-                    <div className="px-5 py-3 border-b border-[#0D2654]/10 flex items-center justify-between gap-4">
-                        <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider whitespace-nowrap">
+                <div className="border border-line bg-white">
+                    <div className="px-5 py-3 border-b border-ink/10 flex items-center justify-between gap-4">
+                        <h2 className="text-sm font-semibold text-ink uppercase tracking-wider whitespace-nowrap">
                             Results ({results.length} options found)
                             {scanning ? ' · scanning…' : ''}
                         </h2>
@@ -551,19 +551,19 @@ export function OptionScannerPage() {
                         <button
                             onClick={handleAnalyze}
                             disabled={analyzing || scanning || !scanComplete || results.length === 0}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0D2654] text-white text-xs font-medium hover:bg-[#0D2654]/80 disabled:opacity-50 transition-colors whitespace-nowrap"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-ink text-white text-xs font-medium hover:bg-ink/80 disabled:opacity-50 transition-colors whitespace-nowrap"
                         >
                             <Sparkles className="w-3.5 h-3.5" />
                             {analyzing ? 'Analyzing...' : 'Analyze with AI'}
                         </button>
                     </div>
 
-                    <div className="px-5 py-2.5 border-b border-[#0D2654]/10 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-600 bg-[#F5F3EF]/60">
+                    <div className="px-5 py-2.5 border-b border-ink/10 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-600 bg-paper/60">
                         <label className="flex items-center gap-2" title="How much the Jev context lowers the quant score (0% = ignore AI)">
-                            <Brain className="w-3.5 h-3.5 text-[#F06010]" />
+                            <Brain className="w-3.5 h-3.5 text-accent" />
                             AI weight
-                            <input type="range" min={0} max={1} step={0.25} value={aiWeight} onChange={e => setAiWeight(parseFloat(e.target.value))} className="w-24 accent-[#F06010]" />
-                            <span className="w-8 font-medium text-[#0D2654]">{Math.round(aiWeight * 100)}%</span>
+                            <input type="range" min={0} max={1} step={0.25} value={aiWeight} onChange={e => setAiWeight(parseFloat(e.target.value))} className="w-24 accent-accent" />
+                            <span className="w-8 font-medium text-ink">{Math.round(aiWeight * 100)}%</span>
                         </label>
                         <label className="flex items-center gap-1.5">
                             <input type="checkbox" checked={hideVetoed} onChange={e => setHideVetoed(e.target.checked)} />
@@ -599,18 +599,18 @@ export function OptionScannerPage() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm">
                                         <thead>
-                                            <tr className="bg-[#0D2654]/5 text-left">
+                                            <tr className="bg-ink/5 text-left">
                                                 {HUNT_COLUMNS.map(col => (
                                                     <th
                                                         key={col.key}
                                                         onClick={() => col.sortable !== false && handleSort(col.key)}
-                                                        className="px-3 py-3 text-xs font-semibold text-[#0D2654] uppercase tracking-wider cursor-pointer select-none hover:bg-[#0D2654]/10 transition-colors text-left align-top"
+                                                        className="px-3 py-3 text-xs font-semibold text-ink uppercase tracking-wider cursor-pointer select-none hover:bg-ink/10 transition-colors text-left align-top"
                                                     >
                                                         <div className="flex flex-col leading-tight">
                                                             <span className="inline-flex items-center gap-1">
                                                                 {col.label}
                                                                 {sortKey === col.key && (
-                                                                    sortDir === 'asc' ? <ChevronUp className="w-3 h-3 text-[#F06010]" /> : <ChevronDown className="w-3 h-3 text-[#F06010]" />
+                                                                    sortDir === 'asc' ? <ChevronUp className="w-3 h-3 text-accent" /> : <ChevronDown className="w-3 h-3 text-accent" />
                                                                 )}
                                                             </span>
                                                             {col.sub && (
@@ -621,7 +621,7 @@ export function OptionScannerPage() {
                                                 ))}
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-[#0D2654]/10">
+                                        <tbody className="divide-y divide-ink/10">
                                             {results.map((row) => {
                                                 const selected = selectedCode === row.option_code;
                                                 const added = addedPositions.has(row.option_code);
@@ -630,7 +630,7 @@ export function OptionScannerPage() {
                                                     <tr
                                                         key={row.option_code}
                                                         onClick={() => handleRowClick(row)}
-                                                        className={`cursor-pointer transition-colors ${selected ? 'bg-[#F06010]/10' : added ? 'bg-green-50' : 'hover:bg-[#F5F3EF]'}`}
+                                                        className={`cursor-pointer transition-colors ${selected ? 'bg-accent/10' : added ? 'bg-green-50' : 'hover:bg-paper'}`}
                                                     >
                                                         <td className="px-3 py-3 align-top">
                                                             <span className={`${scoreColor(row.final_score)} text-base`}>{row.final_score ?? '—'}</span>
@@ -655,16 +655,16 @@ export function OptionScannerPage() {
                                                             })()}
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
-                                                            <div className="font-semibold text-[#0D2654]">{row.ticker}</div>
+                                                            <div className="font-semibold text-ink">{row.ticker}</div>
                                                             <div className="text-[10px] text-gray-500">{formatCurrency(row.stock_price)}</div>
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
-                                                            <div className="font-medium text-[#0D2654]">{formatCurrency(row.strike)}</div>
+                                                            <div className="font-medium text-ink">{formatCurrency(row.strike)}</div>
                                                             <div className="text-[10px] text-orange-600 font-medium">{formatPct(row.discount_pct)}</div>
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
-                                                            <div className="font-medium text-[#0D2654]">{row.days_to_expiry}d</div>
-                                                            <div className="text-[10px] text-[#0D2654]/70">{formatExpiry(row.expiry)}</div>
+                                                            <div className="font-medium text-ink">{row.days_to_expiry}d</div>
+                                                            <div className="text-[10px] text-ink/70">{formatExpiry(row.expiry)}</div>
                                                             <div className="text-[10px] text-gray-500" title="Estimated days to reach 80% profit if the stock and IV stay flat">{row.days_to_80 != null ? `→80% ~${row.days_to_80}d` : ''}</div>
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
@@ -676,11 +676,11 @@ export function OptionScannerPage() {
                                                             <div className="text-[10px] text-gray-400">{row.annual_return_pct != null ? `${row.annual_return_pct.toFixed(1)}% held` : ''}</div>
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
-                                                            <div className={`font-medium ${row.sigma_otm >= 1 ? 'text-green-600' : row.sigma_otm >= 0.6 ? 'text-[#0D2654]' : 'text-red-600'}`}>{row.sigma_otm != null ? `${row.sigma_otm.toFixed(2)}σ` : '—'}</div>
+                                                            <div className={`font-medium ${row.sigma_otm >= 1 ? 'text-green-600' : row.sigma_otm >= 0.6 ? 'text-ink' : 'text-red-600'}`}>{row.sigma_otm != null ? `${row.sigma_otm.toFixed(2)}σ` : '—'}</div>
                                                             <div className={`text-[10px] ${deltaColor(row.delta)}`}>{row.delta != null ? `Δ ${formatNum(Math.abs(row.delta), 2)}` : ''}</div>
                                                         </td>
                                                         <td className="px-3 py-3 align-top whitespace-nowrap">
-                                                            <div className={`font-medium ${row.iv_hv_ratio == null ? 'text-gray-400' : row.iv_hv_ratio >= 1.2 ? 'text-green-600' : row.iv_hv_ratio >= 0.9 ? 'text-[#0D2654]' : 'text-red-600'}`} title="Implied ÷ 20-day realized volatility — above 1.2 means premium is rich">
+                                                            <div className={`font-medium ${row.iv_hv_ratio == null ? 'text-gray-400' : row.iv_hv_ratio >= 1.2 ? 'text-green-600' : row.iv_hv_ratio >= 0.9 ? 'text-ink' : 'text-red-600'}`} title="Implied ÷ 20-day realized volatility — above 1.2 means premium is rich">
                                                                 {row.iv_hv_ratio != null ? `${row.iv_hv_ratio.toFixed(2)}×` : '—'}
                                                             </div>
                                                             <div className="text-[10px] text-gray-400">{row.iv != null ? `${Number(row.iv).toFixed(0)}%` : ''}</div>
@@ -704,7 +704,7 @@ export function OptionScannerPage() {
                                                             <button
                                                                 type="button"
                                                                 onClick={(e) => { e.stopPropagation(); setPaperRow(row); }}
-                                                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium border border-[#0D2654]/40 text-[#0D2654] hover:bg-[#0D2654] hover:text-white transition-colors"
+                                                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium border border-ink/40 text-ink hover:bg-ink hover:text-white transition-colors"
                                                                 title="Paper trade this put in a simulation portfolio"
                                                             >
                                                                 <FlaskConical className="w-3.5 h-3.5" /> Sim
@@ -738,14 +738,14 @@ export function OptionScannerPage() {
                     </div>
 
                     {(aiAnalysis || aiError || analyzing) && (
-                        <div className="border-t-2 border-[#0D2654]/10 px-5 py-4">
+                        <div className="border-t-2 border-ink/10 px-5 py-4">
                             <div className="flex items-center gap-2 mb-3">
-                                <Sparkles className="w-4 h-4 text-[#F06010]" />
-                                <h3 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider">AI Analysis</h3>
+                                <Sparkles className="w-4 h-4 text-accent" />
+                                <h3 className="text-sm font-semibold text-ink uppercase tracking-wider">AI Analysis</h3>
                             </div>
                             {analyzing && (
                                 <div className="flex items-center gap-2 text-sm text-gray-500">
-                                    <span className="inline-block w-4 h-4 border-2 border-[#F06010] border-t-transparent rounded-full animate-spin"></span>
+                                    <span className="inline-block w-4 h-4 border border-accent border-t-transparent rounded-full animate-spin"></span>
                                     Analyzing {results.length} options with AI...
                                 </div>
                             )}
@@ -757,8 +757,8 @@ export function OptionScannerPage() {
                             {aiAnalysis && aiFormat === 'structured' && typeof aiAnalysis === 'object' ? (
                                 <div className="space-y-4">
                                     {aiAnalysis.market_outlook && (
-                                        <div className="bg-[#0D2654]/5 border border-[#0D2654]/15 px-4 py-3 text-sm text-[#0D2654]">
-                                            <span className="font-semibold text-xs uppercase tracking-wider text-[#0D2654]/60 block mb-1">Market Outlook</span>
+                                        <div className="bg-ink/5 border border-ink/15 px-4 py-3 text-sm text-ink">
+                                            <span className="font-semibold text-xs uppercase tracking-wider text-ink/60 block mb-1">Market Outlook</span>
                                             {aiAnalysis.market_outlook}
                                         </div>
                                     )}
@@ -770,10 +770,10 @@ export function OptionScannerPage() {
                                                 SKIP: 'bg-gray-400 text-white',
                                             };
                                             return (
-                                                <div key={i} className="border border-[#0D2654]/15 bg-white">
-                                                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#0D2654]/10 bg-[#F5F3EF]">
+                                                <div key={i} className="border border-ink/15 bg-white">
+                                                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-ink/10 bg-paper">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="font-bold text-[#0D2654] text-sm">{pick.ticker}</span>
+                                                            <span className="font-bold text-ink text-sm">{pick.ticker}</span>
                                                             <span className="text-xs text-gray-500">${pick.strike} · {pick.expiry}</span>
                                                         </div>
                                                         <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded ${verdictStyles[pick.verdict] || verdictStyles.WATCH}`}>
@@ -787,7 +787,7 @@ export function OptionScannerPage() {
                                                             </span>
                                                             {pick.limit_price_per_contract != null && (
                                                                 <span className="text-gray-600">
-                                                                    Limit: <span className="font-semibold text-[#0D2654]">{formatCurrency(pick.limit_price_per_contract)}</span>/contract
+                                                                    Limit: <span className="font-semibold text-ink">{formatCurrency(pick.limit_price_per_contract)}</span>/contract
                                                                 </span>
                                                             )}
                                                         </div>
@@ -821,7 +821,7 @@ export function OptionScannerPage() {
                                     </div>
                                 </div>
                             ) : aiAnalysis ? (
-                                <div className="bg-[#F5F3EF] p-4 text-sm leading-relaxed whitespace-pre-wrap text-gray-700">
+                                <div className="bg-paper p-4 text-sm leading-relaxed whitespace-pre-wrap text-gray-700">
                                     {typeof aiAnalysis === 'string' ? aiAnalysis : JSON.stringify(aiAnalysis, null, 2)}
                                 </div>
                             ) : null}

@@ -41,9 +41,9 @@ export function ScannerRulesCard() {
     }
 
     return (
-        <div className="border-2 border-[#0D2654]/20 bg-white p-5">
-            <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider mb-1 flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-[#F06010]" />
+        <div className="border border-line bg-white p-5">
+            <h2 className="text-sm font-semibold text-ink uppercase tracking-wider mb-1 flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-accent" />
                 My Rules <span className="text-[10px] font-normal normal-case tracking-normal text-gray-400">checked by Jev AI</span>
             </h2>
             <p className="text-xs text-gray-500 mb-3">
@@ -61,7 +61,7 @@ export function ScannerRulesCard() {
                             <option value="warn">Warn</option>
                             <option value="block">Block</option>
                         </select>
-                        <button type="submit" disabled={saving || !text.trim()} className="px-3 py-2 bg-[#0D2654] text-white text-sm hover:bg-[#0D2654]/90 disabled:opacity-50">
+                        <button type="submit" disabled={saving || !text.trim()} className="px-3 py-2 bg-ink text-white text-sm hover:bg-ink/90 disabled:opacity-50">
                             <Plus className="w-4 h-4" />
                         </button>
                     </form>
@@ -70,7 +70,7 @@ export function ScannerRulesCard() {
                     ) : rules.length === 0 ? (
                         <p className="text-xs text-gray-400">No rules yet.</p>
                     ) : (
-                        <ul className="divide-y divide-[#0D2654]/10">
+                        <ul className="divide-y divide-ink/10">
                             {rules.map(r => (
                                 <li key={r.id} className="flex items-center gap-3 py-2 text-sm">
                                     <input
@@ -79,7 +79,7 @@ export function ScannerRulesCard() {
                                         onChange={() => run(scannerApi.updateRule(r.id, { is_active: !r.is_active }))}
                                         title="Active"
                                     />
-                                    <span className={`flex-1 ${r.is_active ? 'text-[#0D2654]' : 'text-gray-400 line-through'}`}>{r.rule_text}</span>
+                                    <span className={`flex-1 ${r.is_active ? 'text-ink' : 'text-gray-400 line-through'}`}>{r.rule_text}</span>
                                     <button
                                         type="button"
                                         onClick={() => run(scannerApi.updateRule(r.id, { action: r.action === 'block' ? 'warn' : 'block' }))}

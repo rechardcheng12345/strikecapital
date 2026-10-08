@@ -1,17 +1,17 @@
 export const API_BASE_URL = '/api';
 export const POSITION_STATUS = {
-    OPEN: { label: 'Opened', color: 'bg-green-100 text-green-800' },
-    MONITORING: { label: 'Monitoring', color: 'bg-yellow-100 text-yellow-800' },
-    ROLLING: { label: 'Rolling', color: 'bg-blue-100 text-blue-800' },
-    EXPIRY: { label: 'Expiry', color: 'bg-orange-100 text-orange-800' },
-    RESOLVED: { label: 'Resolved', color: 'bg-gray-100 text-gray-800' },
+    OPEN: { label: 'Opened', color: 'border border-green-100 bg-green-50 text-green-700' },
+    MONITORING: { label: 'Monitoring', color: 'border border-amber-200/70 bg-amber-50 text-amber-800' },
+    ROLLING: { label: 'Rolling', color: 'border border-ink-100 bg-ink-50 text-ink' },
+    EXPIRY: { label: 'Expiry', color: 'border border-accent/25 bg-accent-soft text-accent-deep' },
+    RESOLVED: { label: 'Resolved', color: 'border border-line-strong bg-white text-muted' },
 };
 export const RESOLUTION_TYPE = {
-    expired_worthless: { label: 'Expired Worthless', color: 'text-green-600' },
-    rolled: { label: 'Rolled', color: 'text-blue-600' },
+    expired_worthless: { label: 'Expired worthless', color: 'text-ink/80' },
+    rolled: { label: 'Rolled', color: 'text-ink/80' },
     assigned: { label: 'Assigned', color: 'text-red-600' },
-    bought_to_close: { label: 'Bought to Close', color: 'text-orange-600' },
-    sold: { label: 'Sold', color: 'text-purple-600' },
+    bought_to_close: { label: 'Bought to close', color: 'text-ink/80' },
+    sold: { label: 'Sold', color: 'text-ink/80' },
 };
 export const POSITION_TYPE = {
     option: { label: 'Cash-Secured Put', shortLabel: 'Option', color: 'bg-blue-100 text-blue-800' },

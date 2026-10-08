@@ -182,9 +182,9 @@ export function paramsToForm(p, name = '') {
 
 function Box({ title, children, right, className = '' }) {
     return (
-        <section className={`bg-white border-2 border-[#0D2654]/10 p-4 ${className}`}>
+        <section className={`bg-white border border-ink/10 p-4 ${className}`}>
             <div className="flex items-center justify-between mb-3 gap-2">
-                <h2 className="text-sm font-semibold text-[#0D2654] uppercase tracking-wider">{title}</h2>
+                <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">{title}</h2>
                 {right}
             </div>
             {children}
@@ -193,16 +193,16 @@ function Box({ title, children, right, className = '' }) {
 }
 function Check({ label, checked, onChange }) {
     return (
-        <label className="flex items-center gap-2 text-sm font-medium text-[#0D2654]">
+        <label className="flex items-center gap-2 text-sm font-medium text-ink">
             <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /> {label}
         </label>
     );
 }
 function Tile({ label, value, sub, cls = '' }) {
     return (
-        <div className="border border-[#0D2654]/10 px-3 py-2">
+        <div className="border border-ink/10 px-3 py-2">
             <p className="text-[11px] uppercase tracking-wider text-gray-400">{label}</p>
-            <p className={`text-lg font-bold ${cls || 'text-[#0D2654]'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{value}</p>
+            <p className={`text-lg font-bold ${cls || 'text-ink'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{value}</p>
             {sub && <p className="text-[11px] text-gray-500">{sub}</p>}
         </div>
     );
@@ -254,7 +254,7 @@ function DataPanel() {
             {job?.running && (
                 <div className="mb-3">
                     <p className="text-sm text-gray-600">{job.message} {job.total ? `${job.done}/${job.total}` : ''}</p>
-                    <div className="h-1.5 bg-gray-100 mt-1"><div className="h-1.5 bg-[#F06010]" style={{ width: `${job.total ? (job.done / job.total) * 100 : 5}%` }} /></div>
+                    <div className="h-1.5 bg-gray-100 mt-1"><div className="h-1.5 bg-accent" style={{ width: `${job.total ? (job.done / job.total) * 100 : 5}%` }} /></div>
                 </div>
             )}
             <div className="grid sm:grid-cols-3 gap-3 text-sm">
@@ -562,20 +562,20 @@ function EquityChart({ run }) {
     }, [run]);
     const realFrom = run.meta?.real_data_from;
     return (
-        <Box title="Account value" right={<button type="button" className="text-xs text-gray-500 hover:text-[#0D2654]" onClick={() => setLog((v) => !v)}>{log ? 'Log scale' : 'Linear scale'}</button>}>
+        <Box title="Account value" right={<button type="button" className="text-xs text-gray-500 hover:text-ink" onClick={() => setLog((v) => !v)}>{log ? 'Log scale' : 'Linear scale'}</button>}>
             <ResponsiveContainer width="100%" height={320}>
                 <LineChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#EEEAE1" />
                     <XAxis dataKey="date" tickFormatter={(d) => d.slice(0, 4)} tick={{ fontSize: 11 }} minTickGap={40} />
                     <YAxis scale={log ? 'log' : 'auto'} domain={['auto', 'auto']} tickFormatter={(v) => `$${Math.round(v / 1000)}k`} tick={{ fontSize: 11 }} width={56} allowDataOverflow />
                     <Tooltip labelFormatter={shortDate} formatter={(v, name) => [money(v), name]} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     {realFrom && data.length > 0 && realFrom <= data[data.length - 1].date && (
-                        <ReferenceArea x1={data.find((d) => d.date >= realFrom)?.date} x2={data[data.length - 1].date} fill="#16A34A" fillOpacity={0.06} label={{ value: 'real prices', fontSize: 10, fill: '#16A34A', position: 'insideTop' }} />
+                        <ReferenceArea x1={data.find((d) => d.date >= realFrom)?.date} x2={data[data.length - 1].date} fill="#0E7A53" fillOpacity={0.06} label={{ value: 'real prices', fontSize: 10, fill: '#0E7A53', position: 'insideTop' }} />
                     )}
                     <Line type="monotone" dataKey="equity" name="Strategy" stroke="#F06010" strokeWidth={2} dot={false} isAnimationActive={false} />
                     <Line type="monotone" dataKey={key} name={`Hold ${run.meta?.ticker || TICKER}`} stroke="#0D2654" strokeWidth={1.2} dot={false} isAnimationActive={false} strokeOpacity={0.6} />
-                    <Line type="monotone" dataKey="SPY_hold" name="Hold SPY" stroke="#9CA3AF" strokeWidth={1.2} strokeDasharray="5 3" dot={false} isAnimationActive={false} />
+                    <Line type="monotone" dataKey="SPY_hold" name="Hold SPY" stroke="#B5AFA3" strokeWidth={1.2} strokeDasharray="5 3" dot={false} isAnimationActive={false} />
                 </LineChart>
             </ResponsiveContainer>
             <p className="text-xs text-gray-500 mt-1">Before {realFrom || 'the shaded area'} option prices come from the calibrated model; inside it, from real daily prices where a contract traded.</p>
@@ -592,7 +592,7 @@ function Results({ run }) {
     const trades = showAll ? run.trades : run.trades.slice(-60);
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 bg-white border-2 border-[#0D2654]/10 p-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 bg-white border border-ink/10 p-3">
                 <Tile label="Annual return" value={pct(s.cagr_pct, 1)} cls={signColor(s.cagr_pct)} sub={`${pct(s.total_return_pct, 0)} total, ${s.years}y`} />
                 <Tile label="Max drawdown" value={`-${pct(s.max_drawdown_pct, 1)}`} cls="text-red-600" sub={`${s.max_drawdown_from} → ${s.max_drawdown_to}`} />
                 <Tile label="Final value" value={money(s.final_equity)} />
@@ -603,7 +603,7 @@ function Results({ run }) {
                 <Tile label="Hold SPY" value={b.SPY_hold ? pct(b.SPY_hold.cagr_pct, 1) : '—'} sub={b.SPY_hold ? `max DD -${pct(b.SPY_hold.max_drawdown_pct, 0)}` : null} />
             </div>
             {s.covered_calls && (s.covered_calls.sold > 0 || run.params?.covered_calls?.enabled) && (
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-white border-2 border-[#0D2654]/10 p-3">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-white border border-ink/10 p-3">
                     <Tile label="Covered calls sold" value={s.covered_calls.sold} sub={`${s.covered_calls.expired} expired · ${s.covered_calls.open} open`} />
                     <Tile label="Call premium" value={money(s.covered_calls.premium)} cls="text-green-700" />
                     <Tile label="Called away" value={s.covered_calls.called_away} />
@@ -675,7 +675,7 @@ function Results({ run }) {
                     </table>
                 </Box>
             )}
-            <Box title={`Trades (${run.trades.length})`} right={run.trades.length > 60 && <button type="button" className="text-xs text-gray-500 hover:text-[#0D2654]" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Show last 60' : 'Show all'}</button>}>
+            <Box title={`Trades (${run.trades.length})`} right={run.trades.length > 60 && <button type="button" className="text-xs text-gray-500 hover:text-ink" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Show last 60' : 'Show all'}</button>}>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
@@ -687,7 +687,7 @@ function Results({ run }) {
                             {trades.map((t) => (
                                 <tr key={t.id} className="border-b border-gray-100">
                                     <td className="py-1 px-2 whitespace-nowrap">{t.opened}</td>
-                                    <td className={`px-2 text-right text-xs font-semibold ${t.type === 'call' ? 'text-blue-700' : t.type === 'stock' ? 'text-purple-700' : 'text-[#0D2654]'}`}>{t.type === 'call' ? 'Call' : t.type === 'stock' ? 'Shares' : 'Put'}</td>
+                                    <td className={`px-2 text-right text-xs font-semibold ${t.type === 'call' ? 'text-blue-700' : t.type === 'stock' ? 'text-purple-700' : 'text-ink'}`}>{t.type === 'call' ? 'Call' : t.type === 'stock' ? 'Shares' : 'Put'}</td>
                                     <td className="px-2 text-right text-xs text-gray-500">{t.trigger}</td>
                                     <td className={td}>{t.expiry}</td>
                                     <td className={td}>{px(t.strike)}</td>
@@ -750,14 +750,14 @@ export function BacktestPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Backtest</h1>
+                <h1 className="text-2xl font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Backtest</h1>
                 <p className="text-sm text-gray-500">Replay a long-dated cash-secured put routine on {TICKER} over past years — with covered calls if assigned. Real option prices where they exist, a calibrated model before that.</p>
             </div>
             <DataPanel />
             <StrategyForm form={form} setForm={setForm} onRun={execute} running={running} />
             {run && (
                 <div className="space-y-2">
-                    <h2 className="text-lg font-bold text-[#0D2654]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{run.name}</h2>
+                    <h2 className="text-lg font-bold text-ink" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{run.name}</h2>
                     <Results run={run} />
                 </div>
             )}
@@ -772,8 +772,8 @@ export function BacktestPage() {
                             </thead>
                             <tbody>
                                 {runs.map((r) => (
-                                    <tr key={r.id} className={`border-b border-gray-100 ${run?.id === r.id ? 'bg-[#F06010]/5' : ''}`}>
-                                        <td className="py-1 px-2"><button type="button" className="text-[#0D2654] font-medium hover:underline text-left" onClick={() => open(r.id)}>{r.name}</button></td>
+                                    <tr key={r.id} className={`border-b border-gray-100 ${run?.id === r.id ? 'bg-accent/5' : ''}`}>
+                                        <td className="py-1 px-2"><button type="button" className="text-ink font-medium hover:underline text-left" onClick={() => open(r.id)}>{r.name}</button></td>
                                         <td className="px-2 text-right whitespace-nowrap text-gray-500">{r.summary.start?.slice(0, 7)} → {r.summary.end?.slice(0, 7)}</td>
                                         <td className={`px-2 text-right font-mono ${signColor(r.summary.cagr_pct)}`}>{pct(r.summary.cagr_pct, 1)}</td>
                                         <td className="px-2 text-right font-mono text-red-600">-{pct(r.summary.max_drawdown_pct, 1)}</td>
@@ -781,7 +781,7 @@ export function BacktestPage() {
                                         <td className="px-2 text-right font-mono">{pct(r.summary.win_rate_pct, 0)}</td>
                                         <td className="px-2 text-right font-mono">{r.summary.assignments}</td>
                                         <td className="px-2 text-right whitespace-nowrap space-x-1">
-                                            <button type="button" title="Reuse these settings" onClick={() => reuse(r)} className="p-1 text-gray-500 hover:text-[#0D2654]"><RotateCcw className="w-4 h-4" /></button>
+                                            <button type="button" title="Reuse these settings" onClick={() => reuse(r)} className="p-1 text-gray-500 hover:text-ink"><RotateCcw className="w-4 h-4" /></button>
                                             <button type="button" title="Delete" onClick={() => remove(r.id)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                                         </td>
                                     </tr>

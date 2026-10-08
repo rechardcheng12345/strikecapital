@@ -40,10 +40,10 @@ export function LastCapitalAddCard() {
   }
 
   return (
-    <div className="mb-4 border-2 border-[#0D2654]/15 bg-white px-4 py-3 flex flex-wrap items-center gap-3 text-sm">
-      <History className="w-4 h-4 text-[#F06010]" />
+    <div className="mb-4 border border-ink/15 bg-white px-4 py-3 flex flex-wrap items-center gap-3 text-sm">
+      <History className="w-4 h-4 text-accent" />
       <span className="text-gray-500">Last capital movement:</span>
-      <span className={`font-medium ${isWithdrawal ? 'text-red-700' : 'text-[#0D2654]'}`}>
+      <span className={`font-medium ${isWithdrawal ? 'text-red-700' : 'text-ink'}`}>
         {isWithdrawal ? `−${formatCurrency(amt)} withdrawal` : `+${formatCurrency(amt)} add`} · {m.full_name || `User #${m.user_id}`} · {m.moved_on}
       </span>
       {m.note && <span className="text-gray-400">“{m.note}”</span>}
