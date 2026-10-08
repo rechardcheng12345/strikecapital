@@ -10,7 +10,7 @@ export async function createNotification(userId, type, title, message, metadata)
             metadata: metadata ? JSON.stringify(metadata) : null,
         });
         const user = await db('users').where({ id: userId }).select('id', 'role', 'is_active').first();
-        if (user) await queueEventForUser(user, type);
+        if (user) await queueEventForUser(user, type, title, message);
     }
     catch (error) {
         console.error('[Notification] Failed to create:', error);
@@ -28,7 +28,7 @@ export async function notifyAllInvestors(type, title, message, metadata) {
         }));
         if (rows.length) await db('notifications').insert(rows);
         for (const investor of investors) {
-            await queueEventForUser({ ...investor, role: 'investor', is_active: true }, type);
+            await queueEventForUser({ ...investor, role: 'investor', is_active: true }, type, title, message);
         }
         await notifyAdmins(type, title, message, metadata);
     }

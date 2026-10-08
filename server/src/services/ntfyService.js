@@ -34,19 +34,19 @@ export async function savePreferences(user, input) {
     return preferencesFor(user);
 }
 
-// Public ntfy topics carry only a generic prompt. Financial details stay in the authenticated platform.
+// Send event details to personal ntfy topics, as explicitly requested by the platform owner.
 export async function enqueuePush(userId, event, title, message, path, dedupeKey = null) {
     await db('notification_deliveries').insert({ user_id: userId, event, title, message, path, dedupe_key: dedupeKey })
         .onConflict('dedupe_key').ignore();
 }
 
-export async function queueEventForUser(user, type) {
+export async function queueEventForUser(user, type, title, message) {
     if (!env.ntfyEnabled) return;
     const settings = await db('notification_preferences').where({ user_id: user.id }).first();
     if (!user.is_active || !wantsEvent(settings, user.role, type)) return;
     const event = allowedEvents(user.role).find((e) => e.value === type);
-    await enqueuePush(user.id, type, `StrikeCapital: ${event.label}`,
-        `${event.label} update available. Sign in to StrikeCapital to view the details.`,
+    await enqueuePush(user.id, type, `StrikeCapital: ${title || event.label}`.slice(0, 255),
+        message || `${event.label} update`,
         type === 'simulation_result' ? '/admin/simulation' : type === 'backtest_result' ? '/admin/backtest' : user.role === 'admin' ? '/admin/profile' : '/profile');
 }
 
@@ -58,7 +58,7 @@ export async function notifyAdmins(type, title, message, metadata) {
             const settings = await db('notification_preferences').where({ user_id: user.id }).first();
             if (!wantsEvent(settings, user.role, type)) continue;
             await db('notifications').insert({ user_id: user.id, type, title, message, metadata: JSON.stringify(metadata || {}) });
-            await queueEventForUser(user, type);
+            await queueEventForUser(user, type, title, message);
         }
     } catch (error) { console.error('[ntfy] Failed to record admin event:', error.message); }
 }
@@ -83,7 +83,7 @@ export async function queueAccountSummary(user, dedupeKey = null) {
     return db.transaction(async (trx) => {
         const [id] = await trx('notification_deliveries').insert({
             user_id: user.id, event: 'account_summary', title: 'StrikeCapital: Account summary',
-            message: 'Your account summary is ready. Sign in to view account value and P&L.',
+            message,
             path: user.role === 'admin' ? '/admin/profile' : '/profile', dedupe_key: dedupeKey,
         }).onConflict('dedupe_key').ignore();
         if (!id) return false;

@@ -38,7 +38,7 @@ export function NotificationSettings() {
                 <div className="space-y-5">
                     {!saved.configured && <p className="text-sm text-orange-700">Push delivery is awaiting platform configuration. You can save your preferences now.</p>}
                     <label className="flex gap-3 items-center"><input type="checkbox" checked={settings.enabled} onChange={(e) => change({ enabled: e.target.checked })}/>Enable push notifications</label>
-                    <p className="text-sm text-gray-600">Install the ntfy app on your phone, choose this server, and subscribe to your personal topic. Anyone who knows a topic on ntfy.sh can subscribe; keep yours private. Push messages contain a brief alert. Sign in here to view financial details.</p>
+                    <p className="text-sm text-gray-600">Install the ntfy app on your phone, choose this server, and subscribe to your personal topic. Notifications include event details and account-summary figures directly in the message. Anyone who knows a topic on ntfy.sh can subscribe; keep yours private.</p>
                     <dl className="space-y-2 text-sm">
                         <div><dt className="font-medium">Server</dt><dd className="break-all">{saved.server_url}</dd></div>
                         <div><dt className="font-medium">Your topic</dt><dd className="break-all font-mono select-all">{saved.topic}</dd></div>
