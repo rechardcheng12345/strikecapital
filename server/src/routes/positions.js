@@ -471,6 +471,9 @@ router.post('/:id/roll', authenticate, requireAdmin, validate(rollPositionSchema
             newValues: { new_position_id: newPosition.id, close_premium, realized_pnl, strike_price, premium_received, expiration_date },
             ipAddress: req.ip,
         });
+        await notifyAllInvestors('position_rolled', `Position Rolled: ${oldPosition.ticker}`,
+            `Position #${id} rolled to #${newPosition.id}. Realized P&L: $${realized_pnl.toFixed(2)}.`,
+            { position_id: parseInt(id, 10), new_position_id: newPosition.id });
         res.status(201).json({
             message: 'Position rolled successfully',
             old_position_id: parseInt(id, 10),

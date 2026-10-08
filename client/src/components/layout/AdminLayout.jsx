@@ -28,6 +28,7 @@ const adminNavItems = [
     {
         label: 'Settings', icon: Settings, children: [
             { path: '/admin/settings', label: 'Fund Settings' },
+            { path: '/admin/profile', label: 'Profile & Notifications' },
             { path: '/admin/audit', label: 'Audit Trail' },
         ],
     },

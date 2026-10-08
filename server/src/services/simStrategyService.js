@@ -5,6 +5,7 @@
 // assignment are settled by the Simulation's own job (simService), not here. Every run is logged with what
 // it did and why it skipped (sim_strategy_runs).
 import { db } from '../config/database.js';
+import { notifyAdmins } from './ntfyService.js';
 import { mergeParams, createStrategy, newStrategyState, expiryType, daysBetween, runBacktest } from './backtestEngine.js';
 import { buildMarket, listPresets, lastTradeDate, BACKTEST_TICKERS } from './backtestService.js';
 import { fetchPutChainRows, fetchOptionQuotes, fetchStockQuotes } from './priceService.js';
@@ -264,6 +265,9 @@ async function logRun(portfolioId, row) {
         underlying_price: row.underlying_price ?? null, message: row.message?.slice(0, 4000) ?? null,
         actions: JSON.stringify(row.actions || []), details: row.details ? JSON.stringify(row.details) : null,
     });
+    await notifyAdmins('simulation_result', `Simulation strategy: ${row.status}`,
+        `Portfolio #${portfolioId}: ${row.message || 'Strategy run completed'}`,
+        { portfolio_id: portfolioId, run_id: id, status: row.status });
     return normRun(await db('sim_strategy_runs').where({ id }).first());
 }
 

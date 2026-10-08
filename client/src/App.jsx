@@ -71,6 +71,7 @@ function App() {
           <Route path="/admin/simulation" element={<Suspense fallback={<PageLoader />}><SimulationPage /></Suspense>}/>
           <Route path="/admin/simulation/:id" element={<Suspense fallback={<PageLoader />}><SimPortfolioPage /></Suspense>}/>
           <Route path="/admin/settings" element={<Suspense fallback={<PageLoader />}><AdminSettingsPage /></Suspense>}/>
+          <Route path="/admin/profile" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>}/>
         </Route>
 
         {/* Investor routes */}

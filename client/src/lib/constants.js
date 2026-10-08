@@ -37,6 +37,10 @@ export function formatDateTime(dateStr) {
     return new Date(dateStr).toLocaleString('en-MY', { timeZone: TIMEZONE });
 }
 export const NOTIFICATION_TYPE = {
+    account_summary: { label: 'Account Summary', color: 'bg-teal-50 text-teal-700' },
+    simulation_result: { label: 'Simulation Result', color: 'bg-blue-50 text-blue-700' },
+    backtest_result: { label: 'Backtest Result', color: 'bg-purple-50 text-purple-700' },
+    expiry_alert: { label: 'Expiry Alert', color: 'bg-orange-50 text-orange-700' },
     position_opened: { label: 'Position Opened', color: 'bg-green-50 text-green-700' },
     position_resolved: { label: 'Position Resolved', color: 'bg-blue-50 text-blue-700' },
     position_rolled: { label: 'Position Rolled', color: 'bg-purple-50 text-purple-700' },

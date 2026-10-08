@@ -1,4 +1,5 @@
 import { db } from '../config/database.js';
+import { queueEventForUser, notifyAdmins } from './ntfyService.js';
 export async function createNotification(userId, type, title, message, metadata) {
     try {
         await db('notifications').insert({
@@ -8,6 +9,8 @@ export async function createNotification(userId, type, title, message, metadata)
             message,
             metadata: metadata ? JSON.stringify(metadata) : null,
         });
+        const user = await db('users').where({ id: userId }).select('id', 'role', 'is_active').first();
+        if (user) await queueEventForUser(user, type);
     }
     catch (error) {
         console.error('[Notification] Failed to create:', error);
@@ -16,8 +19,6 @@ export async function createNotification(userId, type, title, message, metadata)
 export async function notifyAllInvestors(type, title, message, metadata) {
     try {
         const investors = await db('users').where({ role: 'investor', is_active: true }).select('id');
-        if (investors.length === 0)
-            return;
         const rows = investors.map((inv) => ({
             user_id: inv.id,
             type,
@@ -25,7 +26,11 @@ export async function notifyAllInvestors(type, title, message, metadata) {
             message,
             metadata: metadata ? JSON.stringify(metadata) : null,
         }));
-        await db('notifications').insert(rows);
+        if (rows.length) await db('notifications').insert(rows);
+        for (const investor of investors) {
+            await queueEventForUser({ ...investor, role: 'investor', is_active: true }, type);
+        }
+        await notifyAdmins(type, title, message, metadata);
     }
     catch (error) {
         console.error('[Notification] Failed to notify investors:', error);
@@ -51,8 +56,8 @@ export async function checkExpiryAlerts() {
                 // Check if alert already sent
                 const existing = await db('notifications')
                     .where('type', 'expiry_alert')
-                    .whereRaw("metadata->>'position_id' = ?", [String(pos.id)])
-                    .whereRaw("metadata->>'threshold' = ?", [threshold.label])
+                    .whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.position_id')) = ?", [String(pos.id)])
+                    .whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.threshold')) = ?", [threshold.label])
                     .first();
                 if (!existing) {
                     await notifyAllInvestors('expiry_alert', `Expiry Alert: ${pos.ticker} $${pos.strike_price} Put`, `Position expires in ${threshold.label} (${pos.expiration_date})`, { position_id: pos.id, threshold: threshold.label });

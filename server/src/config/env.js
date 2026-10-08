@@ -8,6 +8,9 @@ const envFile = { production: '.env.production', staging: '.env.staging' }[NODE_
 dotenv.config({ path: path.resolve(__dirname, '../../..', envFile) });
 console.log(`[env] NODE_ENV=${NODE_ENV} → loading ${envFile} from ${path.resolve(__dirname, '../../..', envFile)}`);
 export const env = {
+    ntfyEnabled: process.env.NTFY_ENABLED === 'true',
+    ntfyServerUrl: process.env.NTFY_SERVER_URL || 'https://ntfy.sh',
+    ntfyToken: process.env.NTFY_TOKEN || '',
     nodeEnv: NODE_ENV,
     port: parseInt(process.env.PORT || '3000', 10),
     // Database

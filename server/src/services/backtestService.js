@@ -3,6 +3,7 @@
 // own end-of-day Moomoo mids recorded from now on. Before that the calibrated model prices puts
 // (backtestCalibration.js). The engine itself is pure (backtestEngine.js).
 import { db } from '../config/database.js';
+import { notifyAdmins } from './ntfyService.js';
 import { fetchPutChainRows } from './priceService.js';
 import { nyClock } from './simMath.js';
 import { bsPut, bsCall, histVol } from './bsModel.js';
@@ -506,6 +507,9 @@ export async function runAndSave({ name, ticker, params }, userId) {
         name: runName.slice(0, 120), ticker: T, params: JSON.stringify(result.params), summary: JSON.stringify(summary),
         result: JSON.stringify({ ...result, meta }), created_by: userId || null,
     });
+    await notifyAdmins('backtest_result', `Backtest completed: ${runName}`,
+        `Return: ${summary.total_return_pct}%. Final equity: $${summary.final_equity}. Maximum drawdown: ${summary.max_drawdown_pct}%.`,
+        { run_id: id, ticker: T });
     return { id, name: runName, ...result, summary, meta };
 }
 

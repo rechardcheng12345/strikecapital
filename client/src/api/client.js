@@ -211,6 +211,14 @@ export const investorApi = {
     markNotificationRead: (id) => api.put(`/investor/notifications/${id}/read`),
     markAllNotificationsRead: () => api.put('/investor/notifications/read-all'),
 };
+export const notificationApi = {
+    preferences: () => api.get('/notifications/preferences'),
+    savePreferences: (data) => api.put('/notifications/preferences', data),
+    history: () => api.get('/notifications'),
+    test: () => api.post('/notifications/test', {}),
+    summary: () => api.post('/notifications/summary', {}),
+    markRead: (id) => api.put(`/notifications/${id}/read`, {}),
+};
 // Paper-trading portfolios (admin only)
 export const simApi = {
     // live=true marks open positions at the live Moomoo mid before returning

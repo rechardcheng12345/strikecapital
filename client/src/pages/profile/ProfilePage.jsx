@@ -6,6 +6,7 @@ import { userApi } from '../../api/client';
 import { useAuthStore } from '../../stores/authStore';
 import { Card, CardBody, CardHeader, Button, Input } from '../../components/ui';
 import { User, Mail, Phone, Shield, Lock } from 'lucide-react';
+import { NotificationSettings } from './NotificationSettings';
 export function ProfilePage() {
     const { user, updateUser } = useAuthStore();
     const [currentPassword, setCurrentPassword] = useState('');
@@ -126,6 +127,7 @@ export function ProfilePage() {
         </CardBody>
       </Card>
 
+      <NotificationSettings />
       <Card>
         <CardHeader>
           <h2 className="font-semibold text-gray-900">Account Info</h2>

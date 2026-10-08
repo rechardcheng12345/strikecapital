@@ -2,6 +2,7 @@
 // expiries (assignment when the underlying closes below the strike) and keeps one snapshot per NY day.
 // Never touches the live fund's tables. Math lives in simMath.js.
 import { db } from '../config/database.js';
+import { notifyAdmins } from './ntfyService.js';
 import { fetchOptionQuotes, fetchYahooPrice, fetchStockQuotes } from './priceService.js';
 import {
     quoteMid, optionFees, stockFees, closedPutPnl, closedStockPnl, portfolioTotals, unrealizedPnl,
@@ -657,6 +658,10 @@ export async function refreshSimulation({ force = false } = {}) {
                 result.snapshots++;
             }
         }
+        if (result.expired || result.assigned) {
+            await notifyAdmins('simulation_result', 'Simulation expiries settled',
+                `${result.expired} expired positions; ${result.assigned} assignments. These are paper trades.`, result);
+        }
         return result;
     } finally {
         running = false;
@@ -688,6 +693,8 @@ export async function monitorSpreads({ force = false } = {}) {
             });
             stopped++;
         }
+        if (stopped) await notifyAdmins('simulation_result', 'Simulation spread exits',
+            `${stopped} paper spread position(s) closed by their exit rules.`, { stopped });
         return { checked: open.length, stopped };
     } finally {
         monitoring = false;
