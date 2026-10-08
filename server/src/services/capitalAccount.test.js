@@ -94,3 +94,18 @@ describe('positionShareForInvestor (snapshot at capital add)', () => {
         assert.equal(realizedShareForInvestor(periods, records, 2, byPos), 31.25);
     });
 });
+
+describe('timeWeightedReturn', () => {
+    it('chains period returns so a top-up does not dilute earlier growth', async () => {
+        const { timeWeightedReturn } = await import('./capitalAccount.js');
+        // $4,698 grows to $5,672.59; then $3,908 is added ($9,580.59) and it ends at $9,603.55
+        const r = timeWeightedReturn([{ start: 4698, end: 5672.59 }, { start: 9580.59, end: 9603.55 }]);
+        assert.equal(r.pct, 21.03);
+        // a simple profit ÷ invested would say (9603.55 − 8606) ÷ 8606 = 11.59%
+    });
+    it('skips periods that start at zero and handles no periods', async () => {
+        const { timeWeightedReturn } = await import('./capitalAccount.js');
+        assert.equal(timeWeightedReturn([{ start: 0, end: 0 }, { start: 100, end: 110 }]).pct, 10);
+        assert.equal(timeWeightedReturn([]).pct, 0);
+    });
+});

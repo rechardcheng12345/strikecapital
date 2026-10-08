@@ -6,7 +6,7 @@ import { RollFinderModal } from './RollFinderModal';
 import { rollPrefillFromCandidate } from './rollPrefill';
 import { positionApi, investorApi, } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
-import { POSITION_STATUS, RESOLUTION_TYPE, POSITION_TYPE, formatDateTime, PROFIT_TAKE_TARGET_PCT } from '../../lib/constants';
+import { POSITION_STATUS, RESOLUTION_TYPE, POSITION_TYPE, formatDateTime, PROFIT_TAKE_TARGET_PCT, takeProfitPrice } from '../../lib/constants';
 import { Button, Input, Card, CardHeader, CardBody, Badge, Modal, ErrorAlert, Skeleton, ProfitCaptured, } from '../../components/ui';
 // ─── Helpers ───────────────────────────────────────────
 function formatCurrency(value) {
@@ -413,7 +413,7 @@ export function PositionDetailPage() {
               </>) : (<>
                 <RiskMetric label="Current Price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'} icon={<DollarSign className="w-4 h-4"/>}/>
                 <RiskMetric label="Unrealized P&L" value={position.unrealized_pnl != null ? formatCurrency(position.unrealized_pnl) : '--'} icon={<TrendingDown className="w-4 h-4"/>} highlight={position.unrealized_pnl != null && position.unrealized_pnl < 0}/>
-                <RiskMetric label="Profit Captured" value={<ProfitCaptured pct={position.profit_captured_pct}/>} icon={<Percent className="w-4 h-4"/>} highlight={position.profit_captured_pct != null && position.profit_captured_pct >= PROFIT_TAKE_TARGET_PCT}/>
+                <RiskMetric label="Profit Captured" value={<ProfitCaptured pct={position.profit_captured_pct} premium={position.premium_received} contracts={position.contracts}/>} icon={<Percent className="w-4 h-4"/>} highlight={position.profit_captured_pct != null && position.profit_captured_pct >= PROFIT_TAKE_TARGET_PCT}/>
                 <RiskMetric label="Collateral" value={formatCurrency(position.collateral)} icon={<Shield className="w-4 h-4"/>}/>
                 <RiskMetric label="Break-Even" value={formatCurrency(position.break_even)} icon={<Target className="w-4 h-4"/>}/>
                 <RiskMetric label="Max Profit" value={formatCurrency(position.max_profit)} icon={<DollarSign className="w-4 h-4"/>}/>
@@ -462,6 +462,10 @@ export function PositionDetailPage() {
                     <DetailRow label="Current Price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'}/>
                     <DetailRow label="Unrealized P&L" value={position.unrealized_pnl != null ? formatCurrency(position.unrealized_pnl) : '--'}/>
                     <DetailRow label="Profit Captured" value={position.profit_captured_pct != null ? `${position.profit_captured_pct.toFixed(1)}% of max profit` : '--'}/>
+                    {(() => {
+                        const tp = takeProfitPrice({ premiumTotal: position.premium_received, contracts: position.contracts });
+                        return <DetailRow label={`${PROFIT_TAKE_TARGET_PCT}% Take-Profit Price`} value={tp != null ? `Buy to close at ${formatCurrency(tp)} / share (${formatCurrency(tp * 100 * position.contracts)} for ${position.contracts} contract${position.contracts > 1 ? 's' : ''})` : '--'}/>;
+                    })()}
                     <DetailRow label="Last Price Update" value={formatDateTime(position.last_price_update)}/>
                     <DetailRow label="Created" value={formatDate(position.created_at)}/>
                   </>)}

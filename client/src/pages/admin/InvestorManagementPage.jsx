@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   Users, Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight,
-  Eye, DollarSign, PieChart, UserCheck, KeyRound, Wallet,
+  Eye, DollarSign, PieChart, UserCheck, KeyRound, Wallet, FileText, Banknote,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LastCapitalAddCard } from './LastCapitalAddCard';
@@ -514,6 +514,82 @@ function DeleteConfirmModal({ isOpen, onClose, investor }) {
   );
 }
 
+function WithdrawModal({ isOpen, onClose, investor }) {
+  const queryClient = useQueryClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const [amount, setAmount] = useState('');
+  const [all, setAll] = useState(false);
+  const [movedOn, setMovedOn] = useState(today);
+  const [note, setNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+  const { data: worth, isLoading } = useApiQuery({
+    queryKey: ['admin', 'investor-value', investor?.id],
+    queryFn: () => adminApi.getInvestorValue(investor.id),
+    enabled: isOpen && !!investor,
+  });
+  const available = worth?.value ?? 0;
+  const payout = all ? available : parseFloat(amount) || 0;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    if (!all && !(payout > 0)) return setFormError('Enter an amount, or choose to withdraw everything');
+    if (payout > available + 0.005) return setFormError(`They can withdraw at most ${formatCurrency(available)}`);
+    setSubmitting(true);
+    const res = await adminApi.withdrawCapital(investor.id, all
+      ? { all: true, moved_on: movedOn, note: note || undefined }
+      : { amount: payout, moved_on: movedOn, note: note || undefined });
+    setSubmitting(false);
+    if (res.error) return setFormError(res.error);
+    toast.success(`Withdrew ${formatCurrency(-res.data.amount)} for ${investor.full_name}.`);
+    ['investors', 'fund-summary', 'dashboard', 'capital', 'investor-value', 'investor-statement'].forEach((k) => queryClient.invalidateQueries({ queryKey: ['admin', k] }));
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Withdraw — ${investor?.full_name || ''}`} size="md">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bg-gray-50 border border-gray-200 p-3 text-sm">
+          <p className="text-gray-500">Their share of the fund today</p>
+          <p className="text-2xl font-bold text-[#0D2654]">{isLoading ? '…' : formatCurrency(available)}</p>
+          <p className="text-xs text-gray-500">{worth ? `${Number(worth.ownership_pct).toFixed(2)}% of the fund · net invested + their share of realized and open P&L` : ''}</p>
+        </div>
+        <label className="flex items-center gap-2 text-sm font-medium text-[#0D2654]">
+          <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Withdraw everything ({formatCurrency(available)})
+        </label>
+        {!all && (
+          <div>
+            <label className="text-xs font-medium text-gray-500 block mb-1">Amount to pay out (USD)</label>
+            <Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full" />
+          </div>
+        )}
+        <div>
+          <label className="text-xs font-medium text-gray-500 block mb-1">Date</label>
+          <Input type="date" value={movedOn} onChange={(e) => setMovedOn(e.target.value)} className="w-full" required />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 block mb-1">Note (optional)</label>
+          <Input value={note} onChange={(e) => setNote(e.target.value)} className="w-full" placeholder="e.g. Partial redemption" />
+        </div>
+        <ul className="text-xs text-gray-600 list-disc pl-5 space-y-1">
+          <li>Everyone&apos;s ownership % is restated on the smaller fund; nobody else&apos;s value changes.</li>
+          <li>Profit already earned on open positions stays with whoever owned it until today; from now on {investor?.full_name} shares {all ? 'nothing' : 'less'}.</li>
+          <li>Open positions are valued at their latest price, so the payout is today&apos;s value. Make sure the fund has the free cash (or close positions) to pay it.</li>
+          <li>The latest capital movement can be undone from the bar above the list.</li>
+        </ul>
+        {formError && <div className="bg-red-50 border border-red-200 p-3 text-sm text-red-700">{formError}</div>}
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="outline" onClick={onClose} className="rounded-none">Cancel</Button>
+          <Button type="submit" variant="danger" loading={submitting} disabled={isLoading || !(available > 0)} className="rounded-none">
+            Withdraw {payout > 0 ? formatCurrency(payout) : ''}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function AddCapitalModal({ isOpen, onClose, investor }) {
   const queryClient = useQueryClient();
   const today = new Date().toISOString().slice(0, 10);
@@ -624,6 +700,7 @@ export function InvestorManagementPage() {
   const [deletingInvestor, setDeletingInvestor] = useState(null);
   const [resetPasswordInvestor, setResetPasswordInvestor] = useState(null);
   const [capitalInvestor, setCapitalInvestor] = useState(null);
+  const [withdrawInvestor, setWithdrawInvestor] = useState(null);
 
   const handleSearchChange = useCallback((value) => {
     setSearch(value);
@@ -717,7 +794,7 @@ export function InvestorManagementPage() {
               <span>Email</span>
               <span>Phone</span>
               <span>Status</span>
-              <span className="text-right">Invested</span>
+              <span className="text-right" title="Contributions minus withdrawals">Net invested</span>
               <span className="text-right">Alloc %</span>
               <span className="text-right">Actions</span>
             </div>
@@ -757,12 +834,26 @@ export function InvestorManagementPage() {
                   >
                     <Eye className="w-4 h-4 text-[#0D2654]" />
                   </button>
+                  <Link
+                    to={`/admin/investors/${inv.id}/statement`}
+                    className="p-1.5 hover:bg-[#0D2654]/10 rounded-none transition-colors"
+                    title="P&L statement"
+                  >
+                    <FileText className="w-4 h-4 text-[#0D2654]" />
+                  </Link>
                   <button
                     onClick={() => setCapitalInvestor(inv)}
                     className="p-1.5 hover:bg-green-100 rounded-none transition-colors"
                     title="Add capital"
                   >
                     <Wallet className="w-4 h-4 text-green-700" />
+                  </button>
+                  <button
+                    onClick={() => setWithdrawInvestor(inv)}
+                    className="p-1.5 hover:bg-red-50 rounded-none transition-colors"
+                    title="Withdraw"
+                  >
+                    <Banknote className="w-4 h-4 text-red-600" />
                   </button>
                   <button
                     onClick={() => setEditingInvestor(inv)}
@@ -849,6 +940,14 @@ export function InvestorManagementPage() {
           isOpen={!!viewingInvestor}
           onClose={() => setViewingInvestor(null)}
           investor={viewingInvestor}
+        />
+      )}
+
+      {withdrawInvestor && (
+        <WithdrawModal
+          isOpen={!!withdrawInvestor}
+          onClose={() => setWithdrawInvestor(null)}
+          investor={withdrawInvestor}
         />
       )}
 

@@ -207,7 +207,7 @@ export function AdminPositionsPage() {
                       {pos.unrealized_pnl != null ? formatCurrency(pos.unrealized_pnl) : '--'}
                     </td>
                     <td className="px-2 py-2.5 text-right">
-                      <ProfitCaptured pct={pos.profit_captured_pct} compact/>
+                      <ProfitCaptured pct={pos.profit_captured_pct} compact {...(pos.position_type === 'option' ? { premium: pos.premium_received, contracts: pos.contracts } : {})}/>
                     </td>
                     <td className="px-1 py-2.5 text-center">
                       <button onClick={(e) => {

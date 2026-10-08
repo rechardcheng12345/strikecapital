@@ -153,12 +153,15 @@ export const adminApi = {
     // Investors
     getInvestors: (page = 1, limit = 20, search) => api.get(`/admin/investors?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
     getInvestor: (id) => api.get(`/admin/investors/${id}`),
+    getInvestorStatement: (id) => api.get(`/admin/investors/${id}/statement`),
     createInvestor: (data) => api.post('/admin/investors', data),
     updateInvestor: (id, data) => api.put(`/admin/investors/${id}`, data),
     deleteInvestor: (id) => api.delete(`/admin/investors/${id}`),
     getFundSummary: () => api.get('/admin/investors/fund-summary'),
     resetInvestorPassword: (id, password) => api.post(`/admin/investors/${id}/reset-password`, { password }),
     addCapital: (id, data) => api.post(`/admin/investors/${id}/capital`, data),
+    withdrawCapital: (id, data) => api.post(`/admin/investors/${id}/withdraw`, data),
+    getInvestorValue: (id) => api.get(`/admin/investors/${id}/value`),
     getLastCapital: () => api.get('/admin/capital/last'),
     undoLastCapital: () => api.post('/admin/capital/undo-last', {}),
     // P&L

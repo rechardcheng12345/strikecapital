@@ -22,6 +22,9 @@ export function LastCapitalAddCard() {
   });
   const m = data?.movement;
   if (!m) return null;
+  const isWithdrawal = Number(m.amount) < 0;
+  const amt = Math.abs(Number(m.amount));
+  const what = isWithdrawal ? 'withdrawal' : 'capital add';
 
   async function handleUndo() {
     setUndoing(true);
@@ -31,17 +34,17 @@ export function LastCapitalAddCard() {
       toast.error(res.error);
       return;
     }
-    toast.success(`Undid ${formatCurrency(res.data.undone.amount)} added on ${res.data.undone.moved_on}.`);
+    toast.success(`Undid the ${formatCurrency(Math.abs(res.data.undone.amount))} ${Number(res.data.undone.amount) < 0 ? 'withdrawal' : 'add'} of ${res.data.undone.moved_on}.`);
     setConfirmOpen(false);
-    ['capital', 'investors', 'fund-summary', 'dashboard'].forEach((k) => queryClient.invalidateQueries({ queryKey: ['admin', k] }));
+    ['capital', 'investors', 'fund-summary', 'dashboard', 'investor-value', 'investor-statement'].forEach((k) => queryClient.invalidateQueries({ queryKey: ['admin', k] }));
   }
 
   return (
     <div className="mb-4 border-2 border-[#0D2654]/15 bg-white px-4 py-3 flex flex-wrap items-center gap-3 text-sm">
       <History className="w-4 h-4 text-[#F06010]" />
-      <span className="text-gray-500">Last capital add:</span>
-      <span className="font-medium text-[#0D2654]">
-        {formatCurrency(m.amount)} · {m.full_name || `User #${m.user_id}`} · {m.moved_on}
+      <span className="text-gray-500">Last capital movement:</span>
+      <span className={`font-medium ${isWithdrawal ? 'text-red-700' : 'text-[#0D2654]'}`}>
+        {isWithdrawal ? `−${formatCurrency(amt)} withdrawal` : `+${formatCurrency(amt)} add`} · {m.full_name || `User #${m.user_id}`} · {m.moved_on}
       </span>
       {m.note && <span className="text-gray-400">“{m.note}”</span>}
       <div className="ml-auto">
@@ -54,20 +57,20 @@ export function LastCapitalAddCard() {
         )}
       </div>
 
-      <Modal isOpen={confirmOpen} onClose={() => setConfirmOpen(false)} title="Undo last capital add" size="md">
+      <Modal isOpen={confirmOpen} onClose={() => setConfirmOpen(false)} title={`Undo last ${what}`} size="md">
         <div className="space-y-4 text-sm">
           <p>
-            This removes <strong>{formatCurrency(m.amount)}</strong> added for <strong>{m.full_name}</strong> on {m.moved_on}, and puts back everything it changed:
+            This removes the <strong>{formatCurrency(amt)}</strong> {what} for <strong>{m.full_name}</strong> on {m.moved_on}, and puts back everything it changed:
           </p>
           <ul className="list-disc pl-5 text-gray-600 space-y-1">
             <li>Everyone&apos;s ownership % returns to what it was before</li>
-            <li>{m.full_name}&apos;s invested amount and the fund capital go down by {formatCurrency(m.amount)}</li>
+            <li>{m.full_name}&apos;s net invested amount and the fund capital go {isWithdrawal ? 'back up' : 'down'} by {formatCurrency(amt)}</li>
             <li>The capital record and its profit snapshot are deleted (the undo is written to the audit log)</li>
           </ul>
           <p className="text-gray-500">Use this for mistakes and tests. Don&apos;t edit the amounts by hand instead — that leaves the ownership split wrong.</p>
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => setConfirmOpen(false)} className="rounded-none">Cancel</Button>
-            <Button variant="danger" onClick={handleUndo} loading={undoing} className="rounded-none">Undo capital add</Button>
+            <Button variant="danger" onClick={handleUndo} loading={undoing} className="rounded-none">Undo {what}</Button>
           </div>
         </div>
       </Modal>

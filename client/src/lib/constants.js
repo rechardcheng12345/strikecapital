@@ -19,6 +19,18 @@ export const POSITION_TYPE = {
 };
 // Suggested take-profit level for short options: % of max profit (premium) captured
 export const PROFIT_TAKE_TARGET_PCT = 80;
+/**
+ * Buy-to-close price per share that captures `pct` of the premium — the limit price to queue.
+ * Pass the total premium received with the contract count, or the per-share premium as perShare.
+ * Rounded down to the option tick ($0.01 under $3, $0.05 from $3) so a fill there captures at least `pct`.
+ */
+export function takeProfitPrice({ premiumTotal, contracts, perShare, pct = PROFIT_TAKE_TARGET_PCT }) {
+    const sold = perShare != null ? Number(perShare) : Number(premiumTotal) / ((Number(contracts) || 0) * 100);
+    if (!(sold > 0)) return null;
+    const raw = sold * (1 - pct / 100);
+    const tick = raw < 3 ? 0.01 : 0.05;
+    return Math.max(0, Math.floor(raw / tick + 1e-9) * tick);
+}
 export const TIMEZONE = 'Asia/Singapore';
 export function formatDateTime(dateStr) {
     if (!dateStr) return '--';

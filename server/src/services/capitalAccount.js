@@ -6,7 +6,10 @@ export function allocationPctFromInvested(invested, totalCapital) {
     return Math.round((i / t) * 10000) / 100;
 }
 
-/** Restate sleeves after a contribution. New cash does not take any of the old equity. */
+/**
+ * Restate sleeves after a contribution (amount > 0) or withdrawal (amount < 0). New cash takes none of the old
+ * equity. Ownership % is kept to 4 decimals.
+ */
 export function restatedOwnership({ sleeves, targetUserId, amount, navBefore }) {
     const contribution = Number(amount) || 0;
     const nav = Number(navBefore) || 0;
@@ -20,7 +23,7 @@ export function restatedOwnership({ sleeves, targetUserId, amount, navBefore }) 
         return {
             userId: s.userId,
             capitalAccount: Math.round(equity * 100) / 100,
-            ownershipPct: totalAfter > 0 ? Math.round((equity / totalAfter) * 10000) / 100 : 0,
+            ownershipPct: totalAfter > 0 ? Math.round((equity / totalAfter) * 1000000) / 10000 : 0,
         };
     });
     return next;
@@ -100,4 +103,19 @@ export function realizedShareForInvestor(periods, records, userId, marksByPositi
         });
     }
     return Math.round(sum * 100) / 100;
+}
+
+/**
+ * Time-weighted return across an investor's ownership periods: each period's growth (end ÷ start value of
+ * their sleeve) chained together, so a top-up doesn't dilute the return the earlier money earned.
+ * segments: [{ start, end }] in order; periods starting at 0 are skipped. → { pct, factor } (pct rounded to 0.01).
+ */
+export function timeWeightedReturn(segments = []) {
+    let factor = 1;
+    for (const s of segments) {
+        const start = Number(s.start) || 0;
+        if (start <= 0) continue;
+        factor *= (Number(s.end) || 0) / start;
+    }
+    return { factor, pct: Math.round((factor - 1) * 10000) / 100 };
 }

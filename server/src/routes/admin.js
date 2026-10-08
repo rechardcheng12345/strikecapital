@@ -19,7 +19,7 @@ import { jevConfigured, getAiContextForTickers, getTickerAiContext, getOptionJev
 import { getRollWatchList, findRollCandidates } from '../services/rollFinder.js';
 import { fetchYahooLevels } from '../services/priceService.js';
 import { env } from '../config/env.js';
-import { addCapital, investorRealizedShare, syncAllocationPctFromInvested, getLastCapitalMovement, undoLastCapitalMovement } from '../services/capitalAccountService.js';
+import { addCapital, investorRealizedShare, syncAllocationPctFromInvested, getLastCapitalMovement, undoLastCapitalMovement, investorStatement, withdrawCapital, investorValueNow } from '../services/capitalAccountService.js';
 import { allocationPctFromInvested } from '../services/capitalAccount.js';
 const router = Router();
 // All admin routes require authentication + admin role
@@ -355,6 +355,17 @@ router.get('/investors', async (req, res, next) => {
     }
 });
 
+// GET /investors/:id/statement — one investor's P&L statement: value if cashed out today, contributions,
+// realized / open P&L share, by month, time-weighted return
+router.get('/investors/:id/statement', async (req, res, next) => {
+    try {
+        res.json(await investorStatement(Number(req.params.id)));
+    }
+    catch (error) {
+        next(error.status ? new AppError(error.message, error.status) : error);
+    }
+});
+
 // GET /investors/:id — Get single investor detail
 router.get('/investors/:id', async (req, res, next) => {
     try {
@@ -521,6 +532,50 @@ router.post('/investors/:id/capital', validate(addCapitalSchema), async (req, re
 });
 
 // GET /capital/last — most recent capital movement and whether it can be undone
+const withdrawSchema = z.object({
+    amount: z.number().positive().optional(),
+    all: z.boolean().optional(), // pay out their whole share
+    moved_on: z.string().optional(),
+    note: z.string().optional(),
+}).refine((b) => b.all || b.amount, { message: 'Enter an amount or choose to withdraw everything' });
+
+// GET /investors/:id/value — what their share is worth today (for the withdrawal form)
+router.get('/investors/:id/value', async (req, res, next) => {
+    try {
+        res.json(await investorValueNow(Number(req.params.id)));
+    } catch (error) {
+        next(error);
+    }
+});
+
+// POST /investors/:id/withdraw — pay an investor out (part or all); restates everyone's ownership, undoable
+router.post('/investors/:id/withdraw', validate(withdrawSchema), async (req, res, next) => {
+    try {
+        const user = await db('users').where({ id: req.params.id }).first();
+        if (!user) throw new AppError('Investor not found', 404);
+        const result = await withdrawCapital({
+            userId: user.id,
+            amount: req.body.amount,
+            all: !!req.body.all,
+            movedOn: req.body.moved_on,
+            note: req.body.note,
+            createdBy: req.user.id,
+        });
+        await logAudit({
+            userId: req.user.id,
+            action: 'capital.withdraw',
+            entityType: 'user',
+            entityId: user.id,
+            newValues: { amount: result.amount, all: !!req.body.all, moved_on: result.moved_on },
+            ipAddress: req.ip,
+        });
+        res.status(201).json(result);
+    } catch (error) {
+        if (error.status === 400) return next(new AppError(error.message, 400));
+        next(error);
+    }
+});
+
 router.get('/capital/last', async (req, res, next) => {
     try {
         res.json({ movement: await getLastCapitalMovement() });
@@ -535,7 +590,7 @@ router.post('/capital/undo-last', async (req, res, next) => {
         const undone = await undoLastCapitalMovement();
         await logAudit({
             userId: req.user.id,
-            action: 'capital.contribute_undone',
+            action: undone.type === 'withdrawal' ? 'capital.withdraw_undone' : 'capital.contribute_undone',
             entityType: 'capital_movement',
             entityId: undone.id,
             oldValues: undone,

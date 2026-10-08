@@ -7,6 +7,7 @@ import { simApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { Button, Input, Modal, Badge, ErrorAlert, Skeleton } from '../../components/ui';
 import { EquityChart, Stat, money, pct, signColor, shortDate, OpenTradeModal, LiveBadge, LiveQuote, useLiveQuote } from './simShared';
+import { PROFIT_TAKE_TARGET_PCT, takeProfitPrice } from '../../lib/constants';
 import { SimStrategyPanel } from './SimStrategyPanel';
 
 const REASON_LABEL = { bought_to_close: 'Bought to close', expired: 'Expired', assigned: 'Assigned', rolled: 'Rolled', sold: 'Sold', stopped: 'Stopped out', settled: 'Settled' };
@@ -325,7 +326,7 @@ export function SimPortfolioPage() {
                             <td className={td} title={x.price_updated_at ? `Updated ${new Date(x.price_updated_at).toLocaleString()}` : ''}>{money(x.current_price)}</td>
                             <td className={td}>{money(x.underlying_price)}</td>
                             <td className={`${td} ${signColor(x.unrealized_pnl)}`}>{money(x.unrealized_pnl)}</td>
-                            <td className={td}>
+                            <td className={td} title={x.position_type === 'option' && takeProfitPrice({ perShare: x.entry_price }) != null ? `${PROFIT_TAKE_TARGET_PCT}% target — buy back at $${takeProfitPrice({ perShare: x.entry_price }).toFixed(2)} / share` : undefined}>
                                 {x.profit_captured_pct != null ? pct(x.profit_captured_pct, 0) : '—'}
                                 {cushion(x) != null && <div className={`text-[10px] ${cushion(x) <= 0.15 ? 'text-red-600 font-semibold' : 'text-gray-400'}`}>{cushion(x).toFixed(2)}% to short</div>}
                             </td>

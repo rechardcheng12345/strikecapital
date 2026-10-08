@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../config/database.js';
 import { authenticate } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { investorRealizedShare, investorUnrealizedShare, loadShareContext } from '../services/capitalAccountService.js';
+import { investorRealizedShare, investorUnrealizedShare, loadShareContext, returnSegments } from '../services/capitalAccountService.js';
 import { positionShareForInvestor, pctBeforeForRecord } from '../services/capitalAccount.js';
 import { calculateProfitCapturedPct } from '../services/pnlEngine.js';
 const router = Router();
@@ -70,9 +70,13 @@ router.get('/dashboard', async (req, res, next) => {
         // Alloc % is only a fallback for accounts that predate ownership periods.
         const ownedUnrealized = await investorUnrealizedShare(userId);
         const unrealizedShare = ownedUnrealized ?? Math.round(totalUnrealizedPnl * allocationPct * 100) / 100;
-        const total_return_pct = allocationAmount > 0
+        const simple_return_pct = allocationAmount > 0
             ? Math.round(((realizedShare + unrealizedShare) / allocationAmount) * 10000) / 100
             : null;
+        // Time-weighted: each period between capital movements chained, so a top-up or withdrawal doesn't
+        // change the return their money earned. Falls back to profit ÷ invested for accounts without periods.
+        const ret = await returnSegments(userId, allocationAmount + realizedShare + unrealizedShare);
+        const total_return_pct = ret.has ? ret.twr.pct : simple_return_pct;
 
         res.json({
             allocation: {
@@ -82,6 +86,11 @@ router.get('/dashboard', async (req, res, next) => {
             total_pnl_share: realizedShare,
             unrealized_pnl_share: unrealizedShare,
             total_return_pct,
+            return_basis: ret.has ? 'time_weighted' : 'simple',
+            return_since: ret.firstDay,
+            annualized_return_pct: ret.annualized,
+            simple_return_pct,
+            account_value: Math.round((allocationAmount + realizedShare + unrealizedShare) * 100) / 100,
             active_positions: parseInt(activeResult?.count || '0'),
             win_rate: winRate,
             unread_notifications: parseInt(unreadResult?.count || '0'),
