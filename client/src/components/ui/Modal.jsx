@@ -18,7 +18,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }) {
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4">
             <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 translate-y-3" enterTo="opacity-100 translate-y-0" leave="ease-in duration-150" leaveFrom="opacity-100 translate-y-0" leaveTo="opacity-0 translate-y-2">
-              <Dialog.Panel className={`w-full ${sizeClasses[size]} transform overflow-hidden rounded-none bg-white p-6 sm:p-7 shadow-float border border-line transition-all`}>
+              <Dialog.Panel className={`w-full min-w-0 ${sizeClasses[size]} transform overflow-hidden rounded-none bg-white p-4 sm:p-7 shadow-float border border-line transition-all`}>
                 {title && (<div className="flex items-start justify-between gap-4 mb-5 pb-4 border-b border-line">
                     <Dialog.Title className="font-display text-[22px] leading-tight text-ink">
                       {title}

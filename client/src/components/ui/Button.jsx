@@ -18,7 +18,7 @@ export function Button({ variant = 'primary', size = 'md', loading = false, chil
         md: 'h-10 px-4 text-sm',
         lg: 'h-12 px-6 text-[15px]',
     };
-    return (<button className={`${baseClasses} ${variantClasses[variant] || variantClasses.primary} ${sizeClasses[size]} ${className}`} disabled={disabled || loading} {...props}>
+    return (<button className={`${baseClasses} ${variantClasses[variant] || variantClasses.primary} ${sizeClasses[size]} min-h-11 sm:min-h-0 ${className}`} disabled={disabled || loading} {...props}>
       {loading && <Loader2 className="w-4 h-4 animate-spin"/>}
       {children}
     </button>);

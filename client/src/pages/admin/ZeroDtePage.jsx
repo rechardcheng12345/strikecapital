@@ -16,12 +16,12 @@ const VERDICT = {
 
 function Box({ title, children, right }) {
     return (
-        <section className="bg-white border border-ink/10 p-4">
-            <div className="flex items-center justify-between mb-3">
+        <section className="min-w-0 bg-white border border-ink/10 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">{title}</h2>
                 {right}
             </div>
-            {children}
+            <div className="min-w-0 overflow-x-auto">{children}</div>
         </section>
     );
 }
@@ -218,7 +218,7 @@ export function ZeroDtePage() {
                         <Fact label="Priced-in move" value={scan.implied_move ? `±${money(scan.implied_move.move)}` : '—'} sub={scan.implied_move ? `${scan.implied_move.strike} straddle` : null} />
                     </div>
 
-                    <div className="grid lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <Box title="Today's range forecast">
                             <table className="w-full text-sm">
                                 <tbody>

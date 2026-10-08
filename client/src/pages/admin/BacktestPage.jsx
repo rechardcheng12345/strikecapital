@@ -182,12 +182,12 @@ export function paramsToForm(p, name = '') {
 
 function Box({ title, children, right, className = '' }) {
     return (
-        <section className={`bg-white border border-ink/10 p-4 ${className}`}>
+        <section className={`min-w-0 bg-white border border-ink/10 p-4 ${className}`}>
             <div className="flex items-center justify-between mb-3 gap-2">
                 <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">{title}</h2>
                 {right}
             </div>
-            {children}
+            <div className="min-w-0 overflow-x-auto">{children}</div>
         </section>
     );
 }
@@ -344,7 +344,7 @@ function PresetsBar({ form, setForm }) {
     };
     return (
         <div className="flex items-center gap-2 flex-wrap">
-            <select value={selected} onChange={(e) => load(e.target.value)} className="px-2 py-1.5 border border-gray-300 text-sm max-w-[260px]">
+            <select value={selected} onChange={(e) => load(e.target.value)} className="min-w-0 w-full sm:w-auto px-2 py-1.5 border border-gray-300 text-sm max-w-full sm:max-w-[260px]">
                 <option value="">Saved settings…</option>
                 <option value="builtin:routine">★ My 35-day routine (built in)</option>
                 {presets.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -396,7 +396,7 @@ function StrategyForm({ form, setForm, onRun, running }) {
                     <span className="text-xs text-gray-500">No model prices: puts are sold only on expiries and strikes that actually traded that day, and held puts keep their last traded price.</span>
                 </div>
 
-                <div className="grid lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div className="space-y-2 border border-gray-100 p-3 min-w-0">
                         <p className="text-xs uppercase tracking-wider text-gray-400">When to sell (any that fire)</p>
                         <div className="flex flex-wrap items-center gap-2">
@@ -616,7 +616,7 @@ function Results({ run }) {
                 {' '}Skipped entries — no expiry in window: {s.skipped?.no_expiry}, return too low: {s.skipped?.low_return}, premium too small: {s.skipped?.low_premium ?? 0}, cash limit: {s.skipped?.capital}{s.skipped?.limit ? `, position limit: ${s.skipped.limit} days` : ''}{s.skipped?.trend ? `, below trend: ${s.skipped.trend}` : ''}.
             </p>
             <EquityChart run={run} />
-            <div className="grid lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Box title="By year">
                     <table className="w-full text-sm">
                         <thead><tr className="text-xs uppercase tracking-wider text-gray-400 border-b"><th className="text-left py-1">Year</th><th className="text-right">Return</th><th className="text-right">Max drawdown</th><th className="text-right">End value</th></tr></thead>

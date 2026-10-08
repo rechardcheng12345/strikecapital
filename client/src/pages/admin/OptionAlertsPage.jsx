@@ -55,7 +55,7 @@ function AlertFormModal({ isOpen, onClose, alert, onSaved }) {
                     <Input label="Tickers (comma or space separated)" value={form.tickers} onChange={set('tickers')} placeholder="SOXL, TSLA, NVDA" />
                     {tickers.length > 0 && <p className="mt-1 text-xs text-gray-500">{tickers.length} ticker(s): {tickers.join(' · ')}</p>}
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <Input label="Expiry from (days)" type="number" min={0} value={form.min_dte} onChange={set('min_dte')} />
                     <Input label="to (days)" type="number" min={0} value={form.max_dte} onChange={set('max_dte')} />
                     <Input label="Listed within (days)" type="number" min={1} value={form.listed_within_days} onChange={set('listed_within_days')} />
@@ -298,7 +298,7 @@ export function OptionAlertsPage() {
             )}
 
             {alerts.length > 0 && (
-                <div className="grid lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     <div className="space-y-2">
                         {alerts.map((a) => (
                             <button
@@ -316,7 +316,7 @@ export function OptionAlertsPage() {
                             </button>
                         ))}
                     </div>
-                    <div className="lg:col-span-3">
+                    <div className="min-w-0 lg:col-span-3">
                         {selectedId && (
                             <AlertDetail
                                 alertId={selectedId}

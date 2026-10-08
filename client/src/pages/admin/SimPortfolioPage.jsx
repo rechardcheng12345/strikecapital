@@ -107,7 +107,7 @@ function RollModal({ position, onClose }) {
                 <p className="text-sm text-gray-600">Buys the current put back and sells the new one, both at the live mid unless you type a price.</p>
                 <LiveQuote state={closeQ} label="Current put" />
                 <Input label="Buy-back price per share (blank = live mid)" type="number" step="0.01" min={0} value={form.close_price ?? ''} onChange={set('close_price')} placeholder={position.current_price != null ? `Last mark ${position.current_price}` : ''} />
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <Input label="New strike ($)" type="number" step="0.5" value={form.strike ?? ''} onChange={set('strike')} />
                     <Input label="New expiry" type="date" value={form.expiration_date ?? ''} onChange={set('expiration_date')} />
                     <Input label="Contracts" type="number" min={1} value={form.contracts ?? ''} onChange={set('contracts')} />
@@ -232,8 +232,8 @@ const td = 'px-2 py-2 text-right font-mono whitespace-nowrap';
 
 function Section({ title, children, action }) {
     return (
-        <section className="bg-white border border-ink/10 p-4">
-            <div className="flex items-center justify-between mb-3">
+        <section className="min-w-0 bg-white border border-ink/10 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">{title}</h2>
                 {action}
             </div>
@@ -339,7 +339,7 @@ export function SimPortfolioPage() {
                 </Table>
             </Section>
 
-            <div className="grid lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Section title="Trade stats">
                     <dl className="grid grid-cols-2 gap-y-2 text-sm">
                         <dt className="text-gray-500">Closed trades</dt><dd className="text-right font-semibold">{s.closed_trades}</dd>

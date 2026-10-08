@@ -216,3 +216,10 @@
 .prose i {
   @apply italic;
 }
+
+@media (max-width: 639px) {
+  /* Keep all fields legible and avoid iOS focus zoom, including fields using text-sm utilities. */
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+    font-size: 16px;
+  }
+}

@@ -23,7 +23,7 @@ function Tile({ label, value, sub, className = '' }) {
 
 function Section({ title, hint, children }) {
     return (
-        <Card className="rounded-none">
+        <Card className="rounded-none min-w-0">
             <CardHeader>
                 <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">{title}</h2>
                 {hint && <p className="text-xs text-gray-500 mt-0.5">{hint}</p>}
@@ -55,7 +55,7 @@ export function InvestorStatementPage() {
                 <p className="text-sm text-gray-500">{s.investor.email} · as of {s.as_of}{s.since ? ` · invested since ${s.since}` : ''}</p>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 min-[375px]:grid-cols-2 lg:grid-cols-4 gap-3">
                 <Tile label="Account value (if cashed out today)" value={money(s.value)} sub={`${money(s.invested)} net invested + ${money(s.realized)} realized + ${money(s.unrealized)} open`} />
                 <Tile label="Profit" value={money(s.profit)} className={sign(s.profit)} sub={`realized ${money(s.realized)} · open positions ${money(s.unrealized)}`} />
                 <Tile
@@ -136,7 +136,7 @@ export function InvestorStatementPage() {
                 )}
             </Section>
 
-            <div className="grid lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Section title="Realized by month">
                     <table className="w-full text-sm">
                         <tbody>

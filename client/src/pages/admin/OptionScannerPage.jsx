@@ -440,7 +440,7 @@ export function OptionScannerPage() {
                             ))}
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-x-5 gap-y-4 mb-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-x-5 gap-y-4 mb-5">
                         <div>
                             <label className="text-xs font-medium text-gray-500 block mb-1">Days to expiry</label>
                             <div className="flex items-center gap-2">
@@ -538,7 +538,7 @@ export function OptionScannerPage() {
 
             {scanResults && (
                 <div className="border border-line bg-white">
-                    <div className="px-5 py-3 border-b border-ink/10 flex items-center justify-between gap-4">
+                    <div className="px-5 py-3 border-b border-ink/10 flex flex-wrap items-center justify-between gap-4">
                         <h2 className="text-sm font-semibold text-ink uppercase tracking-wider whitespace-nowrap">
                             Results ({results.length} options found)
                             {scanning ? ' · scanning…' : ''}
