@@ -9,6 +9,7 @@ import { logAudit } from '../services/auditLogger.js';
 import { calculateCollateral, calculateBreakEven, calculateMaxProfit, calculateStockCollateral, calculateStockBreakEven, calculateProfitCapturedPct } from '../services/pnlEngine.js';
 import { notifyAllInvestors } from '../services/notificationEngine.js';
 import { refreshAllPrices } from '../services/priceService.js';
+import { syncBrokerTrades } from '../services/brokerTradeSync.js';
 import { insertAndFetch, updateAndFetch } from '../utils/dbHelpers.js';
 const router = Router();
 
@@ -163,10 +164,12 @@ router.get('/', authenticate, async (req, res, next) => {
 });
 // POST /refresh-prices — Refresh market prices for all open positions (admin only)
 router.post('/refresh-prices', authenticate, requireAdmin, async (req, res) => {
+    const sync = await syncBrokerTrades(req.user.id);
     const result = await refreshAllPrices();
     res.json({
         message: `Refreshed prices for ${result.prices.length} tickers, updated ${result.updated} positions`,
         ...result,
+        sync,
     });
 });
 // GET /:id — Get position detail with timeline

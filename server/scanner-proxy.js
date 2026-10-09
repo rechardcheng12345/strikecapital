@@ -12,6 +12,7 @@
 
 import express from 'express';
 import { scanPutOptions } from './src/services/scannerService.js';
+import { getTradeExecutions } from './src/services/moomooService.js';
 
 const app = express();
 app.use(express.json());
@@ -29,6 +30,15 @@ app.use((req, res, next) => {
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.post('/trade-executions', async (req, res) => {
+    if (!SECRET) return res.status(503).json({ error: 'Set SCANNER_PROXY_SECRET before exposing broker executions' });
+    try {
+        res.json(await getTradeExecutions(req.body?.beginDate));
+    } catch (error) {
+        res.status(503).json({ error: error.message });
+    }
 });
 
 app.post('/scan', async (req, res) => {

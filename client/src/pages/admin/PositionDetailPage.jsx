@@ -235,6 +235,7 @@ export function PositionDetailPage() {
             } else {
                 setRefreshLog(res.data);
                 queryClient.invalidateQueries({ queryKey: ['position', positionId] });
+                queryClient.invalidateQueries({ queryKey: ['positions'] });
                 refetch();
             }
         } catch (err) {
@@ -343,6 +344,12 @@ export function PositionDetailPage() {
                   <p className="text-red-600 text-sm">{refreshLog.error}</p>
                 ) : (
                   <div className="space-y-3">
+                    {refreshLog.sync && (
+                      <div className="text-sm space-y-1">
+                        {refreshLog.sync.error ? <p className="text-amber-700">Trade sync unavailable: {refreshLog.sync.error}</p> : <p>Broker sync: {refreshLog.sync.added} added, {refreshLog.sync.closed} closed.</p>}
+                        {refreshLog.sync.warnings?.map((warning, index) => <p key={index} className="text-amber-700">{warning}</p>)}
+                      </div>
+                    )}
                     <p className="text-sm text-gray-700">
                       Updated <span className="font-semibold">{refreshLog.updated}</span> position(s) from{' '}
                       <span className="font-semibold">{refreshLog.prices?.length || 0}</span> option quote(s).

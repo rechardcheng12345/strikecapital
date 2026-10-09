@@ -18,6 +18,7 @@ import net from 'net';
 import crypto from 'crypto';
 import protobuf from 'protobufjs';
 import Long from 'long';
+import { readTradeExecutions } from './tradeExecutions.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
@@ -68,6 +69,9 @@ async function loadProtos() {
         path.join(PROTO_DIR, 'Trd_Common.proto'),
         path.join(PROTO_DIR, 'Trd_GetAccList.proto'),
         path.join(PROTO_DIR, 'Trd_GetFunds.proto'),
+        path.join(PROTO_DIR, 'Trd_GetOrderFillList.proto'),
+        path.join(PROTO_DIR, 'Trd_GetPositionList.proto'),
+        path.join(PROTO_DIR, 'Trd_GetHistoryOrderFillList.proto'),
         path.join(PROTO_DIR, 'Trd_UnlockTrade.proto'),
         path.join(PROTO_DIR, 'Qot_RequestHistoryKL.proto'),
     ]);
@@ -949,6 +953,16 @@ app.get('/funds', async (req, res) => {
     } catch (err) {
         console.error('[ScannerProxy] /funds error:', err.message);
         res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/trade-executions', async (req, res) => {
+    try {
+        if (!SECRET) return res.status(503).json({ error: 'Set SCANNER_PROXY_SECRET before exposing broker executions' });
+        if (!(await ensureConnected())) throw new Error('Moomoo OpenD unavailable');
+        res.json(await readTradeExecutions({ root: protoRoot, sendRequest, Long, accountId: MOOMOO_ACCOUNT_ID, market: MOOMOO_TRD_MARKET, beginDate: req.body?.beginDate }));
+    } catch (error) {
+        res.status(503).json({ error: error.message });
     }
 });
 

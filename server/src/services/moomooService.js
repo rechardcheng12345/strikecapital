@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { env } from '../config/env.js';
 import { resolveExpiryCandidates, toCalendarDate } from './optionExpiry.js';
+import { readTradeExecutions } from '../../../scanner-proxy/tradeExecutions.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROTO_DIR = path.resolve(__dirname, '../../../node_modules/moomoo-api/proto');
@@ -39,9 +40,17 @@ async function loadProtos() {
         path.join(PROTO_DIR, 'Trd_Common.proto'),
         path.join(PROTO_DIR, 'Trd_GetAccList.proto'),
         path.join(PROTO_DIR, 'Trd_GetFunds.proto'),
+        path.join(PROTO_DIR, 'Trd_GetOrderFillList.proto'),
+        path.join(PROTO_DIR, 'Trd_GetPositionList.proto'),
+        path.join(PROTO_DIR, 'Trd_GetHistoryOrderFillList.proto'),
         path.join(PROTO_DIR, 'Trd_UnlockTrade.proto'),
     ]);
     return protoRoot;
+}
+
+export async function getTradeExecutions(beginDate) {
+    if (!(await ensureConnected())) throw new Error('Moomoo OpenD unavailable');
+    return readTradeExecutions({ root: protoRoot, sendRequest, Long, accountId: env.moomooAccountId, market: env.moomooTrdMarket, beginDate });
 }
 
 function packMessage(protoID, body) {

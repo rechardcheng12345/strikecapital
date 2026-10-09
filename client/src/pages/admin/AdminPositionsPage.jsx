@@ -64,7 +64,12 @@ export function AdminPositionsPage() {
                 toast.error(response.error);
                 return;
             }
-            const { updated, prices, source, unmatched = [] } = response.data;
+            const { updated, prices, source, unmatched = [], sync } = response.data;
+            if (sync?.error) toast.warning(`Trade sync unavailable: ${sync.error}`, { duration: 10000 });
+            else if (sync) {
+                toast.success(`Broker sync: ${sync.added} added, ${sync.closed} closed${sync.matched ? `, ${sync.matched} existing trades matched` : ''}`);
+                if (sync.warnings?.length) toast.warning(sync.warnings.join('; '), { duration: 15000 });
+            }
             const sourceLabel = source === 'moomoo' ? 'Live API' : source === 'cache' ? 'Cached' : '';
             toast.success(`Refreshed ${prices.length} contract${prices.length !== 1 ? 's' : ''}, updated ${updated} position${updated !== 1 ? 's' : ''}${sourceLabel ? ` (${sourceLabel})` : ''}`);
             if (unmatched.length > 0) {
@@ -72,6 +77,7 @@ export function AdminPositionsPage() {
                 toast.warning(`Could not match ${unmatched.length} position${unmatched.length !== 1 ? 's' : ''}: ${detail}`);
             }
             queryClient.invalidateQueries({ queryKey: ['positions'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
         },
         onError: () => {
             toast.error('Failed to refresh prices');
