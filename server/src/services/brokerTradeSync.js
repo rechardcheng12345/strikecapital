@@ -92,11 +92,27 @@ export async function syncBrokerTrades(userId, { database = db, fetchTrades = fe
                         events.push({ type: 'position_opened', position, message: `${group.qty} ${stock ? 'share(s)' : 'contract(s)'} opened at $${price.toFixed(3)} through broker sync.` });
                     }
                 } else {
+                    if (!candidates.length) {
+                        // Already closed by hand (e.g. resolved as Assigned): claim the fills once, change nothing.
+                        const claimed = new Set((await trx('broker_synced_fills').where({ action: 'closed' }).select('position_id')).map(r => r.position_id));
+                        const resolved = (await trx('positions').where({ status: 'RESOLVED', position_type: group.security.position_type }).whereNotNull('close_date'))
+                            .filter(p => matchesBrokerSecurity(p, group.security) && !claimed.has(p.id));
+                        if (resolved.length === 1) {
+                            await trx('broker_synced_fills').insert(group.fills.map(f => ({ account_id: feed.accountId, fill_id: String(f.fillId), position_id: resolved[0].id, action: 'closed' })));
+                            result.matched++;
+                            continue;
+                        }
+                    }
                     if (candidates.length !== 1) {
                         result.warnings.push(`${group.security.ticker}: closing trade has ${candidates.length} matching open positions; review manually`);
                         continue;
                     }
                     position = candidates[0];
+                    // A put closed at $0 is the assignment leg, not a buyback: booking it would count the whole premium as profit.
+                    if (position.position_type === 'option' && group.value === 0) {
+                        result.warnings.push(`${group.security.ticker}: put looks assigned; resolve it as Assigned (create stock position)`);
+                        continue;
+                    }
                     const openDate = position.open_date instanceof Date ? position.open_date.toISOString().slice(0, 10) : String(position.open_date).slice(0, 10);
                     const values = closingValues(position, group);
                     if (!values || brokerQuantity !== 0 || group.firstTime.slice(0, 10) < openDate) {

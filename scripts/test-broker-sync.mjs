@@ -36,11 +36,31 @@ try {
         result = await syncBrokerTrades(user.id, options);
         assert.equal(result.closed, 0);
         assert.equal(events.length, 2);
+        // Assignment: the broker closes the put leg at $0. Open → never booked as a buyback.
+        const assignedOpen = { fillId: '9000000000000011', orderId: '9000000000000012', code: 'QZZASG261106P95000', side: 2, qty: 1, price: 3.75, time: '2026-10-10 10:00:00', status: 0 };
+        feed.fills.push(assignedOpen);
+        feed.holdings = [{ code: assignedOpen.code, qty: 1, side: 1 }];
+        result = await syncBrokerTrades(user.id, options);
+        assert.equal(result.added, 1);
+        feed.fills.push({ ...assignedOpen, fillId: '9000000000000013', orderId: '9000000000000014', side: 1, price: 0, time: '2026-11-05 09:00:00' });
+        feed.holdings = [];
+        result = await syncBrokerTrades(user.id, options);
+        assert.equal(result.closed, 0);
+        assert.match(result.warnings.join(' '), /QZZASG: put looks assigned/);
+        const assignedPut = await trx('positions').where({ ticker: 'QZZASG' }).first();
+        assert.equal(assignedPut.status, 'OPEN');
+        // Resolved by hand as Assigned → the $0 leg is claimed once, silently, and the position is left as entered.
+        await trx('positions').where({ id: assignedPut.id }).update({ status: 'RESOLVED', resolution_type: 'assigned', close_date: '2026-11-05', realized_pnl: 375 });
+        result = await syncBrokerTrades(user.id, options);
+        assert.deepEqual([result.matched, result.closed, result.warnings], [1, 0, []]);
+        assert.equal((await trx('positions').where({ id: assignedPut.id }).first()).resolution_type, 'assigned');
+        result = await syncBrokerTrades(user.id, options);
+        assert.deepEqual([result.matched, result.warnings], [0, []]);
         const failure = await syncBrokerTrades(user.id, { ...options, fetchTrades: async () => { throw new Error('offline'); } });
         assert.equal(failure.error, 'offline');
         feed.accountId = '999';
         assert.match((await syncBrokerTrades(user.id, options)).error, /account changed/);
-        console.log('Broker sync integration passed: import, deduplication, partial close deferral, weighted full close, P&L record, notifications, offline, account isolation.');
+        console.log('Broker sync integration passed: import, deduplication, partial close deferral, weighted full close, P&L record, notifications, assignment leg (open and already resolved), offline, account isolation.');
         throw rollback;
     });
 } catch (error) {
