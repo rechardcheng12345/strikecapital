@@ -40,7 +40,7 @@ function discountRange(S, lowStrike, highStrike) {
  */
 export async function getRollWatchList() {
     const positions = await db('positions')
-        .where({ status: 'OPEN', position_type: 'option' })
+        .where({ status: 'OPEN', position_type: 'option', option_type: 'put' })
         .select('id', 'ticker', 'strike_price', 'premium_received', 'contracts', 'expiration_date', 'current_price', 'last_price_update');
     const symbols = [...new Set(positions.map(p => baseSymbol(p.ticker)))];
     const cached = symbols.length
@@ -91,6 +91,7 @@ export async function findRollCandidates(positionId, {
     const pos = await db('positions').where({ id: positionId }).first();
     if (!pos) return { error: 'Position not found', status: 404 };
     if (pos.position_type !== 'option') return { error: 'Only option positions can be rolled', status: 400 };
+    if (pos.option_type === 'call') return { error: 'Roll Finder covers puts only; roll a covered call with the Roll button', status: 400 };
     if (pos.status === 'RESOLVED') return { error: 'Position is already resolved', status: 400 };
 
     const ticker = baseSymbol(pos.ticker);

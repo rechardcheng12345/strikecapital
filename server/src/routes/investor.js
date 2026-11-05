@@ -4,7 +4,7 @@ import { authenticate } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { investorRealizedShare, investorUnrealizedShare, loadShareContext, returnSegments } from '../services/capitalAccountService.js';
 import { positionShareForInvestor, pctBeforeForRecord } from '../services/capitalAccount.js';
-import { calculateProfitCapturedPct } from '../services/pnlEngine.js';
+import { calculateProfitCapturedPct, calculateOptionDistancePct } from '../services/pnlEngine.js';
 const router = Router();
 // All investor routes require authentication
 router.use(authenticate);
@@ -146,8 +146,7 @@ router.get('/positions', async (req, res, next) => {
                 const sym = p.ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase();
                 const sp = stockPriceMap.get(sym);
                 if (sp && sp > 0) {
-                    const strike = parseFloat(p.strike_price);
-                    p.distance_to_strike = Math.round(((sp - strike) / sp) * 100 * 100) / 100;
+                    p.distance_to_strike = calculateOptionDistancePct(sp, p.strike_price, p.option_type);
                     p.stock_price = sp;
                 }
             }
@@ -189,8 +188,7 @@ router.get('/positions/:id', async (req, res, next) => {
             if (cached) {
                 const sp = parseFloat(cached.current_price);
                 if (sp > 0) {
-                    const strike = parseFloat(p.strike_price);
-                    p.distance_to_strike = Math.round(((sp - strike) / sp) * 100 * 100) / 100;
+                    p.distance_to_strike = calculateOptionDistancePct(sp, p.strike_price, p.option_type);
                     p.stock_price = sp;
                 }
             }

@@ -1,6 +1,7 @@
 import { db } from '../config/database.js';
 import { getOptionQuotes, getStockSnapshots, getZeroDteChain, getPutChain } from './moomooService.js';
 import { env } from '../config/env.js';
+import { calculateOptionDistancePct } from './pnlEngine.js';
 
 function baseSymbol(ticker) {
     return ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase();
@@ -262,7 +263,7 @@ export async function refreshAllPrices() {
                 .whereIn('status', ['OPEN', 'MONITORING'])
                 .where('position_type', 'option')
                 .whereNotNull('expiration_date')
-                .select('id', 'ticker', 'strike_price', 'expiration_date',
+                .select('id', 'ticker', 'option_type', 'strike_price', 'expiration_date',
                         'current_price', 'last_price_update', 'implied_volatility');
             stockPositions = await db('positions')
                 .whereIn('status', ['OPEN', 'MONITORING'])
@@ -406,10 +407,7 @@ async function updateFromQuotes(quotes, stockPriceMap) {
             console.warn(`[PriceService] Position update failed for ids ${ids}:`, err.message);
         }
 
-        const strike = parseFloat(quote.strike_price);
-        const distToStrike = stockPrice && stockPrice > 0
-            ? Math.round(((stockPrice - strike) / stockPrice) * 100 * 100) / 100
-            : null;
+        const distToStrike = calculateOptionDistancePct(stockPrice, quote.strike_price, quote.option_type);
 
         prices.push({
             ticker: quote.ticker,
@@ -439,9 +437,7 @@ function buildCacheResult(positions, stockPriceMap) {
         const symbol = baseSymbol(pos.ticker);
         const stockPrice = stockPriceMap.get(symbol) ?? null;
         const strike = parseFloat(pos.strike_price);
-        const distToStrike = stockPrice && stockPrice > 0
-            ? Math.round(((stockPrice - strike) / stockPrice) * 100 * 100) / 100
-            : null;
+        const distToStrike = calculateOptionDistancePct(stockPrice, strike, pos.option_type);
 
         prices.push({
             ticker: pos.ticker,

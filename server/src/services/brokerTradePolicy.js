@@ -4,11 +4,10 @@ export function parseBrokerSecurity(code) {
     const symbol = String(code || '').replace(/^US\./, '').toUpperCase();
     const option = symbol.match(/^([A-Z]+)(\d{6})([PC])(\d+)$/);
     if (option) {
-        if (option[3] !== 'P') return null;
         const expiry = `20${option[2].slice(0, 2)}-${option[2].slice(2, 4)}-${option[2].slice(4, 6)}`;
         const date = new Date(`${expiry}T12:00:00Z`);
         if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== expiry) return null;
-        return { ticker: option[1], position_type: 'option', strike_price: Number(option[4]) / 1000, expiration_date: expiry };
+        return { ticker: option[1], position_type: 'option', option_type: option[3] === 'C' ? 'call' : 'put', strike_price: Number(option[4]) / 1000, expiration_date: expiry };
     }
     if (/^[A-Z][A-Z.]{0,19}$/.test(symbol)) return { ticker: symbol, position_type: 'stock' };
     return null;
@@ -50,6 +49,7 @@ export function matchesBrokerSecurity(position, security) {
     const ticker = position.ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').toUpperCase();
     if (ticker !== security.ticker || position.position_type !== security.position_type) return false;
     if (security.position_type === 'stock') return true;
+    if ((position.option_type || 'put') !== (security.option_type || 'put')) return false;
     const expiry = position.expiration_date instanceof Date ? position.expiration_date.toISOString().slice(0, 10) : String(position.expiration_date).slice(0, 10);
     return Number(position.strike_price) === security.strike_price && expiry === security.expiration_date;
 }

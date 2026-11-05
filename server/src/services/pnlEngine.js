@@ -39,3 +39,28 @@ export function calculateProfitCapturedPct(premiumReceived, currentPrice, contra
     const costToClose = price * contracts * 100;
     return Math.round(((premium - costToClose) / premium) * 10000) / 100;
 }
+
+// ─── Covered calls ──────────────────────────────────────
+// A call is written against shares the fund already holds, so it ties up no extra cash (collateral 0).
+export function calculateCallBreakEven(strikePrice, premiumReceived, contracts, commission = 0, platformFee = 0) {
+    const netPremium = premiumReceived - commission - platformFee;
+    return strikePrice + netPremium / (contracts * 100);
+}
+// % the stock can move against the short option before it is in the money: positive = out of the money.
+// Put: stock falling to the strike. Call: stock rising to the strike.
+export function calculateOptionDistancePct(stockPrice, strikePrice, optionType = 'put') {
+    const s = Number(stockPrice);
+    const k = Number(strikePrice);
+    if (!(s > 0) || !(k > 0)) return null;
+    const pct = optionType === 'call' ? (k - s) / s : (s - k) / s;
+    return Math.round(pct * 10000) / 100;
+}
+// Shares sold at the strike when a call is exercised, and the stock leg's realized P&L.
+export function calculateCalledAway(strikePrice, contracts, costBasis) {
+    const shares = contracts * 100;
+    return { shares, proceeds: Math.round(strikePrice * shares * 100) / 100, realized_pnl: Math.round((strikePrice - costBasis) * shares * 100) / 100 };
+}
+// Shares of a stock position still free to cover a new call, given the open calls already written on it.
+export function uncoveredShares(stockShares, openCalls) {
+    return stockShares - openCalls.reduce((n, c) => n + Number(c.contracts) * 100, 0);
+}

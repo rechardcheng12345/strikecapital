@@ -5,6 +5,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Calculator, DollarSign, TrendingUp, Percent } from 'lucide-react';
 import { toast } from 'sonner';
 import { positionApi } from '../../api/client';
+import { useApiQuery } from '../../hooks/useApiQuery';
+import { baseTicker } from '../../lib/constants';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardHeader, CardBody } from '../../components/ui/Card';
@@ -13,7 +15,7 @@ function formatCurrency(value) {
 }
 export function AddPositionPage() {
     const navigate = useNavigate();
-    const [positionType, setPositionType] = useState('option');
+    const [positionType, setPositionType] = useState('option'); // 'option' (cash-secured put) | 'call' (covered call) | 'stock'
     const [positionStatus, setPositionStatus] = useState('OPEN');
     const { register, handleSubmit, watch, formState: { errors }, } = useForm({
         defaultValues: {
@@ -48,7 +50,8 @@ export function AddPositionPage() {
         const platformFee = parseFloat(values.platform_fee) || 0;
         const payload = {
             ticker: values.ticker.toUpperCase().trim(),
-            position_type: positionType,
+            position_type: positionType === 'stock' ? 'stock' : 'option',
+            option_type: positionType === 'call' ? 'call' : 'put',
             status: positionStatus,
             strike_price: strike,
             premium_received: premium,
@@ -72,19 +75,33 @@ export function AddPositionPage() {
     const watchPlatformFee = parseFloat(watch('platform_fee')) || 0;
     const totalFees = watchCommission + watchPlatformFee;
     const isStock = positionType === 'stock';
+    const isCall = positionType === 'call';
+    // A covered call needs no cash: the shares the fund holds are the cover
     const collateral = isStock
         ? watchStrike * watchContracts
-        : watchStrike * watchContracts * 100;
+        : isCall ? 0 : watchStrike * watchContracts * 100;
     const netPremium = watchPremium - totalFees;
     const breakEven = watchContracts > 0 && watchStrike > 0
         ? isStock
             ? watchStrike - (netPremium / watchContracts)
-            : watchStrike - (netPremium / (watchContracts * 100))
+            : isCall
+                ? watchStrike + (netPremium / (watchContracts * 100))
+                : watchStrike - (netPremium / (watchContracts * 100))
         : 0;
     const maxProfit = netPremium;
-    const returnOnCollateral = collateral > 0
-        ? (netPremium / collateral) * 100
-        : 0;
+    const returnOnCollateral = isCall
+        ? (watchStrike > 0 && watchContracts > 0 ? (netPremium / (watchStrike * watchContracts * 100)) * 100 : 0)
+        : collateral > 0 ? (netPremium / collateral) * 100 : 0;
+    // Shares on hand for the ticker (the server also subtracts calls already written on them)
+    const watchTicker = baseTicker(watch('ticker')).toUpperCase();
+    const { data: stockData } = useApiQuery({
+        queryKey: ['positions', 'open-stock'],
+        queryFn: () => positionApi.list(1, 100, 'OPEN', 'stock'),
+        enabled: isCall,
+    });
+    const sharesHeld = (stockData?.positions || [])
+        .filter((p) => baseTicker(p.ticker).toUpperCase() === watchTicker)
+        .reduce((n, p) => n + (Number(p.shares) || 0), 0);
     const hasCalcValues = watchStrike > 0 && watchContracts > 0;
     return (<div>
       {/* Header */}
@@ -106,7 +123,7 @@ export function AddPositionPage() {
           <Card className="rounded-none">
             <CardHeader className="bg-ink">
               <h2 className="text-lg font-semibold text-white" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                {isStock ? 'Stock Position Details' : 'Cash-Secured Put Details'}
+                {isStock ? 'Stock Position Details' : isCall ? 'Covered Call Details' : 'Cash-Secured Put Details'}
               </h2>
             </CardHeader>
             <CardBody>
@@ -118,12 +135,25 @@ export function AddPositionPage() {
             : 'border-line text-ink hover:border-ink/40'}`}>
                     Cash-Secured Put
                   </button>
+                  <button type="button" onClick={() => setPositionType('call')} className={`px-4 py-2 text-sm font-medium rounded-none border transition-colors ${positionType === 'call'
+            ? 'border-ink bg-ink text-white'
+            : 'border-line text-ink hover:border-ink/40'}`}>
+                    Covered Call
+                  </button>
                   <button type="button" onClick={() => setPositionType('stock')} className={`px-4 py-2 text-sm font-medium rounded-none border transition-colors ${positionType === 'stock'
             ? 'border-ink bg-ink text-white'
             : 'border-line text-ink hover:border-ink/40'}`}>
                     Stock Position
                   </button>
                 </div>
+
+                {isCall && (<p className={`-mt-1 mb-2 text-[13px] leading-relaxed ${!watchTicker || sharesHeld >= watchContracts * 100 ? 'text-muted' : 'text-red-700'}`}>
+                    {!watchTicker
+                ? 'A call sold against shares the fund already holds (100 shares per contract). Enter the ticker to check them.'
+                : sharesHeld > 0
+                    ? `The fund holds ${sharesHeld} ${watchTicker} shares${watchContracts ? ` — ${watchContracts * 100} needed for ${watchContracts} contract(s)` : ''}. No extra cash is set aside.`
+                    : `The fund holds no ${watchTicker} shares. Add the share position first, or sell a put instead.`}
+                  </p>)}
 
                 {/* Status Toggle */}
                 <div className="flex gap-2 mb-6">
@@ -226,15 +256,15 @@ export function AddPositionPage() {
                     </div>
                     <div>
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {isStock ? 'Total Cost' : 'Collateral Required'}
+                        {isStock ? 'Total Cost' : isCall ? 'Shares Covering It' : 'Collateral Required'}
                       </p>
                       <p className="text-xl font-bold text-ink font-mono">
-                        {formatCurrency(collateral)}
+                        {isCall ? `${watchContracts * 100} shares` : formatCurrency(collateral)}
                       </p>
                       <p className="text-xs text-gray-400">
                         {isStock
                 ? `${formatCurrency(watchStrike)} x ${watchContracts}`
-                : `${formatCurrency(watchStrike)} x ${watchContracts} x 100`}
+                : isCall ? 'Already held: no extra cash' : `${formatCurrency(watchStrike)} x ${watchContracts} x 100`}
                       </p>
                     </div>
                   </div>
@@ -252,7 +282,7 @@ export function AddPositionPage() {
                         {formatCurrency(breakEven)}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {isStock ? 'Cost Basis - (Premium / Shares)' : 'Strike - (Premium / Shares)'}
+                        {isStock ? 'Cost Basis - (Premium / Shares)' : isCall ? 'Strike + (Premium / Shares)' : 'Strike - (Premium / Shares)'}
                       </p>
                     </div>
                   </div>
@@ -302,13 +332,13 @@ export function AddPositionPage() {
                     </div>
                     <div>
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Return on Collateral
+                        {isCall ? 'Premium Yield' : 'Return on Collateral'}
                       </p>
                       <p className="text-xl font-bold text-accent font-mono">
                         {returnOnCollateral.toFixed(2)}%
                       </p>
                       <p className="text-xs text-gray-400">
-                        Premium / Collateral
+                        {isCall ? 'Premium / (Strike x Shares)' : 'Premium / Collateral'}
                       </p>
                     </div>
                   </div>

@@ -12,11 +12,21 @@ export const RESOLUTION_TYPE = {
     assigned: { label: 'Assigned', color: 'text-red-600' },
     bought_to_close: { label: 'Bought to close', color: 'text-ink/80' },
     sold: { label: 'Sold', color: 'text-ink/80' },
+    called_away: { label: 'Called away', color: 'text-ink/80' },
 };
 export const POSITION_TYPE = {
     option: { label: 'Cash-Secured Put', shortLabel: 'Option', color: 'bg-blue-100 text-blue-800' },
     stock: { label: 'Stock Position', shortLabel: 'Stock', color: 'bg-purple-100 text-purple-800' },
+    call: { label: 'Covered Call', shortLabel: 'Call', color: 'bg-blue-100 text-blue-800' },
 };
+/** 'put' | 'call' | 'stock' — options saved before covered calls existed are puts. */
+export const positionKind = (p) => (p?.position_type === 'stock' ? 'stock' : p?.option_type === 'call' ? 'call' : 'put');
+/** Full type label: Cash-Secured Put, Covered Call or Stock Position. */
+export const positionTypeLabel = (p) => POSITION_TYPE[positionKind(p) === 'put' ? 'option' : positionKind(p)].label;
+/** Short tag shown next to a ticker: PUT, CALL or STOCK. */
+export const positionTag = (p) => positionKind(p).toUpperCase();
+/** The underlying symbol, without a legacy " PUT" / " CALL" suffix. */
+export const baseTicker = (t) => String(t || '').replace(/\s+(PUT|CALL|P|C)$/i, '').trim();
 // Suggested take-profit level for short options: % of max profit (premium) captured
 export const PROFIT_TAKE_TARGET_PCT = 80;
 /**

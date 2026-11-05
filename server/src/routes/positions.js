@@ -6,12 +6,32 @@ import { requireAdmin } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { logAudit } from '../services/auditLogger.js';
-import { calculateCollateral, calculateBreakEven, calculateMaxProfit, calculateStockCollateral, calculateStockBreakEven, calculateProfitCapturedPct } from '../services/pnlEngine.js';
+import { calculateCollateral, calculateBreakEven, calculateMaxProfit, calculateStockCollateral, calculateStockBreakEven, calculateProfitCapturedPct, calculateCallBreakEven, calculateOptionDistancePct, calculateCalledAway, uncoveredShares } from '../services/pnlEngine.js';
 import { notifyAllInvestors } from '../services/notificationEngine.js';
 import { refreshAllPrices } from '../services/priceService.js';
 import { syncBrokerTrades } from '../services/brokerTradeSync.js';
 import { insertAndFetch, updateAndFetch } from '../utils/dbHelpers.js';
 const router = Router();
+
+const baseTicker = (ticker) => String(ticker || '').replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase();
+const optionLabel = (p) => (p.option_type === 'call' ? 'Covered Call' : 'Put');
+
+// The open share position that covers a new call: the requested one, else the first with enough uncovered shares.
+async function findCoverStock(ticker, contracts, preferredId, ignoreCallId = null) {
+    const base = baseTicker(ticker);
+    const stocks = (await db('positions').where({ position_type: 'stock' }).whereIn('status', ['OPEN', 'MONITORING']))
+        .filter((st) => baseTicker(st.ticker) === base && (!preferredId || st.id === preferredId));
+    const needed = contracts * 100;
+    let free = 0;
+    for (const st of stocks) {
+        const calls = await db('positions').where({ covers_position_id: st.id, option_type: 'call' }).whereIn('status', ['OPEN', 'MONITORING'])
+            .modify((q) => { if (ignoreCallId) q.whereNot('id', ignoreCallId); });
+        const left = uncoveredShares(st.shares, calls);
+        if (left >= needed) return st;
+        free += Math.max(left, 0);
+    }
+    throw new AppError(`A covered call on ${base} needs ${needed} shares the fund holds and has not already written calls on; ${free} available. Add the ${base} share position first.`, 400);
+}
 
 // Helper: compute unrealized P&L and distance_to_strike for a position
 // stockPriceMap is optional — if provided, uses it for distance_to_strike
@@ -36,8 +56,7 @@ function addComputedFields(pos, stockPriceMap) {
         const symbol = p.ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim().toUpperCase();
         const stockPrice = stockPriceMap.get(symbol);
         if (stockPrice && stockPrice > 0) {
-            const strike = parseFloat(p.strike_price);
-            p.distance_to_strike = Math.round(((stockPrice - strike) / stockPrice) * 100 * 100) / 100;
+            p.distance_to_strike = calculateOptionDistancePct(stockPrice, p.strike_price, p.option_type);
             p.stock_price = stockPrice;
         }
     }
@@ -68,6 +87,8 @@ async function loadStockPrices(positions) {
 const createPositionSchema = z.object({
     ticker: z.string().min(1, 'Ticker is required'),
     position_type: z.enum(['option', 'stock']).optional().default('option'),
+    option_type: z.enum(['put', 'call']).optional().default('put'),
+    covers_position_id: z.number().int().optional(),
     strike_price: z.number().positive('Strike price must be positive'),
     premium_received: z.number().min(0, 'Premium must be non-negative'),
     contracts: z.number().int().min(0).optional().default(1),
@@ -98,7 +119,7 @@ const updatePositionSchema = z.object({
     realized_pnl: z.number().optional(),
 });
 const resolvePositionSchema = z.object({
-    resolution_type: z.enum(['expired_worthless', 'assigned', 'bought_to_close', 'rolled', 'sold']),
+    resolution_type: z.enum(['expired_worthless', 'assigned', 'called_away', 'bought_to_close', 'rolled', 'sold']),
     close_premium: z.number().optional(),
     realized_pnl: z.number(),
     commission: z.number().min(0).optional(),
@@ -190,7 +211,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
 // POST / — Create position (admin only)
 router.post('/', authenticate, requireAdmin, validate(createPositionSchema), async (req, res, next) => {
     try {
-        const { ticker, position_type, strike_price, premium_received, contracts, expiration_date, open_date, implied_volatility, notes, shares, cost_basis, assigned_from_id, commission = 0, platform_fee = 0, status = 'OPEN', } = req.body;
+        const { ticker, position_type, option_type = 'put', covers_position_id, strike_price, premium_received, contracts, expiration_date, open_date, implied_volatility, notes, shares, cost_basis, assigned_from_id, commission = 0, platform_fee = 0, status = 'OPEN', } = req.body;
         let collateral, break_even, max_profit;
         if (position_type === 'stock') {
             const stockShares = shares || (contracts * 100);
@@ -229,13 +250,20 @@ router.post('/', authenticate, requireAdmin, validate(createPositionSchema), asy
             await notifyAllInvestors('position_opened', `New Stock Position: ${ticker.toUpperCase()} (${stockShares} shares)`, `Stock position opened at $${stockCostBasis.toFixed(2)} cost basis.`, { position_id: position.id });
             return res.status(201).json(position);
         }
-        // Default: option position
-        collateral = calculateCollateral(strike_price, contracts);
-        break_even = calculateBreakEven(strike_price, premium_received, contracts, commission, platform_fee);
+        // Default: option position — a cash-secured put, or a call covered by shares the fund holds
+        const isCall = option_type === 'call';
+        if (!expiration_date) throw new AppError('Expiration date is required', 400);
+        const cover = isCall ? await findCoverStock(ticker, contracts, covers_position_id) : null;
+        collateral = isCall ? 0 : calculateCollateral(strike_price, contracts);
+        break_even = isCall
+            ? calculateCallBreakEven(strike_price, premium_received, contracts, commission, platform_fee)
+            : calculateBreakEven(strike_price, premium_received, contracts, commission, platform_fee);
         max_profit = calculateMaxProfit(premium_received, commission, platform_fee);
         const position = await insertAndFetch('positions', {
             ticker: ticker.toUpperCase(),
             position_type: 'option',
+            option_type,
+            covers_position_id: cover?.id ?? null,
             strike_price,
             premium_received,
             commission,
@@ -259,7 +287,11 @@ router.post('/', authenticate, requireAdmin, validate(createPositionSchema), asy
             newValues: position,
             ipAddress: req.ip,
         });
-        await notifyAllInvestors('position_opened', `New Position: ${ticker.toUpperCase()} $${strike_price} Put`, `${contracts} contract(s) opened with $${premium_received.toFixed(2)} premium received.`, { position_id: position.id });
+        await notifyAllInvestors('position_opened', `New Position: ${baseTicker(ticker)} $${strike_price} ${optionLabel(position)}`,
+            isCall
+                ? `${contracts} call contract(s) written against ${contracts * 100} ${baseTicker(ticker)} shares the fund holds, $${premium_received.toFixed(2)} premium received.`
+                : `${contracts} contract(s) opened with $${premium_received.toFixed(2)} premium received.`,
+            { position_id: position.id });
         res.status(201).json(position);
     }
     catch (error) {
@@ -313,6 +345,9 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res, next) => {
         if (!['OPEN', 'MONITORING'].includes(position.status)) {
             throw new AppError('Only OPEN or MONITORING positions can be deleted', 400);
         }
+        if (await db('positions').where({ covers_position_id: id }).first()) {
+            throw new AppError('These shares are linked to a covered call; delete or resolve the call first', 400);
+        }
         await db('positions').where({ id }).del();
         await logAudit({
             userId: req.user.id,
@@ -340,10 +375,31 @@ router.post('/:id/resolve', authenticate, requireAdmin, validate(resolvePosition
         if (position.status === 'RESOLVED') {
             throw new AppError('Position is already resolved', 400);
         }
+        const isCall = position.position_type === 'option' && position.option_type === 'call';
+        // An exercised covered call is "called away" (the shares are sold at the strike), never "assigned"
+        const resolution = isCall && resolution_type === 'assigned' ? 'called_away' : resolution_type;
+        if (resolution === 'called_away' && !isCall) {
+            throw new AppError('Only a covered call can be called away', 400);
+        }
+        if (position.position_type === 'stock' && await db('positions').where({ covers_position_id: id, option_type: 'call' }).whereIn('status', ['OPEN', 'MONITORING']).first()) {
+            throw new AppError('A covered call is still open on these shares; buy it back or resolve it as called away first', 400);
+        }
+        let cover = null;
+        let calledAway = null;
+        if (resolution === 'called_away') {
+            cover = position.covers_position_id ? await db('positions').where({ id: position.covers_position_id }).first() : null;
+            if (!cover || !['OPEN', 'MONITORING'].includes(cover.status)) {
+                throw new AppError('The shares covering this call are no longer open', 400);
+            }
+            calledAway = calculateCalledAway(parseFloat(position.strike_price), position.contracts, parseFloat(cover.cost_basis));
+            if (cover.shares < calledAway.shares) {
+                throw new AppError(`The covering position holds ${cover.shares} shares; ${calledAway.shares} would be called away`, 400);
+            }
+        }
         const closeDate = new Date().toISOString().split('T')[0];
         const updateFields = {
             status: 'RESOLVED',
-            resolution_type,
+            resolution_type: resolution,
             close_premium: close_premium ?? null,
             close_date: closeDate,
             realized_pnl,
@@ -357,7 +413,7 @@ router.post('/:id/resolve', authenticate, requireAdmin, validate(resolvePosition
             pnl_amount: realized_pnl,
             pnl_type: 'realized',
             record_date: closeDate,
-            description: `Position resolved: ${resolution_type}`,
+            description: `Position resolved: ${resolution}`,
             created_by: req.user.id,
         });
         await logAudit({
@@ -366,12 +422,54 @@ router.post('/:id/resolve', authenticate, requireAdmin, validate(resolvePosition
             entityType: 'position',
             entityId: parseInt(id, 10),
             oldValues: { status: position.status },
-            newValues: { status: 'RESOLVED', resolution_type, realized_pnl, close_date: closeDate },
+            newValues: { status: 'RESOLVED', resolution_type: resolution, realized_pnl, close_date: closeDate },
             ipAddress: req.ip,
         });
-        await notifyAllInvestors('position_resolved', `Position Resolved: ${position.ticker} $${position.strike_price} Put`, `Resolution: ${resolution_type}. Realized P&L: $${realized_pnl.toFixed(2)}.`, { position_id: parseInt(id, 10), resolution_type, realized_pnl });
+        const what = position.position_type === 'stock' ? `${baseTicker(position.ticker)} shares` : `${baseTicker(position.ticker)} $${position.strike_price} ${optionLabel(position)}`;
+        await notifyAllInvestors('position_resolved', `Position Resolved: ${what}`, `Resolution: ${resolution.replace(/_/g, ' ')}. Realized P&L: $${realized_pnl.toFixed(2)}.`, { position_id: parseInt(id, 10), resolution_type: resolution, realized_pnl });
+        let soldStock = null;
+        if (calledAway) {
+            // Sell the covering shares at the strike: the whole position, or split off the part that was called
+            const sold = { status: 'RESOLVED', resolution_type: 'called_away', close_premium: parseFloat(position.strike_price), close_date: closeDate, realized_pnl: calledAway.realized_pnl };
+            if (cover.shares === calledAway.shares) {
+                soldStock = await updateAndFetch('positions', { id: cover.id }, sold);
+            }
+            else {
+                const left = cover.shares - calledAway.shares;
+                const costBasis = parseFloat(cover.cost_basis);
+                await db('positions').where({ id: cover.id }).update({ shares: left, collateral: calculateStockCollateral(left, costBasis) });
+                soldStock = await insertAndFetch('positions', {
+                    ticker: cover.ticker, position_type: 'stock', strike_price: cover.strike_price, premium_received: 0, contracts: 0,
+                    shares: calledAway.shares, cost_basis: cover.cost_basis, expiration_date: null, open_date: cover.open_date,
+                    collateral: calculateStockCollateral(calledAway.shares, costBasis), break_even: cover.break_even, max_profit: 0,
+                    assigned_from_id: cover.assigned_from_id, notes: `${calledAway.shares} of the shares in #${cover.id}, called away by call #${id}`,
+                    created_by: req.user.id, ...sold,
+                });
+            }
+            await db('positions').where({ id }).update({ assigned_to_id: soldStock.id });
+            await db('pnl_records').insert({
+                position_id: soldStock.id,
+                pnl_amount: calledAway.realized_pnl,
+                pnl_type: 'realized',
+                record_date: closeDate,
+                description: `Shares called away at $${position.strike_price} by call #${id}`,
+                created_by: req.user.id,
+            });
+            await logAudit({
+                userId: req.user.id,
+                action: 'position_called_away',
+                entityType: 'position',
+                entityId: soldStock.id,
+                oldValues: { position_id: cover.id, shares: cover.shares },
+                newValues: { call_id: parseInt(id, 10), shares_sold: calledAway.shares, price: parseFloat(position.strike_price), realized_pnl: calledAway.realized_pnl },
+                ipAddress: req.ip,
+            });
+            await notifyAllInvestors('position_resolved', `Called Away: ${baseTicker(position.ticker)} (${calledAway.shares} shares at $${position.strike_price})`,
+                `The covered call was exercised and ${calledAway.shares} shares were sold at $${position.strike_price}. Realized P&L on the shares: $${calledAway.realized_pnl.toFixed(2)}.`,
+                { position_id: soldStock.id, call_id: parseInt(id, 10) });
+        }
         let stockPosition = null;
-        if (resolution_type === 'assigned' && position.position_type !== 'stock') {
+        if (resolution === 'assigned' && position.position_type !== 'stock') {
             // Auto-create stock position from assignment
             const stockShares = position.contracts * 100;
             const stockCostBasis = parseFloat(position.strike_price);
@@ -401,7 +499,7 @@ router.post('/:id/resolve', authenticate, requireAdmin, validate(resolvePosition
                 .update({ assigned_to_id: stockPosition.id });
             await notifyAllInvestors('position_opened', `Assignment: ${position.ticker} Stock (${stockShares} shares)`, `Option assigned. Stock position created at $${stockCostBasis.toFixed(2)} cost basis.`, { position_id: stockPosition.id, assigned_from: parseInt(id, 10) });
         }
-        res.json({ position: updated, stock_position: stockPosition });
+        res.json({ position: updated, stock_position: stockPosition, called_away: soldStock });
     }
     catch (error) {
         next(error);
@@ -423,12 +521,19 @@ router.post('/:id/roll', authenticate, requireAdmin, validate(rollPositionSchema
             throw new AppError('Position is already resolved', 400);
         }
         const contracts = newContracts ?? oldPosition.contracts;
-        const collateral = calculateCollateral(strike_price, contracts);
-        const break_even = calculateBreakEven(strike_price, premium_received, contracts, commission, platform_fee);
+        const isCall = oldPosition.option_type === 'call';
+        // A rolled call stays covered by the same shares (checked again, in case the contract count grew)
+        const cover = isCall ? await findCoverStock(ticker || oldPosition.ticker, contracts, oldPosition.covers_position_id, oldPosition.id) : null;
+        const collateral = isCall ? 0 : calculateCollateral(strike_price, contracts);
+        const break_even = isCall
+            ? calculateCallBreakEven(strike_price, premium_received, contracts, commission, platform_fee)
+            : calculateBreakEven(strike_price, premium_received, contracts, commission, platform_fee);
         const max_profit = calculateMaxProfit(premium_received, commission, platform_fee);
         // Create new position
         const newPosition = await insertAndFetch('positions', {
             ticker: (ticker || oldPosition.ticker).toUpperCase(),
+            option_type: oldPosition.option_type || 'put',
+            covers_position_id: cover?.id ?? null,
             strike_price,
             premium_received,
             commission,

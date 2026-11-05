@@ -2,7 +2,7 @@ import { db } from '../config/database.js';
 import { env } from '../config/env.js';
 import { getTradeExecutions } from './moomooService.js';
 import { groupBrokerFills, matchesBrokerSecurity, closingValues, roundMoney, parseBrokerSecurity } from './brokerTradePolicy.js';
-import { calculateCollateral, calculateBreakEven, calculateMaxProfit, calculateStockCollateral } from './pnlEngine.js';
+import { calculateCollateral, calculateBreakEven, calculateMaxProfit, calculateStockCollateral, calculateCallBreakEven, uncoveredShares } from './pnlEngine.js';
 import { notifyAllInvestors } from './notificationEngine.js';
 
 function newYorkDate() {
@@ -73,6 +73,19 @@ export async function syncBrokerTrades(userId, { database = db, fetchTrades = fe
                             continue;
                         }
                         const stock = group.security.position_type === 'stock';
+                        const isCall = group.security.option_type === 'call';
+                        let coverId = null;
+                        if (isCall) {
+                            // A call is only imported as covered when the fund holds enough shares not already written against
+                            for (const st of positions.filter(p => p.position_type === 'stock' && matchesBrokerSecurity(p, { ticker: group.security.ticker, position_type: 'stock' }))) {
+                                const calls = await trx('positions').where({ covers_position_id: st.id, option_type: 'call' }).whereIn('status', ['OPEN', 'MONITORING']);
+                                if (uncoveredShares(st.shares, calls) >= group.qty * 100) { coverId = st.id; break; }
+                            }
+                            if (!coverId) {
+                                result.warnings.push(`${group.security.ticker}: call written without enough uncovered shares on the platform; add the share position, then refresh`);
+                                continue;
+                            }
+                        }
                         const price = group.value / group.qty;
                         const premium = stock ? 0 : roundMoney(group.value * 100);
                         const fields = {
@@ -82,8 +95,9 @@ export async function syncBrokerTrades(userId, { database = db, fetchTrades = fe
                             expiration_date: stock ? null : group.security.expiration_date,
                             open_date: group.firstTime.slice(0, 10), status: 'OPEN', created_by: userId,
                             commission: 0, platform_fee: 0,
-                            collateral: stock ? calculateStockCollateral(group.qty, price) : calculateCollateral(group.security.strike_price, group.qty),
-                            break_even: stock ? roundMoney(price) : calculateBreakEven(group.security.strike_price, premium, group.qty),
+                            covers_position_id: coverId,
+                            collateral: stock ? calculateStockCollateral(group.qty, price) : isCall ? 0 : calculateCollateral(group.security.strike_price, group.qty),
+                            break_even: stock ? roundMoney(price) : isCall ? calculateCallBreakEven(group.security.strike_price, premium, group.qty) : calculateBreakEven(group.security.strike_price, premium, group.qty),
                             max_profit: stock ? 0 : calculateMaxProfit(premium),
                             notes: 'Imported from Moomoo executions. Broker fees are not supplied by the execution API; enter fees manually.',
                         };
@@ -108,9 +122,11 @@ export async function syncBrokerTrades(userId, { database = db, fetchTrades = fe
                         continue;
                     }
                     position = candidates[0];
-                    // A put closed at $0 is the assignment leg, not a buyback: booking it would count the whole premium as profit.
+                    // An option closed at $0 is the exercise leg, not a buyback: booking it would count the whole premium as profit.
                     if (position.position_type === 'option' && group.value === 0) {
-                        result.warnings.push(`${group.security.ticker}: put looks assigned; resolve it as Assigned (create stock position)`);
+                        result.warnings.push(position.option_type === 'call'
+                            ? `${group.security.ticker}: covered call looks exercised; resolve it as Called away`
+                            : `${group.security.ticker}: put looks assigned; resolve it as Assigned (create stock position)`);
                         continue;
                     }
                     const openDate = position.open_date instanceof Date ? position.open_date.toISOString().slice(0, 10) : String(position.open_date).slice(0, 10);

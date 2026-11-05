@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Briefcase } from 'lucide-react';
 import { investorApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
 import { Button, Skeleton, ErrorAlert, EmptyState, ProfitCaptured, PageHeader } from '../../components/ui';
-import { POSITION_STATUS } from '../../lib/constants';
+import { POSITION_STATUS, positionTag } from '../../lib/constants';
 function formatCurrency(value) {
     const n = Number(value) || 0;
     return (n < 0 ? '−' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -83,7 +83,7 @@ export function InvestorPositionsPage() {
                       <td className="px-4 py-3.5 font-medium text-ink whitespace-nowrap">{String(pos.ticker).replace(/ PUT$/i, '')}</td>
                       <td className="px-4 py-3">
                         <span className="text-[11px] uppercase tracking-[0.1em] text-muted">
-                          {pos.position_type === 'stock' ? 'Stock' : 'Put'}
+                          {positionTag(pos)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-mono">{formatCurrency(pos.strike_price)}</td>

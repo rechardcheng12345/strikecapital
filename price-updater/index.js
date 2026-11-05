@@ -274,12 +274,12 @@ function findClosestExpiry(validDates, targetDate) {
     return closest;
 }
 
-async function getOptionChain(ticker, expiryDate) {
+async function getOptionChain(ticker, expiryDate, optionType = 2) { // 1 = call, 2 = put
     const ChainReq = protoRoot.lookupType('Qot_GetOptionChain.Request');
     const body = ChainReq.encode(ChainReq.create({
         c2s: {
             owner: { market: 11, code: ticker.toUpperCase() },
-            type: 2, // Put
+            type: optionType,
             beginTime: expiryDate,
             endTime: expiryDate,
         },
@@ -297,11 +297,12 @@ async function getOptionChain(ticker, expiryDate) {
     const options = [];
     for (const chain of (result.s2c?.optionChain || [])) {
         for (const opt of (chain.option || [])) {
-            if (opt.put?.basic?.security) {
+            const leg = optionType === 1 ? opt.call : opt.put;
+            if (leg?.basic?.security) {
                 options.push({
-                    code: opt.put.basic.security.code,
-                    market: opt.put.basic.security.market,
-                    strikePrice: opt.put.optionExData?.strikePrice ?? 0,
+                    code: leg.basic.security.code,
+                    market: leg.basic.security.market,
+                    strikePrice: leg.optionExData?.strikePrice ?? 0,
                 });
             }
         }
@@ -542,7 +543,7 @@ async function refreshPrices() {
         .whereIn('status', ['OPEN', 'MONITORING'])
         .where('position_type', 'option')
         .whereNotNull('expiration_date')
-        .select('id', 'ticker', 'strike_price', 'expiration_date');
+        .select('id', 'ticker', 'option_type', 'strike_price', 'expiration_date');
 
     if (positions.length === 0) {
         log('No active option positions found');
@@ -575,9 +576,11 @@ async function refreshPrices() {
             log(`No valid expiry near ${rawExpiry} for ${symbol}`, 'WARN');
             continue;
         }
-        const key = `${symbol}|${expiry}`;
+        // Puts and covered calls on the same expiry are different contracts: one chain request per side
+        const type = pos.option_type === 'call' ? 1 : 2;
+        const key = `${symbol}|${expiry}|${type}`;
         if (!groups.has(key)) {
-            groups.set(key, { ticker: symbol, expiry, positions: [] });
+            groups.set(key, { ticker: symbol, expiry, type, positions: [] });
         }
         groups.get(key).positions.push({ ...pos, resolvedExpiry: expiry });
     }
@@ -587,7 +590,7 @@ async function refreshPrices() {
     const optionMap = new Map(); // code -> { ticker, strike_price, expiration_date, positionIds: [] }
 
     for (const [, group] of groups) {
-        const chain = await getOptionChain(group.ticker, group.expiry);
+        const chain = await getOptionChain(group.ticker, group.expiry, group.type);
         for (const pos of group.positions) {
             const strike = parseFloat(pos.strike_price);
             const match = chain.find(opt => Math.abs(opt.strikePrice - strike) < 0.01);

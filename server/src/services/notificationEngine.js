@@ -51,7 +51,7 @@ export async function checkExpiryAlerts() {
             const expiringPositions = await db('positions')
                 .where('status', 'OPEN')
                 .where('expiration_date', dateStr)
-                .select('id', 'ticker', 'strike_price', 'expiration_date');
+                .select('id', 'ticker', 'option_type', 'strike_price', 'expiration_date');
             for (const pos of expiringPositions) {
                 // Check if alert already sent
                 const existing = await db('notifications')
@@ -60,7 +60,7 @@ export async function checkExpiryAlerts() {
                     .whereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.threshold')) = ?", [threshold.label])
                     .first();
                 if (!existing) {
-                    await notifyAllInvestors('expiry_alert', `Expiry Alert: ${pos.ticker} $${pos.strike_price} Put`, `Position expires in ${threshold.label} (${pos.expiration_date})`, { position_id: pos.id, threshold: threshold.label });
+                    await notifyAllInvestors('expiry_alert', `Expiry Alert: ${pos.ticker} $${pos.strike_price} ${pos.option_type === 'call' ? 'Covered Call' : 'Put'}`, `Position expires in ${threshold.label} (${pos.expiration_date})`, { position_id: pos.id, threshold: threshold.label });
                 }
             }
         }

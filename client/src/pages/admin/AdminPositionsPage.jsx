@@ -5,7 +5,7 @@ import { TrendingUp, Plus, ChevronLeft, ChevronRight, Trash2, RefreshCw } from '
 import { toast } from 'sonner';
 import { positionApi } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
-import { POSITION_STATUS } from '../../lib/constants';
+import { POSITION_STATUS, positionTag } from '../../lib/constants';
 import { Button } from '../../components/ui/Button';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
@@ -195,7 +195,7 @@ export function AdminPositionsPage() {
                     <td className="px-2 py-3 font-medium text-ink whitespace-nowrap">
                       {String(pos.ticker).replace(/ PUT$/i, '')}
                       <span className="ml-1.5 text-[10.5px] uppercase tracking-[0.1em] text-muted">
-                        {pos.position_type === 'stock' ? 'Stock' : 'Put'}
+                        {positionTag(pos)}
                       </span>
                     </td>
                     <td className="px-2 py-2.5 text-right font-mono">{formatCurrency(pos.strike_price)}</td>

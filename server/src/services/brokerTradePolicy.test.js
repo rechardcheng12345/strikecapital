@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { parseBrokerSecurity, groupBrokerFills, closingValues, matchesBrokerSecurity } from './brokerTradePolicy.js';
 
 const fill = (id, qty, price, extra = {}) => ({ fillId: id, orderId: 'order1', code: 'AAPL261016P200000', side: 2, qty, price, time: '2026-10-09 10:00:00', status: 0, ...extra });
-test('parses broker puts and stocks and rejects calls or invalid expiration dates', () => {
-    assert.deepEqual(parseBrokerSecurity('US.AAPL261016P200000'), { ticker: 'AAPL', position_type: 'option', strike_price: 200, expiration_date: '2026-10-16' });
-    assert.equal(parseBrokerSecurity('AAPL261016C200000'), null);
+test('parses broker puts, calls and stocks and rejects invalid expiration dates', () => {
+    assert.deepEqual(parseBrokerSecurity('US.AAPL261016P200000'), { ticker: 'AAPL', position_type: 'option', option_type: 'put', strike_price: 200, expiration_date: '2026-10-16' });
+    assert.deepEqual(parseBrokerSecurity('AAPL261016C200000'), { ticker: 'AAPL', position_type: 'option', option_type: 'call', strike_price: 200, expiration_date: '2026-10-16' });
     assert.equal(parseBrokerSecurity('AAPL260231P200000'), null);
     assert.equal(parseBrokerSecurity('BRK.B').position_type, 'stock');
 });
@@ -31,4 +31,12 @@ test('corrected executions stop sync and unsupported short stocks are skipped', 
     const result = groupBrokerFills([fill('1', 1, 2, { code: 'AAPL', side: 3 })]);
     assert.equal(result.groups.length, 0);
     assert.equal(result.warnings.length, 1);
+});
+test('a call never matches the put with the same strike and expiry', () => {
+    const put = { ticker: 'SOXL PUT', position_type: 'option', option_type: 'put', strike_price: '80.00', expiration_date: '2026-12-18' };
+    assert.ok(matchesBrokerSecurity(put, parseBrokerSecurity('SOXL261218P80000')));
+    assert.equal(matchesBrokerSecurity(put, parseBrokerSecurity('SOXL261218C80000')), false);
+    assert.ok(matchesBrokerSecurity({ ...put, ticker: 'SOXL', option_type: 'call' }, parseBrokerSecurity('SOXL261218C80000')));
+    // Positions saved before option_type existed are puts
+    assert.ok(matchesBrokerSecurity({ ...put, option_type: undefined }, parseBrokerSecurity('SOXL261218P80000')));
 });

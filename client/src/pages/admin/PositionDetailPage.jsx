@@ -6,7 +6,7 @@ import { RollFinderModal } from './RollFinderModal';
 import { rollPrefillFromCandidate } from './rollPrefill';
 import { positionApi, investorApi, } from '../../api/client';
 import { useApiQuery } from '../../hooks/useApiQuery';
-import { POSITION_STATUS, RESOLUTION_TYPE, POSITION_TYPE, formatDateTime, PROFIT_TAKE_TARGET_PCT, takeProfitPrice } from '../../lib/constants';
+import { POSITION_STATUS, RESOLUTION_TYPE, POSITION_TYPE, formatDateTime, PROFIT_TAKE_TARGET_PCT, takeProfitPrice, positionKind, positionTypeLabel } from '../../lib/constants';
 import { Button, Input, Card, CardHeader, CardBody, Badge, Modal, ErrorAlert, Skeleton, ProfitCaptured, } from '../../components/ui';
 // ─── Helpers ───────────────────────────────────────────
 function formatCurrency(value) {
@@ -266,13 +266,13 @@ export function PositionDetailPage() {
               <h1 className="font-display text-[34px] md:text-[42px] leading-[1.05] text-ink">
                 {position.position_type === 'stock'
                 ? <>{position.ticker} <span className="!font-light text-ink/60">shares</span></>
-                : <>{String(position.ticker).replace(/ PUT$/i, '')} <span className="!font-light text-ink/60">${Number(position.strike_price).toFixed(Number(position.strike_price) % 1 ? 2 : 0)} put</span></>}
+                : <>{String(position.ticker).replace(/ PUT$/i, '')} <span className="!font-light text-ink/60">${Number(position.strike_price).toFixed(Number(position.strike_price) % 1 ? 2 : 0)} {positionKind(position) === 'call' ? 'covered call' : 'put'}</span></>}
               </h1>
               <Badge variant={statusBadgeVariant(position.status)}>
                 {POSITION_STATUS[position.status]?.label ?? position.status}
               </Badge>
               <Badge variant={position.position_type === 'stock' ? 'blue' : 'gray'}>
-                {POSITION_TYPE[position.position_type]?.shortLabel || 'Option'}
+                {POSITION_TYPE[positionKind(position) === 'put' ? 'option' : positionKind(position)].shortLabel}
               </Badge>
             </div>
             {position.position_type !== 'stock' && position.expiration_date && (<div className="flex items-center gap-2 text-sm text-gray-500">
@@ -305,7 +305,7 @@ export function PositionDetailPage() {
                   <RefreshCw className="w-4 h-4 mr-1.5"/>
                   Roll
                 </Button>)}
-              {isAdmin && position.status !== 'RESOLVED' && position.position_type !== 'stock' && (<Button variant="outline" size="sm" onClick={() => setRollFinderOpen(true)}>
+              {isAdmin && position.status !== 'RESOLVED' && positionKind(position) === 'put' && (<Button variant="outline" size="sm" onClick={() => setRollFinderOpen(true)}>
                   <Repeat className="w-4 h-4 mr-1.5"/>
                   Find Rolls
                 </Button>)}
@@ -416,10 +416,14 @@ export function PositionDetailPage() {
                 <RiskMetric label="Current price" value={position.current_price != null ? formatCurrency(position.current_price) : '--'}/>
                 <RiskMetric label="Unrealized P&L" value={position.unrealized_pnl != null ? formatCurrency(position.unrealized_pnl) : '--'} tone={position.unrealized_pnl == null ? null : position.unrealized_pnl < 0 ? 'text-red-600' : 'text-green-600'}/>
                 <RiskMetric label="Profit captured" value={<ProfitCaptured pct={position.profit_captured_pct} premium={position.premium_received} contracts={position.contracts}/>} highlight={position.profit_captured_pct != null && position.profit_captured_pct >= PROFIT_TAKE_TARGET_PCT}/>
-                <RiskMetric label="Collateral" value={formatCurrency(position.collateral)}/>
+                {positionKind(position) === 'call'
+                    ? <RiskMetric label="Covered by" value={`${position.contracts * 100} shares`}/>
+                    : <RiskMetric label="Collateral" value={formatCurrency(position.collateral)}/>}
                 <RiskMetric label="Break-even" value={formatCurrency(position.break_even)}/>
                 <RiskMetric label="Max profit" value={formatCurrency(position.max_profit)}/>
-                <RiskMetric label="Return on collateral" value={position.collateral > 0 ? formatPercent((position.max_profit / position.collateral) * 100) : '--'} highlight={position.collateral > 0 && (position.max_profit / position.collateral) * 100 > 3}/>
+                {positionKind(position) === 'call'
+                    ? <RiskMetric label="Yield on shares" value={formatPercent((position.max_profit / (position.strike_price * position.contracts * 100)) * 100)}/>
+                    : <RiskMetric label="Return on collateral" value={position.collateral > 0 ? formatPercent((position.max_profit / position.collateral) * 100) : '--'} highlight={position.collateral > 0 && (position.max_profit / position.collateral) * 100 > 3}/>}
               </>)}
           </div>
           {position.last_price_update && (
@@ -436,7 +440,7 @@ export function PositionDetailPage() {
             <CardBody>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-4">
                 <DetailRow label="Ticker" value={position.ticker}/>
-                <DetailRow label="Type" value={POSITION_TYPE[position.position_type]?.label || 'Option'}/>
+                <DetailRow label="Type" value={positionTypeLabel(position)}/>
                 {position.position_type === 'stock' ? (<>
                     <DetailRow label="Shares" value={position.shares?.toLocaleString()}/>
                     <DetailRow label="Cost basis" value={formatCurrency(position.cost_basis)}/>
@@ -498,7 +502,7 @@ export function PositionDetailPage() {
             </Card>)}
 
           {/* ─── Rolled from / to links ────────────────── */}
-          {(position.rolled_from_id || position.rolled_to_id || position.assigned_from_id || position.assigned_to_id) && (<Card className="rounded-none border border-blue-200 bg-blue-50/30">
+          {(position.rolled_from_id || position.rolled_to_id || position.assigned_from_id || position.assigned_to_id || position.covers_position_id) && (<Card className="rounded-none border border-blue-200 bg-blue-50/30">
               <CardBody>
                 <div className="flex flex-col sm:flex-row gap-4">
                   {position.rolled_from_id && (<div className="flex items-center gap-2 text-sm">
@@ -515,6 +519,13 @@ export function PositionDetailPage() {
                         Position #{position.rolled_to_id}
                       </Link>
                     </div>)}
+                  {position.covers_position_id && (<div className="flex items-center gap-2 text-sm">
+                      <ExternalLink className="w-4 h-4 text-purple-600"/>
+                      <span className="text-gray-500">Covered by shares:</span>
+                      <Link to={`${isAdmin ? '/admin' : ''}/positions/${position.covers_position_id}`} className="font-medium text-purple-600 hover:text-purple-800 underline">
+                        Position #{position.covers_position_id}
+                      </Link>
+                    </div>)}
                   {position.assigned_from_id && (<div className="flex items-center gap-2 text-sm">
                       <ExternalLink className="w-4 h-4 text-purple-600"/>
                       <span className="text-gray-500">Assigned from option:</span>
@@ -524,7 +535,7 @@ export function PositionDetailPage() {
                     </div>)}
                   {position.assigned_to_id && (<div className="flex items-center gap-2 text-sm">
                       <ExternalLink className="w-4 h-4 text-purple-600"/>
-                      <span className="text-gray-500">Assigned to stock:</span>
+                      <span className="text-gray-500">{positionKind(position) === 'call' ? 'Shares called away:' : 'Assigned to stock:'}</span>
                       <Link to={`${isAdmin ? '/admin' : ''}/positions/${position.assigned_to_id}`} className="font-medium text-purple-600 hover:text-purple-800 underline">
                         Position #{position.assigned_to_id}
                       </Link>
@@ -552,12 +563,19 @@ export function PositionDetailPage() {
                 ...f,
                 resolution_type: e.target.value,
             }))} className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                  {position.position_type === 'stock' ? (<option value="sold">Sold</option>) : (<>
+                  {position.position_type === 'stock' ? (<option value="sold">Sold</option>) : positionKind(position) === 'call' ? (<>
+                      <option value="expired_worthless">Expired Worthless</option>
+                      <option value="called_away">Called Away (Sells the Covering Shares)</option>
+                      <option value="bought_to_close">Bought to Close</option>
+                    </>) : (<>
                       <option value="expired_worthless">Expired Worthless</option>
                       <option value="assigned">Assigned (Creates Stock Position)</option>
                       <option value="bought_to_close">Bought to Close</option>
                     </>)}
                 </select>
+                {resolveForm.resolution_type === 'called_away' && (<p className="mt-2 text-[12.5px] leading-relaxed text-muted">
+                    You keep the premium below. {position.contracts * 100} shares from position #{position.covers_position_id} are sold at ${Number(position.strike_price).toFixed(2)}, and their gain or loss against cost is recorded on the shares.
+                  </p>)}
               </div>
 
               <Input label="Realized P&L ($)" type="number" step="0.01" value={resolveForm.realized_pnl ?? ''} onChange={(e) => setResolveForm((f) => ({
