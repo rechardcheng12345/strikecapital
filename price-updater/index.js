@@ -351,12 +351,11 @@ async function fetchYahooPrice(symbol) {
 }
 
 async function refreshStockPrices() {
-    // Get unique base symbols from active option positions
+    // Unique base symbols from active option positions and share positions (e.g. from an assignment)
     const positions = await db('positions')
         .whereIn('status', ['OPEN', 'MONITORING'])
-        .where('position_type', 'option')
-        .whereNotNull('expiration_date')
-        .select('ticker', 'strike_price');
+        .where(q => q.where(o => o.where('position_type', 'option').whereNotNull('expiration_date')).orWhere('position_type', 'stock'))
+        .select('id', 'ticker', 'strike_price', 'position_type');
 
     const symbolMap = new Map(); // symbol -> [positions]
     for (const pos of positions) {
@@ -397,6 +396,15 @@ async function refreshStockPrices() {
             }
         } catch (err) {
             log(`Cache update failed for stock ${symbol}: ${err.message}`, 'WARN');
+        }
+
+        // Share positions are marked at the stock price itself
+        for (const pos of posList.filter(p => p.position_type === 'stock')) {
+            try {
+                await db('positions').where({ id: pos.id }).update({ current_price: stockPrice, last_price_update: now });
+            } catch (err) {
+                log(`Price update failed for stock position ${pos.id}: ${err.message}`, 'WARN');
+            }
         }
 
         log(`  ${symbol} stock price: $${stockPrice.toFixed(2)} (prev close: $${prevClose?.toFixed(2) ?? 'N/A'})`);

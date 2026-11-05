@@ -379,7 +379,7 @@ router.post('/:id/resolve', authenticate, requireAdmin, validate(resolvePosition
             const stockCollateral = calculateStockCollateral(stockShares, stockCostBasis);
             const stockBreakEven = calculateStockBreakEven(stockCostBasis, originalPremium, stockShares);
             stockPosition = await insertAndFetch('positions', {
-                ticker: position.ticker,
+                ticker: position.ticker.replace(/\s+(PUT|CALL|P|C)$/i, '').trim(), // the shares, not the option
                 position_type: 'stock',
                 strike_price: stockCostBasis,
                 premium_received: 0,
