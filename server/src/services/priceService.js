@@ -256,6 +256,7 @@ export async function refreshAllPrices() {
     try {
         // Single DB call upfront — includes current_price so the cache fallback needs no second query
         let positions;
+        let stockPositions;
         try {
             positions = await db('positions')
                 .whereIn('status', ['OPEN', 'MONITORING'])
@@ -263,16 +264,20 @@ export async function refreshAllPrices() {
                 .whereNotNull('expiration_date')
                 .select('id', 'ticker', 'strike_price', 'expiration_date',
                         'current_price', 'last_price_update', 'implied_volatility');
+            stockPositions = await db('positions')
+                .whereIn('status', ['OPEN', 'MONITORING'])
+                .where('position_type', 'stock')
+                .select('id', 'ticker');
         } catch (err) {
             console.warn('[PriceService] Failed to load positions from DB:', err.message);
             return { updated: 0, prices: [], source: 'error', stockPrices: {} };
         }
 
-        if (positions.length === 0) {
+        if (positions.length === 0 && stockPositions.length === 0) {
             return { updated: 0, prices: [], source: 'none', stockPrices: {} };
         }
 
-        const symbols = [...new Set(positions.map(p => baseSymbol(p.ticker)))];
+        const symbols = [...new Set([...positions, ...stockPositions].map(p => baseSymbol(p.ticker)))];
 
         // Stock prices (Yahoo Finance) — failure is non-fatal
         let stockPriceMap = new Map();
@@ -280,6 +285,23 @@ export async function refreshAllPrices() {
             stockPriceMap = await refreshStockPrices(symbols);
         } catch (err) {
             console.warn('[PriceService] Stock price refresh failed:', err.message);
+        }
+
+        // Share positions (e.g. from an assignment) are marked at the stock price itself
+        let stockUpdated = 0;
+        const now = new Date();
+        for (const sp of stockPositions) {
+            const price = stockPriceMap.get(baseSymbol(sp.ticker));
+            if (!(price > 0)) continue;
+            try {
+                await db('positions').where({ id: sp.id }).update({ current_price: price, last_price_update: now });
+                stockUpdated++;
+            } catch (err) {
+                console.warn(`[PriceService] Stock position ${sp.id} price update failed:`, err.message);
+            }
+        }
+        if (positions.length === 0) {
+            return { updated: stockUpdated, prices: [], source: 'yahoo', stockPrices: Object.fromEntries(stockPriceMap), unmatched: [] };
         }
 
         // Option prices (Moomoo OpenD) — failure is non-fatal, falls back to existing DB prices
@@ -306,6 +328,7 @@ export async function refreshAllPrices() {
         }
 
         result.stockPrices = Object.fromEntries(stockPriceMap);
+        result.updated = (result.updated || 0) + stockUpdated;
         if (quotes.length > 0) {
             const quotedIds = new Set();
             for (const q of quotes) {

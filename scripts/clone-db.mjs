@@ -11,6 +11,8 @@ import mysql from 'mysql2/promise';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const [sourceFile = '.env', targetFile = '.env.staging'] = process.argv.slice(2);
 const BATCH = 500;
+// CLONE_SKIP=table1,table2 copies those tables' structure but not their rows (e.g. the large bt_option_bars)
+const SKIP = new Set((process.env.CLONE_SKIP || '').split(',').map(t => t.trim()).filter(Boolean));
 
 function loadDb(file) {
     const full = path.resolve(root, file);
@@ -48,7 +50,7 @@ try {
         const [[{ 'Create Table': ddl }]] = await s.query(`SHOW CREATE TABLE \`${t}\``);
         await d.query(ddl);
 
-        const [rows] = await s.query(`SELECT * FROM \`${t}\``);
+        const [rows] = SKIP.has(t) ? [[]] : await s.query(`SELECT * FROM \`${t}\``);
         for (let i = 0; i < rows.length; i += BATCH) {
             const chunk = rows.slice(i, i + BATCH);
             const cols = Object.keys(chunk[0]);
@@ -69,7 +71,7 @@ try {
 
     // Row-count check
     let mismatch = 0;
-    for (const { t } of tables) {
+    for (const { t } of tables.filter(({ t }) => !SKIP.has(t))) {
         const [[a]] = await s.query(`SELECT COUNT(*) n FROM \`${t}\``);
         const [[b]] = await d.query(`SELECT COUNT(*) n FROM \`${t}\``);
         if (String(a.n) !== String(b.n)) { mismatch++; console.error(`  MISMATCH ${t}: ${a.n} vs ${b.n}`); }
