@@ -133,6 +133,13 @@ function ReconciliationPanel() {
                                         <p className="font-semibold text-ink">{formatCurrency(recon.terms.grossFundValue)}</p>
                                         <p className="text-[9px] text-gray-400">TA − MV</p>
                                     </div>
+                                    {recon.terms.openStockCost > 0 && (
+                                        <div>
+                                            <p className="text-[10px] text-gray-400 uppercase">Open Shares Cost</p>
+                                            <p className="font-semibold text-ink">{formatCurrency(recon.terms.openStockCost)}</p>
+                                            <p className="text-[9px] text-gray-400">added back — inside MV</p>
+                                        </div>
+                                    )}
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase">Fund Capital</p>
                                         <p className="font-semibold text-ink">{formatCurrency(recon.terms.totalCapital)}</p>
@@ -358,7 +365,7 @@ export function AccountFundsPage() {
                                     Earnings Analysis
                                 </h3>
                                 <span className="ml-auto text-[10px] text-gray-400 uppercase tracking-wider hidden sm:block">
-                                    (Total Assets − Mkt Value) − Capital − Premium − Realized P&L
+                                    (Total Assets − Options Mkt Value) − Capital − Premium − Realized − Share P&L
                                 </span>
                             </div>
                             <div className="p-5 space-y-4">
@@ -370,7 +377,7 @@ export function AccountFundsPage() {
                                             {formatCurrency(funds.grossFundValue ?? funds.totalAssets)}
                                         </p>
                                         <p className="text-[10px] text-gray-400 mt-0.5">
-                                            {formatCurrency(funds.totalAssets)} − ({formatCurrency(funds.marketVal ?? 0)})
+                                            {formatCurrency(funds.totalAssets)} − ({formatCurrency(funds.optionsMarketVal ?? funds.marketVal ?? 0)})
                                         </p>
                                     </div>
                                     <div className="text-center">
@@ -398,14 +405,22 @@ export function AccountFundsPage() {
                                 </div>
                                 {/* Market value detail row */}
                                 <div className="border-t border-gray-100 pt-3 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center">
-                                    <div>
-                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Total Assets</p>
-                                        <p className="text-sm font-semibold text-ink">{formatCurrency(funds.totalAssets)}</p>
-                                    </div>
+                                    {funds.stockCost > 0 ? (
+                                        <div>
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Shares Held</p>
+                                            <p className="text-sm font-semibold text-ink">{formatCurrency(funds.stockValue)}</p>
+                                            <p className={`text-[10px] ${plColor(funds.stockUnrealized)}`}>cost {formatCurrency(funds.stockCost)} · {formatCurrency(funds.stockUnrealized)}</p>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Total Assets</p>
+                                            <p className="text-sm font-semibold text-ink">{formatCurrency(funds.totalAssets)}</p>
+                                        </div>
+                                    )}
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase tracking-wider">Options Mkt Value</p>
-                                        <p className={`text-sm font-semibold ${plColor(funds.marketVal ?? 0)}`}>{formatCurrency(funds.marketVal ?? 0)}</p>
-                                        <p className="text-[10px] text-gray-400">current obligation</p>
+                                        <p className={`text-sm font-semibold ${plColor(funds.optionsMarketVal ?? funds.marketVal ?? 0)}`}>{formatCurrency(funds.optionsMarketVal ?? funds.marketVal ?? 0)}</p>
+                                        <p className="text-[10px] text-gray-400">current obligation{funds.stockCost > 0 ? ', shares excluded' : ''}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase tracking-wider">Open Premium (net)</p>
@@ -415,7 +430,7 @@ export function AccountFundsPage() {
                                     <div>
                                         <p className="text-[10px] text-gray-400 uppercase tracking-wider">Unrealized P&L</p>
                                         <p className={`text-sm font-semibold ${plColor(funds.dbUnrealizedPnl ?? 0)}`}>{formatCurrency(funds.dbUnrealizedPnl ?? 0)}</p>
-                                        <p className="text-[10px] text-gray-400">premium + mkt value</p>
+                                        <p className="text-[10px] text-gray-400">premium + options mkt value{funds.stockCost > 0 ? ' + share P&L' : ''}</p>
                                     </div>
                                 </div>
                             </div>

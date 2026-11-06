@@ -26,7 +26,7 @@ function Utilization({ pct }) {
         <span className="absolute -translate-x-1/2" style={{ left: '80%' }}>80%</span>
         <span className="absolute right-0">100%</span>
       </div>
-      <p className="mt-4 text-[12.5px] text-muted leading-relaxed">Collateral held for open puts, against contributed capital plus realized P&L.</p>
+      <p className="mt-4 text-[12.5px] text-muted leading-relaxed">Collateral held for open puts plus the cost of shares held, against contributed capital plus realized P&L.</p>
     </div>);
 }
 

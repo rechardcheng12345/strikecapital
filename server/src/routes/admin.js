@@ -24,6 +24,22 @@ import { allocationPctFromInvested } from '../services/capitalAccount.js';
 const router = Router();
 // All admin routes require authentication + admin role
 router.use(authenticate, requireAdmin);
+// Open share positions: cash spent on them (shares × cost basis) and their value at the stored price
+// (cost when unpriced). Moomoo's market value includes the shares, so the cash they cost has to be
+// added back before the leftover is treated as interest / other income.
+async function openStockHoldings() {
+    const rows = await db('positions').where({ status: 'OPEN', position_type: 'stock' }).select('shares', 'cost_basis', 'current_price');
+    let cost = 0;
+    let value = 0;
+    for (const r of rows) {
+        const shares = Number(r.shares) || 0;
+        const c = shares * (parseFloat(r.cost_basis) || 0);
+        cost += c;
+        value += r.current_price != null ? shares * parseFloat(r.current_price) : c;
+    }
+    return { cost: Math.round(cost * 100) / 100, value: Math.round(value * 100) / 100 };
+}
+
 // ─── Dashboard ───────────────────────────────────────────────
 router.get('/dashboard/stats', async (req, res, next) => {
     try {
@@ -105,9 +121,11 @@ router.get('/dashboard/stats', async (req, res, next) => {
             }
         }
 
+        // Total assets − market value is the broker's cash; the cash spent on open shares is added back.
+        const { cost: open_stock_cost } = await openStockHoldings();
         const gross_fund_value = account_balance !== null ? account_balance - cached_market_val : null;
         const additional_earnings = (gross_fund_value !== null && totalCapital > 0)
-            ? Math.round((gross_fund_value - totalCapital - open_premium_collected - total_realized_pnl) * 100) / 100
+            ? Math.round((gross_fund_value + open_stock_cost - totalCapital - open_premium_collected - total_realized_pnl) * 100) / 100
             : null;
 
         let lastMove = null;
@@ -933,17 +951,22 @@ async function getEarningsEnrichment(totalAssets, marketVal = 0) {
         }
     }
 
-    // For cash-secured puts, Moomoo's marketVal is negative (current obligation on short options).
-    // Gross Fund Value = Total Assets - Market Value (strips out options obligation from balance).
-    // Additional Earnings = Gross Fund Value - Fund Capital - Premium Collected - Realized P&L
+    // Moomoo's marketVal = short options (negative, the current obligation) + held shares (positive).
+    // The shares are split out at our stored price, so the rest is the options obligation.
+    // Gross Fund Value = Total Assets − Options Mkt Value (cash + shares at market).
+    // Additional Earnings = Gross Fund Value − Fund Capital − Premium Collected − Realized P&L − Share P&L
+    // (equivalently: Total Assets − Market Value + share cost − …, so it does not depend on the share price).
     const mv = parseFloat(marketVal) || 0;
-    const grossFundValue = totalAssets - mv;
+    const stock = await openStockHoldings();
+    const stockUnrealized = stock.value - stock.cost;
+    const optionsMarketVal = mv - stock.value;
+    const grossFundValue = totalAssets - optionsMarketVal;
     const additionalEarnings = (totalCapital > 0 && totalAssets > 0)
-        ? Math.round((grossFundValue - totalCapital - openPremiumCollected - dbRealizedPnl) * 100) / 100
+        ? Math.round((grossFundValue - totalCapital - openPremiumCollected - dbRealizedPnl - stockUnrealized) * 100) / 100
         : null;
 
-    // dbUnrealizedPnl = openPremiumCollected + marketVal (net unrealized = premium - cost to close)
-    const dbUnrealizedPnl = Math.round((openPremiumCollected + mv) * 100) / 100;
+    // Unrealized = option premium − cost to close + share P&L
+    const dbUnrealizedPnl = Math.round((openPremiumCollected + optionsMarketVal + stockUnrealized) * 100) / 100;
 
     return {
         totalCapital: Math.round(totalCapital * 100) / 100,
@@ -951,6 +974,10 @@ async function getEarningsEnrichment(totalAssets, marketVal = 0) {
         dbUnrealizedPnl,
         openPremiumCollected: Math.round(openPremiumCollected * 100) / 100,
         marketVal: Math.round(mv * 100) / 100,
+        optionsMarketVal: Math.round(optionsMarketVal * 100) / 100,
+        stockCost: stock.cost,
+        stockValue: stock.value,
+        stockUnrealized: Math.round(stockUnrealized * 100) / 100,
         grossFundValue: Math.round(grossFundValue * 100) / 100,
         additionalEarnings,
     };
@@ -1191,12 +1218,13 @@ router.get('/earnings/reconciliation', async (req, res, next) => {
             pnlDetail.reduce((s, r) => s + r.pnl_amount - r.commission - r.platform_fee, 0) * 100
         ) / 100;
 
-        // Formula terms
+        // Formula terms — cash spent on open shares is added back (it sits in Moomoo's market value)
+        const { cost: openStockCost } = await openStockHoldings();
         const additionalEarningsGross = Math.round(
-            (grossFundValue - totalCapital - openPremiumNet - realizedGross) * 100
+            (grossFundValue + openStockCost - totalCapital - openPremiumNet - realizedGross) * 100
         ) / 100;
         const additionalEarningsNet = Math.round(
-            (grossFundValue - totalCapital - openPremiumNet - realizedNetFees) * 100
+            (grossFundValue + openStockCost - totalCapital - openPremiumNet - realizedNetFees) * 100
         ) / 100;
 
         // Group by position_id to spot duplicate P&L rows on the same position
@@ -1228,6 +1256,7 @@ router.get('/earnings/reconciliation', async (req, res, next) => {
                 totalAssets: Math.round(totalAssets * 100) / 100,
                 marketVal: Math.round(marketVal * 100) / 100,
                 grossFundValue: Math.round(grossFundValue * 100) / 100,
+                openStockCost,
                 totalCapital: Math.round(totalCapital * 100) / 100,
                 openPremiumNet,
                 realizedGross,
